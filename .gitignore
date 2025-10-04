@@ -1,0 +1,42 @@
+# Fichiers Python compilés
+__pycache__/
+*.py[cod]
+*.so
+
+# Environnement virtuel
+venv/
+env/
+
+# Fichiers de base de données SQLite
+*.sqlite3
+
+# Fichiers sensibles
+*.env
+.env
+
+# Fichiers de logs
+*.log
+
+# Caches et fichiers temporaires
+*.pot
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.mo
+
+# Dossier de migrations (optionnel si tu veux les recréer)
+*/migrations/__pycache__/
+*/migrations/*.py
+
+# Dossier statique généré
+staticfiles/
+media/
+
+# Fichiers IDE (VSCode, PyCharm…)
+.vscode/
+.idea/
+
+# Fichiers système
+.DS_Store
+Thumbs.db
