@@ -1,0 +1,490 @@
+{% extends 'base.html' %}
+
+{% block title %}Tableau de bord - Enseignant{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- En-tête moderne avec gradient -->
+    <div class="dashboard-header mb-5">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-4 fw-bold text-gradient mb-2">
+                    <i class="fas fa-chalkboard-teacher me-3"></i>
+                    Tableau de bord Enseignant
+                </h1>
+                <p class="lead text-muted">Gérez vos tests et suivez les performances de vos étudiants</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="{% url 'evaluation:create_test' %}" class="btn btn-primary btn-lg pulse-button">
+                    <i class="fas fa-plus-circle me-2"></i>
+                    Nouveau Test
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques avec cartes gradient -->
+    <div class="row mb-5">
+        <div class="col-md-3 mb-4">
+            <div class="stat-card-modern bg-gradient-blue">
+                <div class="stat-icon-modern">
+                    <i class="fas fa-clipboard-list fa-3x"></i>
+                </div>
+                <div class="stat-content">
+                    <h2 class="stat-number">{{ stats.total_tests }}</h2>
+                    <p class="stat-label mb-0">Tests créés</p>
+                </div>
+                <div class="stat-decoration"></div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-4">
+            <div class="stat-card-modern bg-gradient-purple">
+                <div class="stat-icon-modern">
+                    <i class="fas fa-question-circle fa-3x"></i>
+                </div>
+                <div class="stat-content">
+                    <h2 class="stat-number">{{ stats.total_questions }}</h2>
+                    <p class="stat-label mb-0">Questions</p>
+                </div>
+                <div class="stat-decoration"></div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-4">
+            <div class="stat-card-modern bg-gradient-green">
+                <div class="stat-icon-modern">
+                    <i class="fas fa-file-alt fa-3x"></i>
+                </div>
+                <div class="stat-content">
+                    <h2 class="stat-number">{{ stats.total_submissions }}</h2>
+                    <p class="stat-label mb-0">Soumissions</p>
+                </div>
+                <div class="stat-decoration"></div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-4">
+            <div class="stat-card-modern bg-gradient-orange">
+                <div class="stat-icon-modern">
+                    <i class="fas fa-chart-line fa-3x"></i>
+                </div>
+                <div class="stat-content">
+                    <h2 class="stat-number">{{ stats.avg_score|floatformat:1 }}%</h2>
+                    <p class="stat-label mb-0">Score moyen</p>
+                </div>
+                <div class="stat-decoration"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des Tests avec design moderne -->
+    <div class="card modern-card shadow-lg border-0">
+        <div class="card-header bg-white border-0 py-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="mb-0 fw-bold">
+                    <i class="fas fa-list text-primary me-2"></i>
+                    Mes Tests
+                </h4>
+                <span class="badge bg-primary rounded-pill px-3 py-2">
+                    {{ tests|length }} test(s)
+                </span>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if tests %}
+                <div class="table-responsive">
+                    <table class="table table-hover modern-table mb-0">
+                        <thead>
+                            <tr>
+                                <th class="border-0 bg-light">
+                                    <i class="fas fa-heading text-muted me-2"></i>
+                                    Titre
+                                </th>
+                                <th class="border-0 bg-light text-center">
+                                    <i class="fas fa-book text-muted me-2"></i>
+                                    Matière
+                                </th>
+                                <th class="border-0 bg-light text-center">
+                                    <i class="fas fa-question text-muted me-2"></i>
+                                    Questions
+                                </th>
+                                <th class="border-0 bg-light text-center">
+                                    <i class="fas fa-users text-muted me-2"></i>
+                                    Soumissions
+                                </th>
+                                <th class="border-0 bg-light text-center">
+                                    <i class="fas fa-toggle-on text-muted me-2"></i>
+                                    Statut
+                                </th>
+                                <th class="border-0 bg-light">
+                                    <i class="far fa-calendar text-muted me-2"></i>
+                                    Date
+                                </th>
+                                <th class="border-0 bg-light text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for test in tests %}
+                            <tr class="table-row-hover">
+                                <td class="align-middle">
+                                    <div class="d-flex align-items-center">
+                                        <div class="test-icon me-3">
+                                            <i class="fas fa-clipboard-list"></i>
+                                        </div>
+                                        <div>
+                                            <strong class="d-block">{{ test.title }}</strong>
+                                            {% if test.ai_enabled %}
+                                                <span class="badge bg-gradient-ai mt-1">
+                                                    <i class="fas fa-brain"></i> IA
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="align-middle text-center">
+                                    <span class="badge bg-info rounded-pill">{{ test.subject }}</span>
+                                </td>
+                                <td class="align-middle text-center">
+                                    <span class="badge bg-light text-dark">
+                                        {{ test.questions.count }}
+                                    </span>
+                                </td>
+                                <td class="align-middle text-center">
+                                    <span class="badge bg-light text-dark">
+                                        {{ test.submission_count }}
+                                    </span>
+                                </td>
+                                <td class="align-middle text-center">
+                                    {% if test.status == 'published' %}
+                                        <span class="badge bg-success-soft text-success px-3 py-2">
+                                            <i class="fas fa-check-circle me-1"></i>Publié
+                                        </span>
+                                    {% elif test.status == 'draft' %}
+                                        <span class="badge bg-warning-soft text-warning px-3 py-2">
+                                            <i class="fas fa-edit me-1"></i>Brouillon
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-soft text-secondary px-3 py-2">
+                                            <i class="fas fa-archive me-1"></i>Archivé
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="align-middle">
+                                    <small class="text-muted">
+                                        <i class="far fa-calendar-alt me-1"></i>
+                                        {{ test.created_at|date:"d/m/Y" }}
+                                    </small>
+                                </td>
+                                <td class="align-middle text-center">
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'evaluation:edit_test' test.id %}" 
+                                           class="btn btn-sm btn-outline-primary rounded-start" 
+                                           data-bs-toggle="tooltip" 
+                                           title="Modifier">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'evaluation:add_question' test.id %}" 
+                                           class="btn btn-sm btn-outline-success" 
+                                           data-bs-toggle="tooltip" 
+                                           title="Ajouter question">
+                                            <i class="fas fa-plus"></i>
+                                        </a>
+                                        <a href="{% url 'evaluation:test_statistics' test.id %}" 
+                                           class="btn btn-sm btn-outline-info rounded-end" 
+                                           data-bs-toggle="tooltip" 
+                                           title="Statistiques">
+                                            <i class="fas fa-chart-bar"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="empty-state text-center py-5">
+                    <div class="empty-state-icon mb-4">
+                        <i class="fas fa-inbox fa-4x text-muted"></i>
+                    </div>
+                    <h5 class="text-muted mb-3">Aucun test créé pour le moment</h5>
+                    <p class="text-secondary mb-4">Commencez par créer votre premier test pour vos étudiants</p>
+                    <a href="{% url 'evaluation:create_test' %}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-plus-circle me-2"></i>
+                        Créer mon premier test
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tests avec IA (si disponibles) -->
+    {% if recent_ai_tests %}
+    <div class="card modern-card shadow-lg border-0 mt-5">
+        <div class="card-header bg-gradient-ai text-white py-4">
+            <h4 class="mb-0">
+                <i class="fas fa-brain me-2"></i>
+                Tests avec IA Activée
+            </h4>
+        </div>
+        <div class="card-body p-4">
+            <div class="row g-4">
+                {% for test in recent_ai_tests %}
+                <div class="col-md-4">
+                    <div class="ai-test-card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title fw-bold">{{ test.title }}</h5>
+                            <p class="card-text text-muted">{{ test.description|truncatewords:15 }}</p>
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <small class="text-muted">
+                                    <i class="fas fa-users me-1"></i>
+                                    {{ test.submission_count }} soumission(s)
+                                </small>
+                                <a href="{% url 'evaluation:test_statistics' test.id %}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    Voir les stats
+                                    <i class="fas fa-arrow-right ms-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.dashboard-header {
+    background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+    padding: 2.5rem;
+    border-radius: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.dashboard-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(102,126,234,0.1) 0%, transparent 70%);
+    border-radius: 50%;
+}
+
+.text-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.pulse-button {
+    animation: pulse 2s infinite;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+}
+
+/* Cartes statistiques modernes */
+.stat-card-modern {
+    position: relative;
+    padding: 2rem;
+    border-radius: 20px;
+    color: white;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    height: 100%;
+}
+
+.stat-card-modern:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+}
+
+.stat-icon-modern {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.2;
+}
+
+.stat-content {
+    position: relative;
+    z-index: 2;
+}
+
+.stat-number {
+    font-size: 3rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+.stat-label {
+    font-size: 1rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.9;
+}
+
+.stat-decoration {
+    position: absolute;
+    bottom: -30px;
+    left: -30px;
+    width: 150px;
+    height: 150px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+}
+
+/* Gradients colorés */
+.bg-gradient-blue {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.bg-gradient-purple {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.bg-gradient-green {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+}
+
+.bg-gradient-orange {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.bg-gradient-ai {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+/* Cartes modernes */
+.modern-card {
+    border-radius: 20px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.modern-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15) !important;
+}
+
+.modern-table {
+    font-size: 0.95rem;
+}
+
+.modern-table thead th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    padding: 1rem;
+}
+
+.modern-table tbody td {
+    padding: 1.25rem 1rem;
+    vertical-align: middle;
+}
+
+.table-row-hover {
+    transition: all 0.3s ease;
+}
+
+.table-row-hover:hover {
+    background: linear-gradient(90deg, rgba(102,126,234,0.05) 0%, rgba(118,75,162,0.05) 100%);
+    transform: scale(1.01);
+}
+
+.test-icon {
+    width: 45px;
+    height: 45px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.bg-success-soft {
+    background-color: #d4edda !important;
+}
+
+.bg-warning-soft {
+    background-color: #fff3cd !important;
+}
+
+.bg-secondary-soft {
+    background-color: #e2e3e5 !important;
+}
+
+/* État vide */
+.empty-state-icon {
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-20px);
+    }
+}
+
+/* Cartes IA */
+.ai-test-card {
+    border: 2px solid #e9ecef;
+    border-radius: 15px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.ai-test-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.ai-test-card:hover {
+    border-color: #4facfe;
+    box-shadow: 0 10px 25px rgba(79, 172, 254, 0.2);
+    transform: translateY(-5px);
+}
+</style>
+
+<script>
+// Initialiser les tooltips Bootstrap
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

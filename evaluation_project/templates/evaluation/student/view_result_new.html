@@ -1,0 +1,449 @@
+{% extends 'base.html' %}
+
+{% block title %}Résultat - {{ result.test.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .result-hero {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 60px 0;
+        border-radius: 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+    }
+    
+    .score-circle {
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        margin: 0 auto 30px;
+    }
+    
+    .score-circle h1 {
+        font-size: 3.5rem;
+        font-weight: 700;
+        margin: 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    .stat-box {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        text-align: center;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        transition: transform 0.3s ease;
+        margin-bottom: 20px;
+    }
+    
+    .stat-box:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+    
+    .stat-box h3 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+    
+    .ai-card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        margin-bottom: 25px;
+    }
+    
+    .ai-card-header {
+        padding: 20px 30px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+        font-size: 1.2rem;
+    }
+    
+    .ai-card-body {
+        padding: 30px;
+    }
+    
+    .skill-badge {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin: 5px;
+    }
+    
+    .skill-expert {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+    }
+    
+    .skill-competent {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+    
+    .skill-developing {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        color: white;
+    }
+    
+    .skill-beginner {
+        background: linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%);
+        color: white;
+    }
+    
+    .recommendation-item {
+        background: #f8f9fa;
+        border-left: 4px solid #667eea;
+        padding: 15px 20px;
+        margin-bottom: 15px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    
+    .recommendation-item:hover {
+        background: #e7f1ff;
+        transform: translateX(5px);
+    }
+    
+    .priority-badge {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    
+    .priority-high {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .priority-medium {
+        background: #ffc107;
+        color: #000;
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.6s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .progress-ring {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+    }
+    
+    .checkmark-icon {
+        font-size: 4rem;
+        animation: scaleIn 0.5s ease-out;
+    }
+    
+    @keyframes scaleIn {
+        from {
+            transform: scale(0);
+        }
+        to {
+            transform: scale(1);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    <!-- Hero Section avec Score -->
+    <div class="result-hero">
+        <div class="container text-center">
+            {% if result.percentage_score >= result.test.passing_score %}
+                <div class="checkmark-icon mb-4">
+                    <i class="fas fa-trophy text-warning"></i>
+                </div>
+                <h1 class="display-4 fw-bold mb-3">Félicitations !</h1>
+                <p class="lead">Vous avez réussi le test avec succès</p>
+            {% else %}
+                <div class="checkmark-icon mb-4">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h1 class="display-4 fw-bold mb-3">Continuez vos efforts !</h1>
+                <p class="lead">Chaque test est une opportunité d'apprendre</p>
+            {% endif %}
+            
+            <div class="score-circle mt-4">
+                <h1>{{ result.percentage_score|floatformat:0 }}%</h1>
+                <p class="text-muted mb-0" style="color: #666 !important;">{{ result.total_score|floatformat:1 }}/{{ test.total_points|floatformat:1 }} pts</p>
+            </div>
+            
+            <h3 class="mt-3">{{ result.test.title }}</h3>
+        </div>
+    </div>
+
+    <!-- Statistiques Rapides -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-box">
+                <i class="fas fa-percent text-primary mb-2" style="font-size: 2rem;"></i>
+                <h3 class="text-primary">{{ result.percentage_score|floatformat:1 }}%</h3>
+                <p class="text-muted mb-0">Score final</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-box">
+                <i class="fas fa-check-circle text-success mb-2" style="font-size: 2rem;"></i>
+                <h3 class="text-success">{{ result.total_score|floatformat:1 }}</h3>
+                <p class="text-muted mb-0">Points obtenus</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-box">
+                <i class="fas fa-medal text-warning mb-2" style="font-size: 2rem;"></i>
+                <h3 class="text-warning">{{ result.grade }}</h3>
+                <p class="text-muted mb-0">Note attribuée</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-box">
+                {% if result.percentage_score >= result.test.passing_score %}
+                    <i class="fas fa-trophy text-success mb-2" style="font-size: 2rem;"></i>
+                    <h3 class="text-success">Réussi</h3>
+                {% else %}
+                    <i class="fas fa-redo text-info mb-2" style="font-size: 2rem;"></i>
+                    <h3 class="text-info">À refaire</h3>
+                {% endif %}
+                <p class="text-muted mb-0">Statut ({{ result.test.passing_score }}% requis)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analyse IA Détaillée -->
+    {% if result.ai_analysis %}
+    <div class="ai-card">
+        <div class="ai-card-header">
+            <i class="fas fa-brain me-2"></i>Analyse Intelligente de votre Performance
+        </div>
+        <div class="ai-card-body">
+            <!-- Feedback Global -->
+            <div class="alert alert-info border-0" style="background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);">
+                <h5 class="alert-heading">
+                    <i class="fas fa-comment-dots me-2"></i>Analyse Globale
+                </h5>
+                <p class="mb-0">{{ result.ai_analysis.overall_feedback|safe }}</p>
+            </div>
+
+            <!-- Encouragement -->
+            {% if result.ai_analysis.encouragement %}
+            <div class="alert alert-success border-0" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);">
+                <h5 class="alert-heading">
+                    <i class="fas fa-smile-beam me-2"></i>Message de Motivation
+                </h5>
+                <p class="mb-0">{{ result.ai_analysis.encouragement|safe }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Maîtrise des Compétences -->
+            {% if result.ai_analysis.skill_mastery %}
+            <h5 class="mt-4 mb-3">
+                <i class="fas fa-chart-pie me-2"></i>Niveau de Maîtrise par Compétence
+            </h5>
+            <div class="row">
+                {% for skill, data in result.ai_analysis.skill_mastery.items %}
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">{{ skill }}</h6>
+                                <span class="skill-badge skill-{{ data.level|lower }}">{{ data.level }}</span>
+                            </div>
+                            <div class="progress" style="height: 25px;">
+                                <div class="progress-bar 
+                                    {% if data.percentage >= 90 %}bg-success
+                                    {% elif data.percentage >= 70 %}bg-info
+                                    {% elif data.percentage >= 50 %}bg-warning
+                                    {% else %}bg-danger{% endif %}"
+                                    style="width: {{ data.percentage }}%">
+                                    {{ data.percentage|floatformat:0 }}%
+                                </div>
+                            </div>
+                            <small class="text-muted">
+                                {{ data.correct }}/{{ data.total }} questions correctes 
+                                | {{ data.points_earned|floatformat:1 }}/{{ data.points_possible|floatformat:1 }} points
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="row mt-4">
+                <!-- Points Forts -->
+                <div class="col-md-6">
+                    {% if result.ai_analysis.strengths %}
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-success text-white border-0">
+                            <i class="fas fa-star me-2"></i>Vos Points Forts
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled">
+                                {% for strength in result.ai_analysis.strengths %}
+                                <li class="mb-3">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    {{ strength|safe }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Lacunes -->
+                <div class="col-md-6">
+                    {% if result.ai_analysis.weaknesses %}
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header bg-warning text-dark border-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Points à Améliorer
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled">
+                                {% for weakness in result.ai_analysis.weaknesses %}
+                                <li class="mb-3">
+                                    <i class="fas fa-arrow-circle-up text-warning me-2"></i>
+                                    {{ weakness|safe }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Patterns d'Erreurs -->
+            {% if result.ai_analysis.error_patterns %}
+            <div class="alert alert-warning border-0 mt-4" style="background: linear-gradient(135deg, #fff3cd 0%, #fff59d 100%);">
+                <h5 class="alert-heading">
+                    <i class="fas fa-search me-2"></i>Patterns d'Erreurs Détectés
+                </h5>
+                <ul class="mb-0">
+                    {% for pattern in result.ai_analysis.error_patterns %}
+                    <li>{{ pattern|safe }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Recommandations Personnalisées -->
+            {% if result.ai_analysis.recommendations %}
+            <h5 class="mt-4 mb-3">
+                <i class="fas fa-lightbulb me-2"></i>Recommandations Personnalisées pour Progresser
+            </h5>
+            {% for recommendation in result.ai_analysis.recommendations %}
+            <div class="recommendation-item">
+                <i class="fas fa-arrow-right text-primary me-2"></i>
+                {{ recommendation|safe }}
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            <!-- Chapitres à Revoir -->
+            {% if result.ai_analysis.chapters_to_review %}
+            <h5 class="mt-4 mb-3">
+                <i class="fas fa-book-open me-2"></i>Chapitres à Réviser en Priorité
+            </h5>
+            <div class="row">
+                {% for chapter in result.ai_analysis.chapters_to_review %}
+                <div class="col-md-6 mb-3">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <i class="fas fa-bookmark text-primary me-2"></i>
+                            {{ chapter|safe }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Exercices Recommandés -->
+            {% if result.ai_analysis.exercises_to_redo %}
+            <h5 class="mt-4 mb-3">
+                <i class="fas fa-dumbbell me-2"></i>Plan d'Entraînement Personnalisé
+            </h5>
+            {% for exercise in result.ai_analysis.exercises_to_redo %}
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="mb-1">
+                                <i class="fas fa-target text-primary me-2"></i>
+                                {{ exercise.skill }}
+                            </h6>
+                            <p class="mb-2">{{ exercise.recommendation }}</p>
+                            <small class="text-muted">
+                                <i class="far fa-clock me-1"></i>Temps estimé: {{ exercise.estimated_time }}
+                            </small>
+                        </div>
+                        <span class="priority-badge priority-{{ exercise.priority|lower }}">
+                            {{ exercise.priority }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            <!-- Analyse Gestion du Temps -->
+            {% if result.ai_analysis.time_management_analysis %}
+            <div class="alert alert-info border-0 mt-4">
+                <h6 class="alert-heading">
+                    <i class="far fa-clock me-2"></i>Analyse de la Gestion du Temps
+                </h6>
+                <p class="mb-0">{{ result.ai_analysis.time_management_analysis|safe }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Boutons d'Action -->
+    <div class="text-center my-5">
+        <a href="{% url 'evaluation:test_history' test.id %}" class="btn btn-lg btn-primary me-3" style="border-radius: 30px; padding: 15px 40px;">
+            <i class="fas fa-history me-2"></i>Voir l'Historique Complet
+        </a>
+        <a href="{% url 'evaluation:student_dashboard' %}" class="btn btn-lg btn-outline-secondary me-3" style="border-radius: 30px; padding: 15px 40px;">
+            <i class="fas fa-home me-2"></i>Tableau de Bord
+        </a>
+        {% if result.percentage_score < result.test.passing_score %}
+        <a href="{% url 'evaluation:test_detail' test.id %}" class="btn btn-lg btn-success" style="border-radius: 30px; padding: 15px 40px;">
+            <i class="fas fa-redo me-2"></i>Refaire le Test
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

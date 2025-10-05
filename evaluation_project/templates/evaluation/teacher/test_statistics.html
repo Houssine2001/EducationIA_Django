@@ -1,0 +1,340 @@
+{% extends 'base.html' %}
+
+{% block title %}Statistiques - {{ test.title }}{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- En-tête avec Breadcrumb -->
+    <div class="mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'evaluation:teacher_dashboard' %}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'evaluation:edit_test' test.id %}">{{ test.title }}</a></li>
+                <li class="breadcrumb-item active">Statistiques</li>
+            </ol>
+        </nav>
+        
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-6 fw-bold mb-2">
+                    <i class="fas fa-chart-line text-info me-2"></i>
+                    Statistiques du Test
+                </h1>
+                <h3 class="text-muted">{{ test.title }}</h3>
+                <p class="text-secondary mb-0">
+                    <span class="badge bg-info me-2">{{ test.subject }}</span>
+                    <span class="badge bg-{{ test.difficulty == 'easy' and 'success' or test.difficulty == 'hard' and 'danger' or 'warning' }}">
+                        {% if test.difficulty == 'easy' %}Facile{% elif test.difficulty == 'medium' %}Moyen{% else %}Difficile{% endif %}
+                    </span>
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="{% url 'evaluation:edit_test' test.id %}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Retour au test
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques Globales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card bg-gradient-primary text-white">
+                <div class="stat-icon">
+                    <i class="fas fa-users fa-2x"></i>
+                </div>
+                <h2 class="mb-1">{{ stats.total_submissions }}</h2>
+                <p class="mb-0">Soumissions Totales</p>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card bg-gradient-success text-white">
+                <div class="stat-icon">
+                    <i class="fas fa-trophy fa-2x"></i>
+                </div>
+                <h2 class="mb-1">{{ stats.avg_score|floatformat:1 }}%</h2>
+                <p class="mb-0">Score Moyen</p>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card bg-gradient-warning text-white">
+                <div class="stat-icon">
+                    <i class="fas fa-percentage fa-2x"></i>
+                </div>
+                <h2 class="mb-1">{{ stats.pass_rate|floatformat:1 }}%</h2>
+                <p class="mb-0">Taux de Réussite</p>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card bg-gradient-info text-white">
+                <div class="stat-icon">
+                    <i class="fas fa-clock fa-2x"></i>
+                </div>
+                <h2 class="mb-1">{{ stats.avg_time|floatformat:0 }}</h2>
+                <p class="mb-0">Temps Moyen (min)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphiques et Distributions -->
+    <div class="row mb-4">
+        <!-- Distribution des Scores -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar text-primary me-2"></i>
+                        Distribution des Scores
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="score-distribution">
+                        {% for range, count in stats.score_distribution.items %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="fw-semibold">{{ range }}</span>
+                                <span class="text-muted">{{ count }} étudiant(s)</span>
+                            </div>
+                            <div class="progress" style="height: 25px;">
+                                <div class="progress-bar bg-gradient-primary" 
+                                     role="progressbar" 
+                                     style="width: {{ count|floatformat:0 }}%"
+                                     aria-valuenow="{{ count }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                    {{ count }}
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted text-center py-4">Aucune donnée disponible</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiques par Question -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-question-circle text-success me-2"></i>
+                        Performance par Question
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if stats.question_stats %}
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Question</th>
+                                        <th class="text-center">Réussite</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for stat in stats.question_stats %}
+                                    <tr>
+                                        <td>
+                                            <small class="fw-semibold">Q{{ forloop.counter }}</small>
+                                            <small class="text-muted d-block text-truncate" style="max-width: 200px;">
+                                                {{ stat.question_text|truncatewords:10 }}
+                                            </small>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-{{ stat.success_rate >= 70 and 'success' or stat.success_rate >= 40 and 'warning' or 'danger' }}">
+                                                {{ stat.success_rate|floatformat:0 }}%
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center py-4">Aucune statistique disponible</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des Soumissions -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-file-alt text-primary me-2"></i>
+                Toutes les Soumissions
+            </h5>
+            <span class="badge bg-primary">{{ submissions|length }} soumission(s)</span>
+        </div>
+        <div class="card-body p-0">
+            {% if submissions %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Étudiant</th>
+                                <th class="text-center">Score</th>
+                                <th class="text-center">Note</th>
+                                <th class="text-center">Statut</th>
+                                <th class="text-center">Temps</th>
+                                <th>Date de soumission</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for submission in submissions %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-circle me-2">
+                                            {{ submission.student.username|slice:":1"|upper }}
+                                        </div>
+                                        <div>
+                                            <strong>{{ submission.student.get_full_name|default:submission.student.username }}</strong>
+                                            <small class="text-muted d-block">{{ submission.student.username }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <strong class="text-{{ submission.score >= test.passing_score and 'success' or 'danger' }}">
+                                        {{ submission.score|floatformat:1 }}/{{ submission.max_score }}
+                                    </strong>
+                                </td>
+                                <td class="text-center">
+                                    <h5 class="mb-0">
+                                        <span class="badge bg-{{ submission.percentage >= 70 and 'success' or submission.percentage >= 40 and 'warning' or 'danger' }}">
+                                            {{ submission.percentage|floatformat:0 }}%
+                                        </span>
+                                    </h5>
+                                </td>
+                                <td class="text-center">
+                                    {% if submission.score >= test.passing_score %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>Réussi
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-times me-1"></i>Échoué
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <small class="text-muted">
+                                        <i class="far fa-clock me-1"></i>
+                                        {{ submission.time_taken|default:"N/A" }} min
+                                    </small>
+                                </td>
+                                <td>
+                                    <small class="text-muted">
+                                        <i class="far fa-calendar me-1"></i>
+                                        {{ submission.submitted_at|date:"d/m/Y H:i" }}
+                                    </small>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{% url 'evaluation:view_submission' submission.id %}" 
+                                       class="btn btn-sm btn-outline-primary" 
+                                       title="Voir les détails">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">Aucune soumission pour ce test</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.stat-card {
+    padding: 1.5rem;
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+}
+
+.stat-card .stat-icon {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.3;
+}
+
+.stat-card h2 {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.bg-gradient-success {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+}
+
+.bg-gradient-warning {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.bg-gradient-info {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.score-distribution .progress {
+    border-radius: 8px;
+    background-color: #e9ecef;
+}
+
+.score-distribution .progress-bar {
+    border-radius: 8px;
+    transition: width 0.6s ease;
+}
+
+.breadcrumb {
+    background-color: transparent;
+    padding: 0;
+}
+
+.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+</style>
+{% endblock %}

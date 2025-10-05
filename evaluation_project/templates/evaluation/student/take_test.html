@@ -1,0 +1,431 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ test.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .question-card {
+        border-left: 4px solid #4A90E2;
+        margin-bottom: 30px;
+    }
+    
+    .question-number {
+        background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%);
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+    }
+    
+    .choice-option {
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .choice-option:hover {
+        border-color: #4A90E2;
+        background-color: #f0f7ff;
+    }
+    
+    .choice-option input[type="radio"]:checked + label,
+    .choice-option input[type="checkbox"]:checked + label {
+        font-weight: 600;
+        color: #4A90E2;
+    }
+    
+    .timer-box {
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: white;
+        padding: 15px 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        z-index: 1000;
+    }
+    
+    .timer-warning {
+        animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+    
+    .progress-tracker {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: white;
+        padding: 15px 0;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        z-index: 999;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- Timer -->
+    {% if test.time_limit %}
+    <div class="timer-box" id="timerBox">
+        <div class="text-center">
+            <small class="text-muted">Temps restant</small>
+            <h3 class="mb-0 text-primary" id="timer">{{ test.time_limit }}:00</h3>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- En-tête du Test -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">{{ test.title }}</h2>
+                    <p class="mb-0 text-white-50">{{ test.subject }}</p>
+                </div>
+                <div class="text-end">
+                    {% if test.ai_enabled %}
+                        <span class="ai-badge fs-5"><i class="fas fa-brain"></i> IA Activée</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">{{ test.description }}</p>
+            <div class="row text-center">
+                <div class="col-md-3">
+                    <i class="fas fa-question-circle text-primary fs-4"></i>
+                    <p class="mb-0"><strong>{{ questions|length }}</strong> questions</p>
+                </div>
+                <div class="col-md-3">
+                    <i class="fas fa-clock text-warning fs-4"></i>
+                    <p class="mb-0"><strong>{{ test.duration }}</strong> minutes</p>
+                </div>
+                <div class="col-md-3">
+                    <i class="fas fa-chart-line text-info fs-4"></i>
+                    <p class="mb-0">Score de passage: <strong>{{ test.passing_score }}%</strong></p>
+                </div>
+                <div class="col-md-3">
+                    <i class="fas fa-trophy text-success fs-4"></i>
+                    <p class="mb-0">Tentative <strong>{{ submission.attempt_number }}</strong></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulaire de Test -->
+    <form method="post" id="testForm" action="{% url 'evaluation:submit_test' submission.id %}">
+        {% csrf_token %}
+        
+        {% for question in questions %}
+        <div class="card question-card mb-4">
+            <div class="card-body">
+                <!-- Numéro et Type de Question -->
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="d-flex align-items-center">
+                        <span class="question-number me-3">{{ forloop.counter }}</span>
+                        <div>
+                            <h5 class="mb-1">{{ question.question_text }}</h5>
+                            <span class="badge bg-secondary">
+                                {% if question.question_type == 'mcq' %}QCM
+                                {% elif question.question_type == 'true_false' %}Vrai/Faux
+                                {% elif question.question_type == 'short_answer' %}Réponse courte
+                                {% elif question.question_type == 'essay' %}Dissertation
+                                {% elif question.question_type == 'code' %}Code
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <span class="badge bg-primary">{{ question.points }} pts</span>
+                </div>
+
+                <!-- Options de Réponse -->
+                <div class="mt-3">
+                    {% if question.question_type == 'mcq' %}
+                        <!-- QCM -->
+                        {% for option in question.options %}
+                        <div class="choice-option">
+                            <input type="radio" 
+                                   name="question_{{ question.id }}" 
+                                   id="q{{ question.id }}_choice{{ forloop.counter }}"
+                                   value="{{ option.id }}"
+                                   class="form-check-input me-2"
+                                   data-question-id="{{ question.id }}">
+                            <label for="q{{ question.id }}_choice{{ forloop.counter }}" class="form-check-label">
+                                <strong>{{ option.id }}.</strong> {{ option.text }}
+                            </label>
+                        </div>
+                        {% endfor %}
+
+                    {% elif question.question_type == 'true_false' %}
+                        <!-- Vrai/Faux -->
+                        <div class="choice-option">
+                            <input type="radio" 
+                                   name="question_{{ question.id }}" 
+                                   id="q{{ question.id }}_true"
+                                   value="true"
+                                   class="form-check-input me-2"
+                                   data-question-id="{{ question.id }}">
+                            <label for="q{{ question.id }}_true" class="form-check-label">
+                                <i class="fas fa-check-circle text-success me-2"></i><strong>Vrai</strong>
+                            </label>
+                        </div>
+                        <div class="choice-option">
+                            <input type="radio" 
+                                   name="question_{{ question.id }}" 
+                                   id="q{{ question.id }}_false"
+                                   value="false"
+                                   class="form-check-input me-2"
+                                   data-question-id="{{ question.id }}">
+                            <label for="q{{ question.id }}_false" class="form-check-label">
+                                <i class="fas fa-times-circle text-danger me-2"></i><strong>Faux</strong>
+                            </label>
+                        </div>
+
+                    {% elif question.question_type == 'short_answer' %}
+                        <!-- Réponse Courte -->
+                        <textarea class="form-control" 
+                                  name="question_{{ question.id }}"
+                                  id="q{{ question.id }}_answer"
+                                  rows="2" 
+                                  placeholder="Votre réponse (maximum 200 caractères)"
+                                  maxlength="200"
+                                  data-question-id="{{ question.id }}"></textarea>
+                        <small class="text-muted">Caractères restants: <span id="q{{ question.id }}_count">200</span></small>
+
+                    {% elif question.question_type == 'essay' %}
+                        <!-- Dissertation -->
+                        <textarea class="form-control" 
+                                  name="question_{{ question.id }}"
+                                  id="q{{ question.id }}_answer"
+                                  rows="8" 
+                                  placeholder="Rédigez votre réponse détaillée ici..."
+                                  data-question-id="{{ question.id }}"></textarea>
+                        {% if test.ai_enabled %}
+                        <small class="text-info">
+                            <i class="fas fa-brain me-1"></i>
+                            Cette question sera corrigée automatiquement par l'IA
+                        </small>
+                        {% endif %}
+
+                    {% elif question.question_type == 'code' %}
+                        <!-- Code -->
+                        <textarea class="form-control font-monospace" 
+                                  name="question_{{ question.id }}"
+                                  id="q{{ question.id }}_answer"
+                                  rows="10" 
+                                  placeholder="Écrivez votre code ici..."
+                                  data-question-id="{{ question.id }}"
+                                  style="font-family: 'Courier New', monospace; font-size: 14px;"></textarea>
+                    {% endif %}
+                </div>
+
+                <!-- Indication si réponse sauvegardée -->
+                <div id="saved_{{ question.id }}" class="mt-2" style="display: none;">
+                    <small class="text-success">
+                        <i class="fas fa-check-circle me-1"></i>Réponse sauvegardée automatiquement
+                    </small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Boutons de Soumission -->
+        <div class="card">
+            <div class="card-body text-center">
+                <button type="submit" class="btn btn-success btn-lg me-3">
+                    <i class="fas fa-paper-plane me-2"></i>
+                    Soumettre le test
+                </button>
+                <a href="{% url 'evaluation:student_dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-2"></i>
+                    Annuler
+                </a>
+            </div>
+        </div>
+    </form>
+
+    <!-- Barre de Progression -->
+    <div class="progress-tracker">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <strong>Progression:</strong>
+                    <span id="answeredCount">0</span> / {{ questions|length }} réponse(s)
+                </div>
+                <div class="col-md-6">
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar bg-primary" 
+                             id="progressBar" 
+                             role="progressbar" 
+                             style="width: 0%"
+                             aria-valuenow="0" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">0%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ajout d'espace pour la barre de progression -->
+<div style="height: 80px;"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const totalQuestions = {{ questions|length }};
+const submissionId = {{ submission.id }};
+let answeredQuestions = new Set();
+
+// Gestion du Timer
+{% if test.duration %}
+let timeLeft = {{ test.duration }} * 60; // en secondes
+
+function updateTimer() {
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+    const timerElement = document.getElementById('timer');
+    const timerBox = document.getElementById('timerBox');
+    
+    timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    
+    // Alerte si moins de 5 minutes
+    if (timeLeft <= 300) {
+        timerBox.classList.add('timer-warning');
+        timerBox.style.backgroundColor = '#ffe5e5';
+    }
+    
+    // Soumission automatique si temps écoulé
+    if (timeLeft <= 0) {
+        alert('Temps écoulé ! Le test sera soumis automatiquement.');
+        document.getElementById('testForm').submit();
+        return;
+    }
+    
+    timeLeft--;
+    setTimeout(updateTimer, 1000);
+}
+
+updateTimer();
+{% endif %}
+
+// Auto-sauvegarde des réponses via AJAX
+function autoSaveAnswer(questionId, answer) {
+    fetch('{% url "evaluation:save_answer_ajax" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            submission_id: submissionId,
+            question_id: questionId,
+            answer: answer
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById(`saved_${questionId}`).style.display = 'block';
+            setTimeout(() => {
+                document.getElementById(`saved_${questionId}`).style.display = 'none';
+            }, 2000);
+        }
+    })
+    .catch(error => console.error('Erreur auto-sauvegarde:', error));
+}
+
+// Écouter les changements de réponses
+document.querySelectorAll('input[type="radio"], textarea').forEach(element => {
+    element.addEventListener('change', function() {
+        const questionId = this.dataset.questionId;
+        const answer = this.value;
+        
+        // Ajouter à l'ensemble des questions répondues
+        answeredQuestions.add(questionId);
+        updateProgress();
+        
+        // Auto-sauvegarde
+        autoSaveAnswer(questionId, answer);
+    });
+    
+    // Pour les textareas, sauvegarder après 2 secondes d'inactivité
+    if (element.tagName === 'TEXTAREA') {
+        let timeout;
+        element.addEventListener('input', function() {
+            clearTimeout(timeout);
+            const questionId = this.dataset.questionId;
+            const answer = this.value;
+            
+            if (answer.trim()) {
+                answeredQuestions.add(questionId);
+                updateProgress();
+            }
+            
+            timeout = setTimeout(() => {
+                autoSaveAnswer(questionId, answer);
+            }, 2000);
+        });
+    }
+});
+
+// Mettre à jour la barre de progression
+function updateProgress() {
+    const count = answeredQuestions.size;
+    const percentage = Math.round((count / totalQuestions) * 100);
+    
+    document.getElementById('answeredCount').textContent = count;
+    document.getElementById('progressBar').style.width = percentage + '%';
+    document.getElementById('progressBar').textContent = percentage + '%';
+    document.getElementById('progressBar').setAttribute('aria-valuenow', percentage);
+}
+
+// Compteur de caractères pour réponses courtes
+document.querySelectorAll('textarea[maxlength]').forEach(textarea => {
+    textarea.addEventListener('input', function() {
+        const maxLength = this.getAttribute('maxlength');
+        const currentLength = this.value.length;
+        const remaining = maxLength - currentLength;
+        const countElement = document.getElementById(this.id + '_count');
+        if (countElement) {
+            countElement.textContent = remaining;
+        }
+    });
+});
+
+// Confirmation avant de quitter la page
+window.addEventListener('beforeunload', function(e) {
+    if (answeredQuestions.size > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+
+// Confirmation avant soumission
+document.getElementById('testForm').addEventListener('submit', function(e) {
+    const unanswered = totalQuestions - answeredQuestions.size;
+    
+    if (unanswered > 0) {
+        if (!confirm(`Vous avez ${unanswered} question(s) non répondue(s). Voulez-vous vraiment soumettre le test ?`)) {
+            e.preventDefault();
+            return false;
+        }
+    }
+    
+    return confirm('Êtes-vous sûr de vouloir soumettre votre test ? Vous ne pourrez plus le modifier.');
+});
+</script>
+{% endblock %}

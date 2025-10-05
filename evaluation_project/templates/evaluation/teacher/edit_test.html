@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+
+{% block title %}Modifier le Test - {{ test.title }}{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <!-- En-tête -->
+            <div class="mb-4">
+                <h1 class="display-6 fw-bold">
+                    <i class="fas fa-edit text-primary me-2"></i>
+                    Modifier le Test
+                </h1>
+                <p class="text-muted">{{ test.title }}</p>
+            </div>
+
+            <div class="row">
+                <!-- Formulaire de modification -->
+                <div class="col-lg-8">
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations du Test</h5>
+                        </div>
+                        <div class="card-body p-4">
+                            <form method="post">
+                                {% csrf_token %}
+                                
+                                <!-- Informations de base -->
+                                <div class="mb-3">
+                                    <label for="title" class="form-label fw-semibold">Titre du test *</label>
+                                    <input type="text" class="form-control form-control-lg" id="title" name="title" value="{{ test.title }}" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="description" class="form-label fw-semibold">Description</label>
+                                    <textarea class="form-control" id="description" name="description" rows="3">{{ test.description }}</textarea>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="subject" class="form-label fw-semibold">Matière *</label>
+                                        <input type="text" class="form-control" id="subject" name="subject" value="{{ test.subject }}" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="difficulty" class="form-label fw-semibold">Niveau de difficulté</label>
+                                        <select class="form-select" id="difficulty" name="difficulty">
+                                            <option value="beginner" {% if test.difficulty == 'beginner' %}selected{% endif %}>Débutant</option>
+                                            <option value="intermediate" {% if test.difficulty == 'intermediate' %}selected{% endif %}>Intermédiaire</option>
+                                            <option value="advanced" {% if test.difficulty == 'advanced' %}selected{% endif %}>Avancé</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <hr class="my-4">
+
+                                <!-- Configuration -->
+                                <h5 class="mb-3"><i class="fas fa-cog me-2"></i>Configuration</h5>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="duration" class="form-label fw-semibold">Durée limite (minutes)</label>
+                                        <input type="number" class="form-control" id="duration" name="duration" min="1" value="{{ test.duration }}">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="passing_score" class="form-label fw-semibold">Score de passage (%)</label>
+                                        <input type="number" class="form-control" id="passing_score" name="passing_score" min="0" max="100" value="{{ test.passing_score }}">
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="start_date" class="form-label fw-semibold">Date de début</label>
+                                        <input type="datetime-local" class="form-control" id="start_date" name="start_date" value="{{ test.start_date|date:'Y-m-d\TH:i' }}">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="end_date" class="form-label fw-semibold">Date de fin</label>
+                                        <input type="datetime-local" class="form-control" id="end_date" name="end_date" value="{{ test.end_date|date:'Y-m-d\TH:i' }}">
+                                    </div>
+                                </div>
+
+                                <hr class="my-4">
+
+                                <!-- Options Avancées -->
+                                <h5 class="mb-3"><i class="fas fa-sliders-h me-2"></i>Options</h5>
+
+                                <div class="mb-3">
+                                    <label for="status" class="form-label fw-semibold">Statut du test *</label>
+                                    <select class="form-select" id="status" name="status" required>
+                                        <option value="draft" {% if test.status == 'draft' %}selected{% endif %}>📝 Brouillon (non visible)</option>
+                                        <option value="published" {% if test.status == 'published' %}selected{% endif %}>✅ Publié (visible étudiants)</option>
+                                        <option value="archived" {% if test.status == 'archived' %}selected{% endif %}>📦 Archivé</option>
+                                    </select>
+                                    <small class="text-muted">Seuls les tests "Publiés" sont visibles par les étudiants</small>
+                                </div>
+
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="shuffle_questions" name="shuffle_questions" {% if test.shuffle_questions %}checked{% endif %}>
+                                    <label class="form-check-label" for="shuffle_questions">
+                                        <strong>Mélanger les questions</strong>
+                                    </label>
+                                </div>
+
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="is_timed" name="is_timed" {% if test.is_timed %}checked{% endif %}>
+                                    <label class="form-check-label" for="is_timed">
+                                        <strong>Test chronométré</strong>
+                                    </label>
+                                </div>
+
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="allow_review" name="allow_review" {% if test.allow_review %}checked{% endif %}>
+                                    <label class="form-check-label" for="allow_review">
+                                        <strong>Permettre la révision après soumission</strong>
+                                    </label>
+                                </div>
+
+                                <hr class="my-4">
+
+                                <!-- Métadonnées -->
+                                <div class="mb-3">
+                                    <label for="tags" class="form-label fw-semibold">Tags</label>
+                                    <input type="text" class="form-control" id="tags" name="tags" value="{{ tags_str }}" placeholder="Ex: algèbre, équations, niveau 3">
+                                    <small class="text-muted">Séparez les tags par des virgules</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="skills_tested" class="form-label fw-semibold">Compétences testées</label>
+                                    <input type="text" class="form-control" id="skills_tested" name="skills_tested" value="{{ skills_str }}" placeholder="Ex: résolution d'équations, calcul mental">
+                                    <small class="text-muted">Séparez les compétences par des virgules</small>
+                                </div>
+
+                                <div class="d-flex gap-2 mt-4">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-save me-2"></i>Enregistrer les modifications
+                                    </button>
+                                    <a href="{% url 'evaluation:teacher_dashboard' %}" class="btn btn-outline-secondary btn-lg">
+                                        <i class="fas fa-times me-2"></i>Annuler
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Liste des questions -->
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="fas fa-question-circle me-2"></i>Questions ({{ questions.count }})</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if questions %}
+                                <div class="list-group">
+                                    {% for question in questions %}
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <span class="badge bg-secondary me-2">Q{{ question.order }}</span>
+                                                <small>{{ question.question_type }}</small>
+                                            </div>
+                                            <span class="badge bg-primary">{{ question.points }} pts</span>
+                                        </div>
+                                        <p class="mb-1 mt-2 small">{{ question.question_text|truncatewords:10 }}</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-center text-muted py-4">
+                                    <i class="fas fa-inbox fa-3x mb-3"></i>
+                                    <p>Aucune question pour le moment</p>
+                                </div>
+                            {% endif %}
+
+                            <a href="{% url 'evaluation:add_question' test.id %}" class="btn btn-success w-100 mt-3">
+                                <i class="fas fa-plus me-2"></i>Ajouter une question
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Statistiques -->
+                    <div class="card mt-3">
+                        <div class="card-header bg-secondary text-white">
+                            <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Statistiques</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Questions :</span>
+                                <strong>{{ questions.count }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Points totaux :</span>
+                                <strong>{{ test.total_points|default:0 }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Soumissions :</span>
+                                <strong>{{ test.submissions.count }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Statut :</span>
+                                {% if test.is_active %}
+                                    <span class="badge bg-success">Actif</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inactif</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

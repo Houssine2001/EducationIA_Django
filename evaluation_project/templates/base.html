@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Évaluation & Suivi IA{% endblock %}</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js pour les graphiques -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        },
+                        success: {
+                            500: '#10b981',
+                            600: '#059669',
+                        },
+                        warning: {
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        },
+                        danger: {
+                            500: '#ef4444',
+                            600: '#dc2626',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <!-- Custom CSS -->
+    <style>
+    <!-- Custom CSS -->
+    <style>
+        /* Animations personnalisées */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .animate-fadeIn {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+        
+        .animate-slideIn {
+            animation: slideIn 0.5s ease-out forwards;
+        }
+        
+        .animate-pulse-slow {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        /* Transitions fluides */
+        .transition-all-300 {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* Hover effects */
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        .btn-hover-lift:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Gradient backgrounds */
+        .gradient-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .gradient-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+        
+        .gradient-warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+        
+        .gradient-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        /* Scrollbar personnalisée */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 5px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* Badge pulse animation */
+        .badge-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        /* Chart container */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-50 font-sans antialiased">
+    
+    <!-- Sidebar (pour desktop) -->
+    <div class="lg:flex lg:min-h-screen">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="lg:w-64 bg-gradient-to-b from-gray-900 to-gray-800 text-white fixed lg:sticky top-0 left-0 h-screen overflow-y-auto z-40 transform -translate-x-full lg:translate-x-0 transition-transform duration-300">
+            <div class="p-6">
+                <!-- Logo -->
+                <div class="flex items-center space-x-3 mb-8">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-graduation-cap text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold">EduIA</h1>
+                        <p class="text-xs text-gray-400">Suivi Intelligent</p>
+                    </div>
+                </div>
+                
+                <!-- Navigation -->
+                <nav class="space-y-2">
+                    {% if user.is_authenticated %}
+                        {% if user.is_staff %}
+                            <!-- Menu Enseignant -->
+                            <a href="{% url 'evaluation:teacher_dashboard' %}" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition-all-300 group">
+                                <i class="fas fa-tachometer-alt text-blue-400 group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Tableau de bord</span>
+                            </a>
+                            <a href="{% url 'evaluation:create_test' %}" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition-all-300 group">
+                                <i class="fas fa-plus-circle text-green-400 group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Créer un test</span>
+                            </a>
+                            <a href="{% url 'evaluation:teacher_dashboard' %}" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition-all-300 group">
+                                <i class="fas fa-users text-purple-400 group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Étudiants</span>
+                            </a>
+                            <a href="{% url 'evaluation:teacher_dashboard' %}" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition-all-300 group">
+                                <i class="fas fa-chart-bar text-yellow-400 group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Statistiques</span>
+                            </a>
+                        {% else %}
+                            <!-- Menu Étudiant -->
+                            <a href="{% url 'evaluation:student_dashboard' %}" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition-all-300 group">
+                                <i class="fas fa-home text-blue-400 group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Accueil</span>
+                            </a>
+                            <a href="{% url 'evaluation:student_progress' %}" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition-all-300 group">
+                                <i class="fas fa-chart-line text-green-400 group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Ma progression</span>
+                            </a>
+                            <a href="{% url 'evaluation:student_dashboard' %}" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition-all-300 group">
+                                <i class="fas fa-clipboard-list text-purple-400 group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Mes tests</span>
+                            </a>
+                            <a href="{% url 'evaluation:student_dashboard' %}" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition-all-300 group">
+                                <i class="fas fa-trophy text-yellow-400 group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Badges & Classement</span>
+                            </a>
+                        {% endif %}
+                        
+                        <!-- Divider -->
+                        <div class="border-t border-gray-700 my-4"></div>
+                        
+                        <!-- Profil & Settings -->
+                        <a href="#" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition-all-300 group">
+                            <i class="fas fa-user-circle text-gray-400 group-hover:scale-110 transition-transform"></i>
+                            <span class="font-medium">{{ user.username }}</span>
+                        </a>
+                        {% if user.is_staff %}
+                            <a href="/admin/" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition-all-300 group">
+                                <i class="fas fa-cog text-gray-400 group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Administration</span>
+                            </a>
+                        {% endif %}
+                        <form method="post" action="{% url 'logout' %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-red-600 transition-all-300 group text-left border-0 bg-transparent text-white cursor-pointer">
+                                <i class="fas fa-sign-out-alt text-red-400 group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Déconnexion</span>
+                            </button>
+                        </form>
+                    {% endif %}
+                </nav>
+                
+                <!-- AI Badge -->
+                <div class="mt-8 p-4 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <i class="fas fa-brain text-xl"></i>
+                        <span class="font-bold">Powered by AI</span>
+                    </div>
+                    <p class="text-xs text-gray-200">Intelligence artificielle pour un apprentissage personnalisé</p>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content Area -->
+        <div class="flex-1 flex flex-col min-h-screen">
+            <!-- Top Navigation Bar (Mobile + Desktop) -->
+            <header class="bg-white shadow-sm sticky top-0 z-30">
+                <div class="px-4 py-4 lg:px-8">
+                    <div class="flex items-center justify-between">
+                        <!-- Mobile Menu Button -->
+                        <button id="sidebarToggle" class="lg:hidden text-gray-600 hover:text-gray-900 focus:outline-none">
+                            <i class="fas fa-bars text-2xl"></i>
+                        </button>
+                        
+                        <!-- Page Title (Desktop) -->
+                        <div class="hidden lg:block">
+                            <h2 class="text-2xl font-bold text-gray-800">{% block page_title %}Dashboard{% endblock %}</h2>
+                            <p class="text-sm text-gray-500">{% block page_subtitle %}Bienvenue sur votre espace{% endblock %}</p>
+                        </div>
+                        
+                        <!-- Right Side Actions -->
+                        <div class="flex items-center space-x-4">
+                            <!-- Notifications -->
+                            <button class="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all-300">
+                                <i class="fas fa-bell text-xl"></i>
+                                <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                            </button>
+                            
+                            <!-- User Avatar -->
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                                    {{ user.username|slice:":1"|upper }}
+                                </div>
+                                <div class="hidden md:block">
+                                    <p class="text-sm font-medium text-gray-800">{{ user.get_full_name|default:user.username }}</p>
+                                    <p class="text-xs text-gray-500">{% if user.is_staff %}Enseignant{% else %}Étudiant{% endif %}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Messages Flash -->
+            {% if messages %}
+                <div class="px-4 lg:px-8 mt-4">
+                    {% for message in messages %}
+                        <div class="animate-slideIn mb-3 p-4 rounded-lg {% if message.tags == 'success' %}bg-green-50 border-l-4 border-green-500 text-green-800{% elif message.tags == 'error' %}bg-red-50 border-l-4 border-red-500 text-red-800{% elif message.tags == 'warning' %}bg-yellow-50 border-l-4 border-yellow-500 text-yellow-800{% else %}bg-blue-50 border-l-4 border-blue-500 text-blue-800{% endif %}">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <i class="fas fa-info-circle text-xl"></i>
+                                    <span class="font-medium">{{ message }}</span>
+                                </div>
+                                <button onclick="this.parentElement.parentElement.remove()" class="text-gray-500 hover:text-gray-700">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <!-- Main Content -->
+            <main class="flex-1 px-4 py-6 lg:px-8 lg:py-8">
+                {% block content %}{% endblock %}
+            </main>
+
+            <!-- Footer -->
+            <footer class="bg-white border-t border-gray-200 mt-auto">
+                <div class="px-4 py-6 lg:px-8">
+                    <div class="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
+                        <div class="text-center md:text-left">
+                            <p class="text-sm text-gray-600">
+                                © 2025 <span class="font-semibold text-gray-800">EduIA - Évaluation & Suivi Intelligent</span>
+                            </p>
+                            <p class="text-xs text-gray-500 mt-1">Développé avec Django & Intelligence Artificielle</p>
+                        </div>
+                        
+                        <div class="flex items-center space-x-6">
+                            <a href="#" class="text-gray-500 hover:text-blue-600 transition-colors">
+                                <i class="fab fa-github text-xl"></i>
+                            </a>
+                            <a href="#" class="text-gray-500 hover:text-blue-600 transition-colors">
+                                <i class="fab fa-twitter text-xl"></i>
+                            </a>
+                            <a href="#" class="text-gray-500 hover:text-blue-600 transition-colors">
+                                <i class="fab fa-linkedin text-xl"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Mobile Sidebar Overlay -->
+    <div id="sidebarOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden hidden"></div>
+
+    <!-- JavaScript -->
+    <script>
+        // Sidebar Toggle pour Mobile
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', function() {
+                sidebar.classList.toggle('-translate-x-full');
+                sidebarOverlay.classList.toggle('hidden');
+            });
+        }
+        
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', function() {
+                sidebar.classList.add('-translate-x-full');
+                sidebarOverlay.classList.add('hidden');
+            });
+        }
+        
+        // Animation d'apparition au chargement
+        document.addEventListener('DOMContentLoaded', function() {
+            const elements = document.querySelectorAll('.animate-fadeIn');
+            elements.forEach((el, index) => {
+                setTimeout(() => {
+                    el.style.opacity = '0';
+                    el.style.transform = 'translateY(20px)';
+                    setTimeout(() => {
+                        el.style.transition = 'all 0.6s ease-out';
+                        el.style.opacity = '1';
+                        el.style.transform = 'translateY(0)';
+                    }, 50);
+                }, index * 100);
+            });
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

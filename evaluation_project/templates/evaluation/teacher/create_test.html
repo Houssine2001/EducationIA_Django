@@ -1,0 +1,443 @@
+{% extends 'base.html' %}
+
+{% block title %}Créer un Test{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- En-tête moderne avec gradient -->
+    <div class="create-test-header mb-5">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'evaluation:teacher_dashboard' %}">Dashboard</a></li>
+                        <li class="breadcrumb-item active">Créer un Test</li>
+                    </ol>
+                </nav>
+                <h1 class="display-5 fw-bold text-gradient mb-2">
+                    <i class="fas fa-plus-circle me-2"></i>
+                    Créer un Nouveau Test
+                </h1>
+                <p class="text-muted fs-5">Concevez un test personnalisé pour vos étudiants</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="stats-preview">
+                    <i class="fas fa-clipboard-list fa-3x text-primary opacity-75"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-10 offset-lg-1">
+            <!-- Formulaire avec design amélioré -->
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-gradient-primary text-white py-3">
+                    <h4 class="mb-0">
+                        <i class="fas fa-pencil-alt me-2"></i>
+                        Informations du Test
+                    </h4>
+                </div>
+                <div class="card-body p-4 p-md-5">
+                    <form method="post" id="createTestForm">
+                        {% csrf_token %}
+                        
+                        <!-- Section 1: Informations de base -->
+                        <div class="form-section mb-5">
+                            <div class="section-header mb-4">
+                                <h5 class="fw-bold text-primary">
+                                    <span class="badge bg-primary rounded-circle me-2">1</span>
+                                    Informations de Base
+                                </h5>
+                                <hr class="section-divider">
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="title" class="form-label fw-semibold">
+                                    <i class="fas fa-heading text-primary me-2"></i>
+                                    Titre du test *
+                                </label>
+                                <input type="text" 
+                                       class="form-control form-control-lg custom-input" 
+                                       id="title" 
+                                       name="title" 
+                                       required 
+                                       placeholder="Ex: Examen de Mathématiques - Chapitre 1">
+                                <small class="text-muted">Choisissez un titre descriptif et clair</small>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="description" class="form-label fw-semibold">
+                                    <i class="fas fa-align-left text-primary me-2"></i>
+                                    Description
+                                </label>
+                                <textarea class="form-control custom-input" 
+                                          id="description" 
+                                          name="description" 
+                                          rows="4" 
+                                          placeholder="Décrivez brièvement le contenu et les objectifs du test..."></textarea>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="subject" class="form-label fw-semibold">
+                                        <i class="fas fa-book text-primary me-2"></i>
+                                        Matière *
+                                    </label>
+                                    <input type="text" 
+                                           class="form-control custom-input" 
+                                           id="subject" 
+                                           name="subject" 
+                                           required 
+                                           placeholder="Ex: Mathématiques">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="difficulty" class="form-label fw-semibold">
+                                        <i class="fas fa-signal text-primary me-2"></i>
+                                        Niveau de difficulté
+                                    </label>
+                                    <select class="form-select custom-input" id="difficulty" name="difficulty">
+                                        <option value="easy">🟢 Facile</option>
+                                        <option value="medium" selected>🟡 Moyen</option>
+                                        <option value="hard">🔴 Difficile</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section 2: Configuration -->
+                        <div class="form-section mb-5">
+                            <div class="section-header mb-4">
+                                <h5 class="fw-bold text-primary">
+                                    <span class="badge bg-primary rounded-circle me-2">2</span>
+                                    Configuration du Test
+                                </h5>
+                                <hr class="section-divider">
+                            </div>
+
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-4">
+                                    <label for="duration" class="form-label fw-semibold">
+                                        <i class="fas fa-clock text-primary me-2"></i>
+                                        Durée (minutes)
+                                    </label>
+                                    <input type="number" 
+                                           class="form-control custom-input" 
+                                           id="duration" 
+                                           name="duration" 
+                                           min="1" 
+                                           value="60" 
+                                           placeholder="60">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="passing_score" class="form-label fw-semibold">
+                                        <i class="fas fa-percentage text-primary me-2"></i>
+                                        Score de passage (%)
+                                    </label>
+                                    <input type="number" 
+                                           class="form-control custom-input" 
+                                           id="passing_score" 
+                                           name="passing_score" 
+                                           min="0" 
+                                           max="100" 
+                                           value="60" 
+                                           placeholder="60">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">
+                                        <i class="fas fa-toggle-on text-primary me-2"></i>
+                                        Statut
+                                    </label>
+                                    <div class="form-check form-switch custom-switch">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="is_active" 
+                                               name="is_active">
+                                        <label class="form-check-label" for="is_active">
+                                            Test actif
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Options avancées -->
+                            <div class="card bg-light border-0 mb-3">
+                                <div class="card-body">
+                                    <h6 class="fw-bold mb-3">
+                                        <i class="fas fa-sliders-h text-success me-2"></i>
+                                        Options Avancées
+                                    </h6>
+                                    
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <div class="form-check custom-checkbox">
+                                                <input class="form-check-input" 
+                                                       type="checkbox" 
+                                                       id="is_timed" 
+                                                       name="is_timed">
+                                                <label class="form-check-label" for="is_timed">
+                                                    <i class="fas fa-stopwatch me-2"></i>
+                                                    Test chronométré
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check custom-checkbox">
+                                                <input class="form-check-input" 
+                                                       type="checkbox" 
+                                                       id="allow_review" 
+                                                       name="allow_review" 
+                                                       checked>
+                                                <label class="form-check-label" for="allow_review">
+                                                    <i class="fas fa-eye me-2"></i>
+                                                    Autoriser révision
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check custom-checkbox">
+                                                <input class="form-check-input" 
+                                                       type="checkbox" 
+                                                       id="ai_enabled" 
+                                                       name="ai_enabled">
+                                                <label class="form-check-label" for="ai_enabled">
+                                                    <i class="fas fa-brain me-2"></i>
+                                                    Activer l'IA
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check custom-checkbox">
+                                                <input class="form-check-input" 
+                                                       type="checkbox" 
+                                                       id="random_order" 
+                                                       name="random_order">
+                                                <label class="form-check-label" for="random_order">
+                                                    <i class="fas fa-random me-2"></i>
+                                                    Ordre aléatoire
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section 3: Informations complémentaires -->
+                        <div class="form-section mb-5">
+                            <div class="section-header mb-4">
+                                <h5 class="fw-bold text-primary">
+                                    <span class="badge bg-primary rounded-circle me-2">3</span>
+                                    Informations Complémentaires
+                                </h5>
+                                <hr class="section-divider">
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-md-6 mb-3">
+                                    <label for="tags" class="form-label fw-semibold">
+                                        <i class="fas fa-tags text-primary me-2"></i>
+                                        Tags
+                                    </label>
+                                    <input type="text" 
+                                           class="form-control custom-input" 
+                                           id="tags" 
+                                           name="tags" 
+                                           placeholder="Ex: algèbre, équations, débutant">
+                                    <small class="text-muted">Séparez les tags par des virgules</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="skills_tested" class="form-label fw-semibold">
+                                        <i class="fas fa-graduation-cap text-primary me-2"></i>
+                                        Compétences évaluées
+                                    </label>
+                                    <input type="text" 
+                                           class="form-control custom-input" 
+                                           id="skills_tested" 
+                                           name="skills_tested" 
+                                           placeholder="Ex: raisonnement, calcul, analyse">
+                                    <small class="text-muted">Séparez les compétences par des virgules</small>
+                                </div>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="start_date" class="form-label fw-semibold">
+                                        <i class="fas fa-calendar-plus text-primary me-2"></i>
+                                        Date de début
+                                    </label>
+                                    <input type="datetime-local" 
+                                           class="form-control custom-input" 
+                                           id="start_date" 
+                                           name="start_date">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="end_date" class="form-label fw-semibold">
+                                        <i class="fas fa-calendar-times text-primary me-2"></i>
+                                        Date de fin
+                                    </label>
+                                    <input type="datetime-local" 
+                                           class="form-control custom-input" 
+                                           id="end_date" 
+                                           name="end_date">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Boutons d'action -->
+                        <div class="d-flex gap-3 justify-content-between pt-4 border-top">
+                            <a href="{% url 'evaluation:teacher_dashboard' %}" class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-times me-2"></i>Annuler
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg px-5">
+                                <i class="fas fa-check-circle me-2"></i>Créer le Test
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Carte d'aide -->
+            <div class="card mt-4 border-0 shadow-sm bg-gradient-info-subtle">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-lightbulb fa-2x text-info"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-1">💡 Astuce</h6>
+                            <p class="mb-0 text-muted small">
+                                Après avoir créé le test, vous pourrez ajouter des questions (QCM, Vrai/Faux, Questions ouvertes). 
+                                L'IA peut corriger automatiquement et fournir un feedback personnalisé.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.create-test-header {
+    background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+    padding: 2rem;
+    border-radius: 15px;
+    margin-bottom: 2rem;
+}
+
+.text-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.bg-gradient-info-subtle {
+    background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+}
+
+.section-header {
+    position: relative;
+}
+
+.section-divider {
+    height: 3px;
+    background: linear-gradient(to right, #667eea, transparent);
+    border: none;
+}
+
+.custom-input {
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.custom-input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.custom-checkbox .form-check-input,
+.custom-switch .form-check-input {
+    width: 3em;
+    height: 1.5em;
+    cursor: pointer;
+}
+
+.custom-checkbox .form-check-input:checked,
+.custom-switch .form-check-input:checked {
+    background-color: #667eea;
+    border-color: #667eea;
+}
+
+.form-section {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.breadcrumb {
+    background-color: transparent;
+    padding: 0;
+}
+
+.card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.stats-preview {
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+</style>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Validation du formulaire
+document.getElementById('createTestForm').addEventListener('submit', function(e) {
+    const title = document.getElementById('title').value.trim();
+    const subject = document.getElementById('subject').value.trim();
+    
+    if (!title || !subject) {
+        e.preventDefault();
+        alert('Veuillez remplir tous les champs obligatoires (*)');
+        return false;
+    }
+    
+    // Vérifier que la date de fin est après la date de début
+    const startDate = document.getElementById('start_date').value;
+    const endDate = document.getElementById('end_date').value;
+    
+    if (startDate && endDate && new Date(endDate) <= new Date(startDate)) {
+        e.preventDefault();
+        alert('La date de fin doit être après la date de début');
+        return false;
+    }
+});
+</script>
+{% endblock %}

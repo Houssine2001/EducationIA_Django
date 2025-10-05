@@ -1,0 +1,651 @@
+{% extends 'base.html' %}
+
+{% block title %}Ma Progression - Plateforme d'Évaluation{% endblock %}
+
+{% block extra_css %}
+<style>
+    .progress-hero {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        padding: 40px;
+        color: white;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        border-left: 4px solid transparent;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    .stat-card.blue { border-left-color: #667eea; }
+    .stat-card.green { border-left-color: #38ef7d; }
+    .stat-card.purple { border-left-color: #9d50bb; }
+    .stat-card.orange { border-left-color: #f7971e; }
+    .stat-card.red { border-left-color: #e74c3c; }
+    
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        margin-bottom: 15px;
+    }
+    
+    .chart-card {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 280px;
+        max-height: 280px;
+        width: 100%;
+    }
+    
+    .chart-container canvas {
+        max-height: 280px !important;
+    }
+    
+    .analysis-card {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+        max-height: 550px;
+        overflow-y: auto;
+    }
+    
+    .weakness-card {
+        background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
+        border-left: 4px solid #e74c3c;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 10px;
+        transition: all 0.3s ease;
+    }
+    
+    .weakness-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 5px 15px rgba(231, 76, 60, 0.2);
+    }
+    
+    .strength-card {
+        background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
+        border-left: 4px solid #38a169;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 10px;
+        transition: all 0.3s ease;
+    }
+    
+    .strength-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 5px 15px rgba(56, 161, 105, 0.2);
+    }
+    
+    .recommendation-card {
+        background: linear-gradient(135deg, #ebf8ff 0%, #bee3f8 100%);
+        border-left: 4px solid #4299e1;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 15px;
+    }
+    
+    .table-modern {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .table-modern thead th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .table-container {
+        max-height: 600px;
+        overflow-y: auto;
+        border-radius: 10px;
+    }
+    
+    .table-modern thead th:first-child {
+        border-top-left-radius: 10px;
+    }
+    
+    .table-modern thead th:last-child {
+        border-top-right-radius: 10px;
+    }
+    
+    .table-modern tbody tr {
+        transition: all 0.3s ease;
+    }
+    
+    .table-modern tbody tr:hover {
+        background: #f7fafc;
+        transform: scale(1.01);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    
+    .table-modern tbody td {
+        padding: 15px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .score-badge {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .score-excellent {
+        background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%);
+        color: white;
+    }
+    
+    .score-good {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+    
+    .score-average {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        color: white;
+    }
+    
+    .score-poor {
+        background: linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%);
+        color: white;
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.6s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    <!-- Hero Section -->
+    <div class="progress-hero">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-5 fw-bold mb-3">
+                    <i class="fas fa-chart-line me-3"></i>
+                    Ma Progression
+                </h1>
+                <p class="lead mb-0">Suivez votre évolution et identifiez vos axes d'amélioration</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="display-3">
+                    <i class="fas fa-graduation-cap"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques Rapides -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="stat-card blue">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <i class="fas fa-percent"></i>
+                </div>
+                <h3 class="mb-1" style="font-size: 2rem; font-weight: 700;">{{ analytics.overview.average_score|default:0|floatformat:1 }}%</h3>
+                <p class="text-muted mb-0">Score Moyen Global</p>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="stat-card green">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                    <i class="fas fa-clipboard-check"></i>
+                </div>
+                <h3 class="mb-1" style="font-size: 2rem; font-weight: 700;">{{ results|length }}</h3>
+                <p class="text-muted mb-0">Tests Complétés</p>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="stat-card purple">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #9d50bb 0%, #6e48aa 100%); color: white;">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h3 class="mb-1" style="font-size: 2rem; font-weight: 700;">{{ analytics.study_time.total_hours|default:0|floatformat:1 }}h</h3>
+                <p class="text-muted mb-0">Heures d'Étude</p>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="stat-card {% if analytics.progression.trend == 'improving' %}green{% elif analytics.progression.trend == 'declining' %}red{% else %}orange{% endif %}">
+                <div class="stat-icon" style="background: linear-gradient(135deg, 
+                    {% if analytics.progression.trend == 'improving' %}#11998e 0%, #38ef7d 100%
+                    {% elif analytics.progression.trend == 'declining' %}#fc4a1a 0%, #f7b733 100%
+                    {% else %}#f7971e 0%, #ffd200 100%{% endif %}); color: white;">
+                    <i class="fas fa-trending-{% if analytics.progression.trend == 'improving' %}up{% elif analytics.progression.trend == 'declining' %}down{% else %}right{% endif %}"></i>
+                </div>
+                <h3 class="mb-1" style="font-size: 1.5rem; font-weight: 700;">
+                    {% if analytics.progression.trend == 'improving' %}
+                        +{{ analytics.progression.improvement|default:0|floatformat:1 }}%
+                    {% elif analytics.progression.trend == 'declining' %}
+                        {{ analytics.progression.improvement|default:0|floatformat:1 }}%
+                    {% else %}
+                        Stable
+                    {% endif %}
+                </h3>
+                <p class="text-muted mb-0">Tendance</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphiques -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-4">
+            <div class="chart-card">
+                <h4 class="mb-4">
+                    <i class="fas fa-chart-area text-primary me-2"></i>
+                    Évolution des Scores
+                </h4>
+                <div class="chart-container">
+                    <canvas id="progressionChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="chart-card">
+                <h4 class="mb-4">
+                    <i class="fas fa-chart-pie text-success me-2"></i>
+                    Performance par Matière
+                </h4>
+                <div class="chart-container">
+                    <canvas id="subjectsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analyse IA -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-4">
+            <div class="analysis-card">
+                <h4 class="mb-4" style="color: #e74c3c;">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Points à Améliorer
+                </h4>
+                
+                {% if analytics.weak_areas %}
+                    {% for area, data in analytics.weak_areas.items %}
+                        <div class="weakness-card">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1" style="color: #c53030; font-weight: 600;">
+                                        <i class="fas fa-arrow-circle-up me-2"></i>
+                                        {{ area }}
+                                    </h6>
+                                    <p class="text-muted small mb-2">
+                                        Score actuel: {{ data.score|floatformat:0 }}% 
+                                        ({{ data.correct }}/{{ data.total }} questions)
+                                    </p>
+                                    <p class="small mb-0" style="color: #744210;">
+                                        <i class="fas fa-lightbulb me-1"></i>
+                                        Objectif: Atteindre 70% de réussite
+                                    </p>
+                                </div>
+                                <div class="text-end">
+                                    <div class="progress" style="width: 100px; height: 8px;">
+                                        <div class="progress-bar bg-danger" style="width: {{ data.score }}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Aucune lacune majeure détectée ! Continuez votre excellent travail.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="analysis-card">
+                <h4 class="mb-4" style="color: #38a169;">
+                    <i class="fas fa-star me-2"></i>
+                    Vos Points Forts
+                </h4>
+                
+                {% if analytics.strong_areas %}
+                    {% for area, data in analytics.strong_areas.items %}
+                        <div class="strength-card">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1" style="color: #276749; font-weight: 600;">
+                                        <i class="fas fa-check-circle me-2"></i>
+                                        {{ area }}
+                                    </h6>
+                                    <p class="text-muted small mb-2">
+                                        Score actuel: {{ data.score|floatformat:0 }}% 
+                                        ({{ data.correct }}/{{ data.total }} questions)
+                                    </p>
+                                    <p class="small mb-0" style="color: #22543d;">
+                                        <i class="fas fa-trophy me-1"></i>
+                                        Excellente maîtrise !
+                                    </p>
+                                </div>
+                                <div class="text-end">
+                                    <div class="progress" style="width: 100px; height: 8px;">
+                                        <div class="progress-bar bg-success" style="width: {{ data.score }}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Passez plus de tests pour identifier vos points forts.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommandations IA -->
+    {% if profile.ai_recommendations %}
+    <div class="chart-card mb-4">
+        <h4 class="mb-4">
+            <i class="fas fa-brain text-primary me-2"></i>
+            Recommandations Personnalisées par l'IA
+        </h4>
+        
+        <div class="row">
+            {% for recommendation in profile.ai_recommendations|slice:":6" %}
+            <div class="col-md-6 mb-3">
+                <div class="recommendation-card">
+                    <div class="d-flex">
+                        <div class="me-3">
+                            <i class="fas fa-{% if recommendation.icon %}{{ recommendation.icon }}{% else %}arrow-right{% endif %} text-primary" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <h6 class="mb-2" style="color: #2c5282; font-weight: 600;">
+                                {% if recommendation.title %}
+                                    {{ recommendation.title }}
+                                {% else %}
+                                    Conseil d'apprentissage
+                                {% endif %}
+                            </h6>
+                            <p class="mb-2 small" style="color: #2d3748; line-height: 1.6;">
+                                {% if recommendation.description %}
+                                    {{ recommendation.description }}
+                                {% elif recommendation.message %}
+                                    {{ recommendation.message }}
+                                {% else %}
+                                    {{ recommendation }}
+                                {% endif %}
+                            </p>
+                            {% if recommendation.actions %}
+                            <div class="mt-3">
+                                <strong class="small text-muted">Actions recommandées :</strong>
+                                <ul class="small mb-0 mt-2" style="color: #4a5568;">
+                                    {% for action in recommendation.actions %}
+                                    <li>{{ action }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                            {% if recommendation.priority %}
+                            <span class="badge mt-2" style="background: 
+                                {% if recommendation.priority == 'high' %}linear-gradient(135deg, #e74c3c, #c0392b)
+                                {% elif recommendation.priority == 'medium' %}linear-gradient(135deg, #f7971e, #ffd200)
+                                {% else %}linear-gradient(135deg, #4299e1, #63b3ed){% endif %}; color: white; font-size: 0.75rem;">
+                                Priorité {{ recommendation.priority|upper }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Historique des Tests -->
+    <div class="chart-card">
+        <h4 class="mb-4">
+            <i class="fas fa-history text-secondary me-2"></i>
+            Historique Complet des Tests
+        </h4>
+        
+        <div class="table-container">
+            <table class="table table-modern">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Test</th>
+                        <th>Matière</th>
+                        <th>Score</th>
+                        <th>Pourcentage</th>
+                        <th>Note</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for result in results %}
+                    <tr>
+                        <td>
+                            <i class="far fa-calendar me-2 text-muted"></i>
+                            {{ result.created_at|date:"d/m/Y" }}
+                        </td>
+                        <td>
+                            <strong>{{ result.test.title|truncatewords:8 }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ result.test.subject }}</span>
+                        </td>
+                        <td>
+                            <strong>{{ result.total_score|floatformat:1 }}</strong> / {{ result.test.total_points|floatformat:1 }} pts
+                        </td>
+                        <td>
+                            <span class="score-badge {% if result.percentage_score >= 90 %}score-excellent{% elif result.percentage_score >= 70 %}score-good{% elif result.percentage_score >= 50 %}score-average{% else %}score-poor{% endif %}">
+                                {{ result.percentage_score|floatformat:1 }}%
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 1rem; padding: 8px 15px;">
+                                {{ result.grade }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{% url 'evaluation:view_result' result.id %}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-eye me-1"></i> Détails
+                            </a>
+                            <a href="{% url 'evaluation:test_history' result.test.id %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-history me-1"></i> Historique
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5">
+                            <i class="fas fa-inbox text-muted" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-3">Aucun test complété pour le moment</p>
+                            <a href="{% url 'evaluation:student_dashboard' %}" class="btn btn-primary">
+                                <i class="fas fa-play me-2"></i> Commencer un test
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Configuration commune pour tous les graphiques
+Chart.defaults.responsive = true;
+Chart.defaults.maintainAspectRatio = false;
+
+// Graphique de progression
+const progressionCtx = document.getElementById('progressionChart');
+if (progressionCtx && {{ progression_chart_data.scores|safe|length }} > 0) {
+    new Chart(progressionCtx, {
+        type: 'line',
+        data: {
+            labels: {{ progression_chart_data.labels|safe }},
+            datasets: [{
+                label: 'Score (%)',
+                data: {{ progression_chart_data.scores|safe }},
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                pointRadius: 6,
+                pointHoverRadius: 8
+            }, {
+                label: 'Moyenne mobile',
+                data: {{ progression_chart_data.moving_average|safe }},
+                borderColor: '#f7971e',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                pointRadius: 3,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        boxWidth: 12,
+                        padding: 10,
+                        font: {
+                            size: 11
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        },
+                        font: {
+                            size: 10
+                        }
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: {
+                            size: 10
+                        },
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Graphique par matière
+const subjectsCtx = document.getElementById('subjectsChart');
+if (subjectsCtx && {{ subjects_chart_data.subjects|safe|length }} > 0) {
+    new Chart(subjectsCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ subjects_chart_data.subjects|safe }},
+            datasets: [{
+                label: 'Score moyen (%)',
+                data: {{ subjects_chart_data.averages|safe }},
+                backgroundColor: {{ subjects_chart_data.colors|safe }},
+                borderWidth: 0,
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        },
+                        font: {
+                            size: 10
+                        }
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: {
+                            size: 10
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

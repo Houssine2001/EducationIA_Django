@@ -1,0 +1,344 @@
+{% extends 'base.html' %}
+
+{% block title %}Ajouter une Question - {{ test.title }}{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <!-- En-tête -->
+            <div class="mb-4">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'evaluation:teacher_dashboard' %}">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'evaluation:edit_test' test.id %}">{{ test.title }}</a></li>
+                        <li class="breadcrumb-item active">Ajouter une question</li>
+                    </ol>
+                </nav>
+                <h1 class="display-6 fw-bold">
+                    <i class="fas fa-plus-circle text-success me-2"></i>
+                    Ajouter une Question
+                </h1>
+                <p class="text-muted">Test : {{ test.title }}</p>
+            </div>
+
+            <!-- Formulaire -->
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-question-circle me-2"></i>Nouvelle Question</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post" id="addQuestionForm">
+                        {% csrf_token %}
+                        
+                        <!-- Type de Question -->
+                        <div class="mb-4">
+                            <label for="question_type" class="form-label fw-semibold">Type de question *</label>
+                            <select class="form-select form-select-lg" id="question_type" name="question_type" required onchange="updateQuestionType()">
+                                <option value="mcq">Choix Multiple (QCM)</option>
+                                <option value="true_false">Vrai / Faux</option>
+                                <option value="short_answer">Réponse Courte</option>
+                            </select>
+                        </div>
+
+                        <!-- Texte de la Question -->
+                        <div class="mb-4">
+                            <label for="question_text" class="form-label fw-semibold">Question *</label>
+                            <textarea class="form-control form-control-lg" id="question_text" name="question_text" rows="3" required placeholder="Écrivez votre question ici..."></textarea>
+                        </div>
+
+                        <!-- Configuration de base -->
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label for="points" class="form-label fw-semibold">Points *</label>
+                                <input type="number" class="form-control" id="points" name="points" min="0.5" step="0.5" value="1" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="difficulty_level" class="form-label fw-semibold">Difficulté</label>
+                                <select class="form-select" id="difficulty_level" name="difficulty_level">
+                                    <option value="easy">Facile</option>
+                                    <option value="medium" selected>Moyen</option>
+                                    <option value="hard">Difficile</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="order" class="form-label fw-semibold">Ordre</label>
+                                <input type="number" class="form-control" id="order" name="order" min="0" value="{{ next_order }}">
+                                <small class="text-muted">Position dans le test</small>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Section QCM (affichée par défaut) -->
+                        <div id="mcq_section">
+                            <h5 class="mb-3"><i class="fas fa-list-ul me-2"></i>Options de Réponse</h5>
+                            
+                            <div id="options_container">
+                                <!-- Option 1 -->
+                                <div class="card mb-3 option-card">
+                                    <div class="card-body">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-1">
+                                                <h5 class="mb-0 text-primary">A</h5>
+                                            </div>
+                                            <div class="col-md-9">
+                                                <input type="text" class="form-control" name="option_0_text" placeholder="Texte de l'option A" required>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="option_0_correct" id="option_0_correct">
+                                                    <label class="form-check-label" for="option_0_correct">
+                                                        <small>Correcte</small>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Option 2 -->
+                                <div class="card mb-3 option-card">
+                                    <div class="card-body">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-1">
+                                                <h5 class="mb-0 text-primary">B</h5>
+                                            </div>
+                                            <div class="col-md-9">
+                                                <input type="text" class="form-control" name="option_1_text" placeholder="Texte de l'option B" required>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="option_1_correct" id="option_1_correct">
+                                                    <label class="form-check-label" for="option_1_correct">
+                                                        <small>Correcte</small>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Option 3 -->
+                                <div class="card mb-3 option-card">
+                                    <div class="card-body">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-1">
+                                                <h5 class="mb-0 text-primary">C</h5>
+                                            </div>
+                                            <div class="col-md-9">
+                                                <input type="text" class="form-control" name="option_2_text" placeholder="Texte de l'option C">
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="option_2_correct" id="option_2_correct">
+                                                    <label class="form-check-label" for="option_2_correct">
+                                                        <small>Correcte</small>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Option 4 -->
+                                <div class="card mb-3 option-card">
+                                    <div class="card-body">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-1">
+                                                <h5 class="mb-0 text-primary">D</h5>
+                                            </div>
+                                            <div class="col-md-9">
+                                                <input type="text" class="form-control" name="option_3_text" placeholder="Texte de l'option D">
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="option_3_correct" id="option_3_correct">
+                                                    <label class="form-check-label" for="option_3_correct">
+                                                        <small>Correcte</small>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <input type="hidden" name="option_count" id="option_count" value="4">
+                            
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="addOption()">
+                                <i class="fas fa-plus me-2"></i>Ajouter une option
+                            </button>
+                        </div>
+
+                        <!-- Section Vrai/Faux (cachée par défaut) -->
+                        <div id="true_false_section" style="display: none;">
+                            <h5 class="mb-3"><i class="fas fa-check-circle me-2"></i>Réponse Correcte</h5>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="correct_answer" id="answer_true" value="true">
+                                <label class="btn btn-outline-success btn-lg" for="answer_true">
+                                    <i class="fas fa-check me-2"></i>Vrai
+                                </label>
+
+                                <input type="radio" class="btn-check" name="correct_answer" id="answer_false" value="false">
+                                <label class="btn btn-outline-danger btn-lg" for="answer_false">
+                                    <i class="fas fa-times me-2"></i>Faux
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Section Réponse Courte (cachée par défaut) -->
+                        <div id="short_answer_section" style="display: none;">
+                            <h5 class="mb-3"><i class="fas fa-edit me-2"></i>Réponse Attendue</h5>
+                            <input type="text" class="form-control form-control-lg" name="correct_answer" placeholder="Réponse correcte attendue">
+                            <small class="text-muted">Les réponses seront vérifiées en ignorant la casse</small>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Informations Complémentaires -->
+                        <h5 class="mb-3"><i class="fas fa-info-circle me-2"></i>Informations Complémentaires (Optionnel)</h5>
+                        
+                        <div class="mb-3">
+                            <label for="explanation" class="form-label fw-semibold">Explication</label>
+                            <textarea class="form-control" id="explanation" name="explanation" rows="2" placeholder="Explication de la réponse (affichée après soumission)"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="hint" class="form-label fw-semibold">Indice</label>
+                            <input type="text" class="form-control" id="hint" name="hint" placeholder="Indice pour aider les étudiants">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="skills" class="form-label fw-semibold">Compétences évaluées</label>
+                            <input type="text" class="form-control" id="skills" name="skills" placeholder="Ex: analyse, synthèse, logique">
+                            <small class="text-muted">Séparez les compétences par des virgules</small>
+                        </div>
+
+                        <!-- Boutons d'Action -->
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-check me-2"></i>Enregistrer la Question
+                            </button>
+                            <a href="{% url 'evaluation:edit_test' test.id %}" class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-times me-2"></i>Annuler
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Gestion du changement de type de question
+function updateQuestionType() {
+    const questionType = document.getElementById('question_type').value;
+    const mcqSection = document.getElementById('mcq_section');
+    const trueFalseSection = document.getElementById('true_false_section');
+    const shortAnswerSection = document.getElementById('short_answer_section');
+
+    // Cacher toutes les sections
+    mcqSection.style.display = 'none';
+    trueFalseSection.style.display = 'none';
+    shortAnswerSection.style.display = 'none';
+
+    // Afficher la section appropriée
+    if (questionType === 'mcq') {
+        mcqSection.style.display = 'block';
+        // Rendre les options requises
+        document.querySelectorAll('[name^="option_"][name$="_text"]').forEach((input, index) => {
+            input.required = index < 2; // Les 2 premières options sont requises
+        });
+    } else if (questionType === 'true_false') {
+        trueFalseSection.style.display = 'block';
+        // Supprimer required des options
+        document.querySelectorAll('[name^="option_"][name$="_text"]').forEach(input => {
+            input.required = false;
+        });
+    } else if (questionType === 'short_answer') {
+        shortAnswerSection.style.display = 'block';
+        // Supprimer required des options
+        document.querySelectorAll('[name^="option_"][name$="_text"]').forEach(input => {
+            input.required = false;
+        });
+    }
+}
+
+// Ajouter une nouvelle option pour QCM
+let optionCount = 4;
+function addOption() {
+    const container = document.getElementById('options_container');
+    const letter = String.fromCharCode(65 + optionCount); // A, B, C, D, E, F...
+    
+    const optionHtml = `
+        <div class="card mb-3 option-card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-1">
+                        <h5 class="mb-0 text-primary">${letter}</h5>
+                    </div>
+                    <div class="col-md-9">
+                        <input type="text" class="form-control" name="option_${optionCount}_text" placeholder="Texte de l'option ${letter}">
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="option_${optionCount}_correct" id="option_${optionCount}_correct">
+                            <label class="form-check-label" for="option_${optionCount}_correct">
+                                <small>Correcte</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', optionHtml);
+    optionCount++;
+    document.getElementById('option_count').value = optionCount;
+}
+
+// Validation du formulaire
+document.getElementById('addQuestionForm').addEventListener('submit', function(e) {
+    const questionType = document.getElementById('question_type').value;
+    
+    if (questionType === 'mcq') {
+        // Vérifier qu'au moins une option est correcte
+        const hasCorrect = Array.from(document.querySelectorAll('[name^="option_"][name$="_correct"]'))
+            .some(checkbox => checkbox.checked);
+        
+        if (!hasCorrect) {
+            e.preventDefault();
+            alert('Veuillez sélectionner au moins une option correcte !');
+            return false;
+        }
+    } else if (questionType === 'true_false') {
+        // Vérifier qu'une réponse est sélectionnée
+        const hasAnswer = document.querySelector('input[name="correct_answer"]:checked');
+        if (!hasAnswer) {
+            e.preventDefault();
+            alert('Veuillez sélectionner la réponse correcte (Vrai ou Faux) !');
+            return false;
+        }
+    }
+});
+</script>
+
+<style>
+.option-card {
+    transition: all 0.3s ease;
+}
+
+.option-card:hover {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transform: translateY(-2px);
+}
+
+.breadcrumb {
+    background-color: transparent;
+    padding: 0;
+}
+</style>
+{% endblock %}

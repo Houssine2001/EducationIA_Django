@@ -1,0 +1,103 @@
+# ========================================
+# Django & Python
+# ========================================
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+
+# Migrations (optionnel - décommentez si vous ne voulez pas tracker les migrations)
+# */migrations/*.py
+# !*/migrations/__init__.py
+
+# Static files collectés
+staticfiles/
+static_root/
+
+# Media files (fichiers uploadés)
+media/
+!media/.gitkeep
+
+# Logs
+logs/*.log
+!logs/.gitkeep
+
+# ========================================
+# IDE & Éditeurs
+# ========================================
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ========================================
+# OS
+# ========================================
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+
+# ========================================
+# Variables d'environnement
+# ========================================
+
+.env
+.env.local
+.env.*.local
+
+# ========================================
+# Tests & Coverage
+# ========================================
+
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# ========================================
+# Documentation
+# ========================================
+
+docs/_build/
+
+# ========================================
+# Autres
+# ========================================
+
+# Backup files
+*.bak
+*.swp
+*.swo

@@ -1,0 +1,327 @@
+{% extends 'base.html' %}
+
+{% block title %}Historique - {{ test.title }}{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- En-tête -->
+    <div class="card mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <div class="card-body">
+            <h1 class="mb-3">
+                <i class="fas fa-history me-2"></i>
+                Historique du test
+            </h1>
+            <h3 class="mb-0">{{ test.title }}</h3>
+            <p class="mb-0 mt-2"><i class="fas fa-book me-2"></i>{{ test.subject }}</p>
+        </div>
+    </div>
+
+    <!-- Statistiques globales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h2 class="text-primary">{{ total_attempts }}</h2>
+                    <p class="text-muted mb-0">Tentatives</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h2 class="text-success">{{ evolution_data.best_score|floatformat:1 }}%</h2>
+                    <p class="text-muted mb-0">Meilleur score</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h2 class="text-info">{{ evolution_data.average_score|floatformat:1 }}%</h2>
+                    <p class="text-muted mb-0">Score moyen</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    {% if passed %}
+                        <h2 class="text-success"><i class="fas fa-check-circle"></i></h2>
+                        <p class="text-muted mb-0">Test réussi</p>
+                    {% else %}
+                        <h2 class="text-warning"><i class="fas fa-clock"></i></h2>
+                        <p class="text-muted mb-0">En cours</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphique d'évolution -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <i class="fas fa-chart-line me-2"></i>Évolution de vos scores
+        </div>
+        <div class="card-body">
+            <canvas id="evolutionChart" height="80"></canvas>
+        </div>
+    </div>
+
+    <!-- Analyse des patterns -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <i class="fas fa-star me-2"></i>Points forts persistants
+                </div>
+                <div class="card-body">
+                    {% if persistent_strengths %}
+                        <ul class="list-unstyled">
+                            {% for strength in persistent_strengths %}
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    {{ strength }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">Continuez à passer des tests pour identifier vos points forts.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-white">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Lacunes identifiées
+                </div>
+                <div class="card-body">
+                    {% if persistent_weaknesses %}
+                        <ul class="list-unstyled">
+                            {% for weakness in persistent_weaknesses %}
+                                <li class="mb-2">
+                                    <i class="fas fa-times-circle text-danger me-2"></i>
+                                    {{ weakness }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">Aucune lacune majeure détectée. Excellent !</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommandations globales -->
+    {% if all_recommendations %}
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <i class="fas fa-lightbulb me-2"></i>Recommandations pour progresser
+        </div>
+        <div class="card-body">
+            <ul>
+                {% for recommendation in all_recommendations %}
+                    <li class="mb-2">{{ recommendation }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Parcours d'apprentissage personnalisé -->
+    {% if learning_path %}
+    <div class="card mb-4">
+        <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <i class="fas fa-route me-2"></i>Votre parcours d'apprentissage personnalisé
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <p class="mb-2"><strong>Niveau actuel:</strong> 
+                        <span class="badge bg-primary">{{ learning_path.current_level|title }}</span>
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <p class="mb-2"><strong>Tendance:</strong> 
+                        {% if learning_path.trend == 'improving' %}
+                            <span class="badge bg-success"><i class="fas fa-arrow-up me-1"></i>En progression</span>
+                        {% elif learning_path.trend == 'declining' %}
+                            <span class="badge bg-danger"><i class="fas fa-arrow-down me-1"></i>En baisse</span>
+                        {% else %}
+                            <span class="badge bg-secondary"><i class="fas fa-minus me-1"></i>Stable</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            
+            <h6 class="mt-3">Prochaines étapes recommandées:</h6>
+            <ul>
+                {% for rec in learning_path.recommendations %}
+                    <li class="mb-2">{{ rec }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Historique détaillé des tentatives -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-list me-2"></i>Détail de chaque tentative
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Date</th>
+                            <th>Score</th>
+                            <th>Pourcentage</th>
+                            <th>Note</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in results %}
+                        <tr>
+                            <td><strong>{{ forloop.counter }}</strong></td>
+                            <td>{{ result.created_at|date:"d/m/Y H:i" }}</td>
+                            <td>{{ result.total_score|floatformat:1 }}/{{ test.total_points|floatformat:1 }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if result.percentage_score >= 80 %}bg-success
+                                    {% elif result.percentage_score >= 60 %}bg-warning
+                                    {% else %}bg-danger
+                                    {% endif %}">
+                                    {{ result.percentage_score|floatformat:1 }}%
+                                </span>
+                            </td>
+                            <td><span class="badge bg-secondary">{{ result.grade }}</span></td>
+                            <td>
+                                {% if result.percentage_score >= test.passing_score %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check me-1"></i>Réussi
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-times me-1"></i>Échoué
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'evaluation:view_result' result.id %}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-eye me-1"></i>Voir détails
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Boutons d'action -->
+    <div class="text-center mb-4">
+        <a href="{% url 'evaluation:test_detail' test.id %}" class="btn btn-primary btn-lg">
+            <i class="fas fa-redo me-2"></i>Refaire le test
+        </a>
+        <a href="{% url 'evaluation:student_dashboard' %}" class="btn btn-secondary btn-lg">
+            <i class="fas fa-arrow-left me-2"></i>Retour au tableau de bord
+        </a>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Graphique d'évolution
+const ctx = document.getElementById('evolutionChart').getContext('2d');
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: {{ evolution_data.dates|safe }},
+        datasets: [{
+            label: 'Score (%)',
+            data: {{ evolution_data.scores|safe }},
+            borderColor: '#667eea',
+            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true,
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            pointBackgroundColor: '#667eea',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2
+        }, {
+            label: 'Score de passage',
+            data: Array({{ evolution_data.scores|length }}).fill({{ test.passing_score }}),
+            borderColor: '#e74c3c',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            fill: false
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top'
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%';
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100,
+                ticks: {
+                    callback: function(value) {
+                        return value + '%';
+                    }
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'Date de la tentative'
+                }
+            }
+        }
+    }
+});
+</script>
+
+<style>
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.card {
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+</style>
+{% endblock %}

@@ -1,0 +1,285 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ test.title }}{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- En-tête du Test -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <h1 class="display-6 fw-bold mb-3">{{ test.title }}</h1>
+                    
+                    <div class="mb-3">
+                        <span class="badge bg-info me-2">
+                            <i class="fas fa-book me-1"></i>{{ test.subject }}
+                        </span>
+                        {% if test.difficulty == 'beginner' %}
+                            <span class="badge bg-success me-2">Débutant</span>
+                        {% elif test.difficulty == 'intermediate' %}
+                            <span class="badge bg-warning text-dark me-2">Intermédiaire</span>
+                        {% elif test.difficulty == 'advanced' %}
+                            <span class="badge bg-danger me-2">Avancé</span>
+                        {% endif %}
+                        
+                        {% if test.ai_enabled %}
+                            <span class="ai-badge"><i class="fas fa-brain"></i> IA Activée</span>
+                        {% endif %}
+                    </div>
+
+                    <p class="text-muted">{{ test.description }}</p>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <h3 class="text-warning">{{ test.passing_score }}%</h3>
+                        <p>Score requis pour réussir</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Informations du Test -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <i class="fas fa-question-circle text-primary fa-3x mb-3"></i>
+                    <h4 class="text-primary">{{ test.questions.count }}</h4>
+                    <p class="text-muted mb-0">Questions</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <i class="fas fa-clock text-warning fa-3x mb-3"></i>
+                    <h4 class="text-warning">{{ test.duration }}</h4>
+                    <p class="text-muted mb-0">Minutes</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <i class="fas fa-trophy text-success fa-3x mb-3"></i>
+                    <h4 class="text-success">{{ test.total_points }}</h4>
+                    <p class="text-muted mb-0">Points totaux</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <i class="fas fa-redo text-info fa-3x mb-3"></i>
+                    <h4 class="text-info">
+                        {% if test.allow_multiple_attempts %}
+                            {{ test.max_attempts|default:"∞" }}
+                        {% else %}
+                            1
+                        {% endif %}
+                    </h4>
+                    <p class="text-muted mb-0">Tentative(s)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-info-circle me-2"></i>Instructions importantes
+        </div>
+        <div class="card-body">
+            <ul class="mb-0">
+                <li class="mb-2">
+                    <strong>Durée :</strong> Vous disposez de <strong>{{ test.duration }} minutes</strong> pour compléter ce test.
+                </li>
+                <li class="mb-2">
+                    <strong>Questions :</strong> Le test contient <strong>{{ test.questions.count }} questions</strong> 
+                    pour un total de <strong>{{ test.total_points }} points</strong>.
+                </li>
+                {% if test.shuffle_questions %}
+                <li class="mb-2">
+                    <strong>Ordre aléatoire :</strong> Les questions seront affichées dans un ordre aléatoire.
+                </li>
+                {% endif %}
+                {% if test.show_correct_answers %}
+                <li class="mb-2">
+                    <strong>Correction :</strong> Les réponses correctes vous seront montrées après la soumission.
+                </li>
+                {% endif %}
+                <li class="mb-2">
+                    <strong>Score de passage :</strong> Vous devez obtenir au moins <strong>{{ test.passing_score }}%</strong> 
+                    pour réussir ce test.
+                </li>
+                {% if test.ai_enabled %}
+                <li class="mb-2">
+                    <strong>Intelligence Artificielle :</strong> 
+                    <span class="ai-badge"><i class="fas fa-brain"></i></span>
+                    Les questions ouvertes seront corrigées automatiquement par IA et vous recevrez un feedback personnalisé.
+                </li>
+                {% endif %}
+                {% if test.allow_multiple_attempts %}
+                <li class="mb-2">
+                    <strong>Tentatives multiples :</strong> Vous pouvez passer ce test 
+                    {% if test.max_attempts %}
+                        jusqu'à <strong>{{ test.max_attempts }} fois</strong>.
+                    {% else %}
+                        <strong>autant de fois que vous le souhaitez</strong>.
+                    {% endif %}
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Aperçu des Types de Questions -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-list me-2"></i>Types de questions
+        </div>
+        <div class="card-body">
+            <div class="row text-center">
+                {% if question_types.mcq %}
+                <div class="col-md-3 mb-3">
+                    <div class="p-3 border rounded">
+                        <i class="fas fa-check-square text-primary fa-2x mb-2"></i>
+                        <h5 class="text-primary">{{ question_types.mcq }}</h5>
+                        <p class="text-muted mb-0 small">QCM</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if question_types.true_false %}
+                <div class="col-md-3 mb-3">
+                    <div class="p-3 border rounded">
+                        <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
+                        <h5 class="text-success">{{ question_types.true_false }}</h5>
+                        <p class="text-muted mb-0 small">Vrai/Faux</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if question_types.short_answer %}
+                <div class="col-md-3 mb-3">
+                    <div class="p-3 border rounded">
+                        <i class="fas fa-pen text-warning fa-2x mb-2"></i>
+                        <h5 class="text-warning">{{ question_types.short_answer }}</h5>
+                        <p class="text-muted mb-0 small">Réponse courte</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if question_types.essay %}
+                <div class="col-md-3 mb-3">
+                    <div class="p-3 border rounded">
+                        <i class="fas fa-file-alt text-info fa-2x mb-2"></i>
+                        <h5 class="text-info">{{ question_types.essay }}</h5>
+                        <p class="text-muted mb-0 small">Dissertation</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if question_types.code %}
+                <div class="col-md-3 mb-3">
+                    <div class="p-3 border rounded">
+                        <i class="fas fa-code text-danger fa-2x mb-2"></i>
+                        <h5 class="text-danger">{{ question_types.code }}</h5>
+                        <p class="text-muted mb-0 small">Code</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Vos Tentatives Précédentes -->
+    {% if previous_attempts %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-history me-2"></i>Vos tentatives précédentes
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Tentative</th>
+                            <th>Score</th>
+                            <th>Pourcentage</th>
+                            <th>Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for attempt in previous_attempts %}
+                        <tr>
+                            <td><strong>Tentative #{{ attempt.attempt_number }}</strong></td>
+                            <td>{{ attempt.result.score }}/{{ attempt.result.max_score }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if attempt.result.percentage >= 80 %}bg-success
+                                    {% elif attempt.result.percentage >= 60 %}bg-warning text-dark
+                                    {% else %}bg-danger
+                                    {% endif %}">
+                                    {{ attempt.result.percentage|floatformat:0 }}%
+                                </span>
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {{ attempt.submitted_at|date:"d/m/Y H:i" }}
+                                </small>
+                            </td>
+                            <td>
+                                <a href="{% url 'evaluation:view_result' attempt.result.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye me-1"></i>Voir
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Bouton Commencer -->
+    <div class="card">
+        <div class="card-body text-center py-4">
+            {% if can_start %}
+                <form method="post" action="{% url 'evaluation:start_test' test.id %}">
+                    {% csrf_token %}
+                    <h5 class="mb-3">Êtes-vous prêt à commencer ?</h5>
+                    <p class="text-muted mb-4">
+                        Une fois que vous aurez commencé, le chronomètre démarrera immédiatement.
+                    </p>
+                    <button type="submit" class="btn btn-success btn-lg me-3">
+                        <i class="fas fa-play-circle me-2"></i>
+                        Commencer le test
+                    </button>
+                    <a href="{% url 'evaluation:student_dashboard' %}" class="btn btn-outline-secondary btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Retour
+                    </a>
+                </form>
+            {% else %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Vous avez atteint le nombre maximum de tentatives pour ce test.
+                </div>
+                <a href="{% url 'evaluation:student_dashboard' %}" class="btn btn-primary">
+                    <i class="fas fa-home me-2"></i>
+                    Retour au tableau de bord
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

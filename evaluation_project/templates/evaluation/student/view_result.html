@@ -1,0 +1,294 @@
+{% extends 'base.html' %}
+
+{% block title %}Résultat - {{ result.test.title }}{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- Score Global -->
+    <div class="card mb-4 text-center">
+        <div class="card-body py-5">
+            <h1 class="display-4 fw-bold mb-3">
+                {% if result.percentage >= result.test.passing_score %}
+                    <i class="fas fa-trophy text-warning me-3"></i>
+                    <span class="text-success">Félicitations !</span>
+                {% else %}
+                    <i class="fas fa-info-circle text-info me-3"></i>
+                    <span class="text-warning">Continuez vos efforts !</span>
+                {% endif %}
+            </h1>
+            
+            <h2 class="mb-4">{{ result.test.title }}</h2>
+            
+            <div class="row justify-content-center mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <h3 class="
+                            {% if result.percentage_score >= 80 %}text-success
+                            {% elif result.percentage_score >= 60 %}text-warning
+                            {% else %}text-danger
+                            {% endif %}">
+                            {{ result.total_score|floatformat:1 }}/{{ test.total_points|floatformat:1 }}
+                        </h3>
+                        <p>Points obtenus</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <h3>{{ result.percentage_score|floatformat:1 }}%</h3>
+                        <p>Pourcentage</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="progress mx-auto" style="max-width: 500px; height: 30px;">
+                <div class="progress-bar 
+                    {% if result.percentage_score >= 80 %}bg-success
+                    {% elif result.percentage_score >= 60 %}bg-warning
+                    {% else %}bg-danger
+                    {% endif %}" 
+                    style="width: {{ result.percentage_score }}%">
+                    {{ result.percentage_score|floatformat:1 }}%
+                </div>
+            </div>
+
+            <p class="mt-3 text-muted">
+                {% if result.percentage_score >= result.test.passing_score %}
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    Vous avez réussi le test (score de passage: {{ result.test.passing_score }}%)
+                {% else %}
+                    <i class="fas fa-times-circle text-danger me-2"></i>
+                    Score de passage non atteint (requis: {{ result.test.passing_score }}%)
+                {% endif %}
+            </p>
+
+            {% if result.test.allow_multiple_attempts %}
+            <a href="{% url 'test_detail' result.test.id %}" class="btn btn-primary mt-3">
+                <i class="fas fa-redo me-2"></i>Retenter le test
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Feedback IA -->
+    {% if result.ai_analysis %}
+    <div class="card mb-4">
+        <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <i class="fas fa-brain me-2"></i>Analyse par Intelligence Artificielle
+        </div>
+        <div class="card-body">
+            {% if result.ai_analysis.overall_feedback %}
+            <div class="alert alert-info">
+                <h6 class="alert-heading"><i class="fas fa-comment-dots me-2"></i>Feedback global</h6>
+                <p class="mb-0">{{ result.ai_analysis.overall_feedback }}</p>
+            </div>
+            {% endif %}
+
+            {% if result.ai_analysis.encouragement %}
+            <div class="alert alert-success">
+                <h6 class="alert-heading"><i class="fas fa-smile me-2"></i>Encouragement</h6>
+                <p class="mb-0">{{ result.ai_analysis.encouragement }}</p>
+            </div>
+            {% endif %}
+
+            {% if result.ai_analysis.weaknesses %}
+            <div class="alert alert-warning">
+                <h6 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Points à améliorer</h6>
+                <ul class="mb-0">
+                    {% for weakness in result.ai_analysis.weaknesses %}
+                    <li>{{ weakness }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if result.ai_analysis.strengths %}
+            <div class="alert alert-success">
+                <h6 class="alert-heading"><i class="fas fa-star me-2"></i>Points forts</h6>
+                <ul class="mb-0">
+                    {% for strength in result.ai_analysis.strengths %}
+                    <li>{{ strength }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
+            {% if result.ai_analysis.recommendations %}
+            <div class="alert alert-primary">
+                <h6 class="alert-heading"><i class="fas fa-lightbulb me-2"></i>Recommandations personnalisées</h6>
+                <ul class="mb-0">
+                    {% for recommendation in result.ai_analysis.recommendations %}
+                    <li>{{ recommendation }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
+            {% if result.ai_analysis.chapters_to_review %}
+            <div class="alert alert-warning">
+                <h6 class="alert-heading"><i class="fas fa-book-open me-2"></i>Chapitres à revoir</h6>
+                <ul class="mb-0">
+                    {% for chapter in result.ai_analysis.chapters_to_review %}
+                    <li>{{ chapter }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
+            {% if result.ai_analysis.exercises_to_redo %}
+            <div class="alert alert-info">
+                <h6 class="alert-heading"><i class="fas fa-dumbbell me-2"></i>Exercices recommandés</h6>
+                <ul class="mb-0">
+                    {% for exercise in result.ai_analysis.exercises_to_redo %}
+                    <li><strong>{{ exercise.skill }}:</strong> {{ exercise.recommendation }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Détails par Question -->
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-list-check me-2"></i>Détails des réponses
+        </div>
+        <div class="card-body">
+            {% for detail in result.details_by_question %}
+            <div class="card mb-3 {% if detail.is_correct %}border-success{% else %}border-danger{% endif %}">
+                <div class="card-header bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>Question {{ forloop.counter }}</strong>
+                            <span class="badge bg-secondary ms-2">{{ detail.question_type }}</span>
+                        </div>
+                        <div>
+                            {% if detail.is_correct %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check me-1"></i>
+                                    Correct - {{ detail.points_earned }}/{{ detail.max_points }} pts
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-times me-1"></i>
+                                    Incorrect - {{ detail.points_earned }}/{{ detail.max_points }} pts
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <h6 class="mb-3">{{ detail.question_text }}</h6>
+
+                    <!-- Votre Réponse -->
+                    <div class="mb-3">
+                        <strong class="text-muted">Votre réponse :</strong>
+                        <div class="p-3 bg-light rounded mt-2">
+                            {{ detail.student_answer|default:"<em class='text-muted'>Pas de réponse</em>"|safe }}
+                        </div>
+                    </div>
+
+                    <!-- Réponse Correcte -->
+                    {% if result.test.show_correct_answers and detail.correct_answer %}
+                    <div class="mb-3">
+                        <strong class="text-success">Réponse correcte :</strong>
+                        <div class="p-3 bg-light rounded mt-2 border-start border-success border-4">
+                            {{ detail.correct_answer }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Feedback IA pour cette question -->
+                    {% if detail.ai_feedback %}
+                    <div class="alert alert-info mb-0">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-robot me-2"></i>Feedback IA
+                        </h6>
+                        <p class="mb-0">{{ detail.ai_feedback }}</p>
+                        
+                        {% if detail.positive_points %}
+                        <hr>
+                        <strong class="text-success">Points positifs :</strong>
+                        <ul class="mb-0 mt-2">
+                            {% for point in detail.positive_points %}
+                            <li>{{ point }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+
+                        {% if detail.improvements %}
+                        <hr>
+                        <strong class="text-warning">À améliorer :</strong>
+                        <ul class="mb-0 mt-2">
+                            {% for improvement in detail.improvements %}
+                            <li>{{ improvement }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Explication -->
+                    {% if detail.explanation %}
+                    <div class="mt-3">
+                        <strong class="text-info">Explication :</strong>
+                        <p class="mb-0 mt-2">{{ detail.explanation }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Recommandations -->
+    {% if result.recommendations %}
+    <div class="card mt-4">
+        <div class="card-header bg-info text-white">
+            <i class="fas fa-lightbulb me-2"></i>Recommandations personnalisées
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for rec in result.recommendations %}
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                {% if rec.priority == 'high' %}
+                                    <span class="badge bg-danger">Priorité haute</span>
+                                {% elif rec.priority == 'medium' %}
+                                    <span class="badge bg-warning text-dark">Priorité moyenne</span>
+                                {% else %}
+                                    <span class="badge bg-info">Priorité basse</span>
+                                {% endif %}
+                            </h6>
+                            <p class="card-text">{{ rec.suggestion }}</p>
+                            {% if rec.resources %}
+                            <small class="text-muted">
+                                <i class="fas fa-book me-1"></i>
+                                Ressources suggérées : {{ rec.resources|join:", " }}
+                            </small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Boutons d'Action -->
+    <div class="text-center mt-4 mb-5">
+        <a href="{% url 'evaluation:test_history' test.id %}" class="btn btn-success btn-lg me-3">
+            <i class="fas fa-history me-2"></i>Voir l'historique complet
+        </a>
+        <a href="{% url 'evaluation:student_dashboard' %}" class="btn btn-primary btn-lg me-3">
+            <i class="fas fa-home me-2"></i>Retour au tableau de bord
+        </a>
+        <a href="{% url 'evaluation:student_progress' %}" class="btn btn-outline-info btn-lg">
+            <i class="fas fa-chart-line me-2"></i>Voir ma progression
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,404 @@
+{% extends 'base.html' %}
+
+{% block title %}Tableau de bord - Étudiant{% endblock %}
+
+{% block page_title %}Tableau de bord{% endblock %}
+{% block page_subtitle %}Bonjour {{ user.get_full_name|default:user.username }}, bienvenue sur votre espace d'apprentissage{% endblock %}
+
+{% block content %}
+
+<!-- Alertes importantes -->
+{% if alerts %}
+<div class="mb-6 space-y-3">
+    {% for alert in alerts %}
+    <div class="animate-slideIn {% if alert.type == 'warning' %}bg-yellow-50 border-l-4 border-yellow-400{% elif alert.type == 'success' %}bg-green-50 border-l-4 border-green-400{% elif alert.type == 'info' %}bg-blue-50 border-l-4 border-blue-400{% else %}bg-red-50 border-l-4 border-red-400{% endif %} p-4 rounded-lg shadow-sm">
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                {% if alert.type == 'warning' %}
+                <i class="fas fa-exclamation-triangle text-yellow-600 text-xl"></i>
+                {% elif alert.type == 'success' %}
+                <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                {% elif alert.type == 'info' %}
+                <i class="fas fa-info-circle text-blue-600 text-xl"></i>
+                {% else %}
+                <i class="fas fa-times-circle text-red-600 text-xl"></i>
+                {% endif %}
+            </div>
+            <div class="ml-3 flex-1">
+                <h3 class="text-sm font-medium {% if alert.type == 'warning' %}text-yellow-800{% elif alert.type == 'success' %}text-green-800{% elif alert.type == 'info' %}text-blue-800{% else %}text-red-800{% endif %}">
+                    {{ alert.title }}
+                </h3>
+                <p class="mt-1 text-sm {% if alert.type == 'warning' %}text-yellow-700{% elif alert.type == 'success' %}text-green-700{% elif alert.type == 'info' %}text-blue-700{% else %}text-red-700{% endif %}">
+                    {{ alert.message }}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Statistiques principales -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <!-- Score Moyen -->
+    <div class="animate-fadeIn bg-white rounded-xl shadow-lg p-6 card-hover border-l-4 border-blue-500">
+        <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <i class="fas fa-chart-line text-blue-600 text-xl"></i>
+            </div>
+            <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                {% if analytics.progression.trend == 'improving' %}
+                <i class="fas fa-arrow-up"></i> +{{ analytics.progression.improvement|floatformat:1 }}%
+                {% elif analytics.progression.trend == 'declining' %}
+                <i class="fas fa-arrow-down"></i> {{ analytics.progression.improvement|floatformat:1 }}%
+                {% else %}
+                <i class="fas fa-minus"></i> Stable
+                {% endif %}
+            </span>
+        </div>
+        <h3 class="text-3xl font-bold text-gray-800">{{ analytics.scores.average|floatformat:1 }}%</h3>
+        <p class="text-sm text-gray-600 mt-2">Score moyen global</p>
+        <div class="mt-4 bg-gray-200 rounded-full h-2">
+            <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500" style="width: {{ analytics.scores.average }}%"></div>
+        </div>
+    </div>
+
+    <!-- Tests Complétés -->
+    <div class="animate-fadeIn bg-white rounded-xl shadow-lg p-6 card-hover border-l-4 border-green-500" style="animation-delay: 0.1s;">
+        <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <i class="fas fa-clipboard-check text-green-600 text-xl"></i>
+            </div>
+            <span class="text-xs font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full">
+                Total
+            </span>
+        </div>
+        <h3 class="text-3xl font-bold text-gray-800">{{ analytics.metadata.total_tests }}</h3>
+        <p class="text-sm text-gray-600 mt-2">Tests complétés</p>
+        <p class="text-xs text-gray-500 mt-2">
+            <i class="fas fa-clock mr-1"></i>
+            {{ analytics.study_time.total_hours|floatformat:1 }}h d'étude
+        </p>
+    </div>
+
+    <!-- Niveau & XP -->
+    <div class="animate-fadeIn bg-white rounded-xl shadow-lg p-6 card-hover border-l-4 border-purple-500" style="animation-delay: 0.2s;">
+        <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <i class="fas fa-trophy text-purple-600 text-xl"></i>
+            </div>
+            <span class="text-xs font-semibold text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
+                Niveau {{ level_info.current_level.level }}
+            </span>
+        </div>
+        <h3 class="text-2xl font-bold text-gray-800">{{ level_info.current_level.name }}</h3>
+        <p class="text-sm text-gray-600 mt-2">{{ profile.total_xp }} XP</p>
+        <div class="mt-4">
+            <div class="flex justify-between text-xs text-gray-600 mb-1">
+                <span>Progression</span>
+                <span>{{ level_info.progress_percentage|floatformat:0 }}%</span>
+            </div>
+            <div class="bg-gray-200 rounded-full h-2">
+                <div class="bg-gradient-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-500" style="width: {{ level_info.progress_percentage }}%"></div>
+            </div>
+            <p class="text-xs text-gray-500 mt-1">{{ level_info.xp_to_next_level }} XP jusqu'au niveau {{ level_info.next_level.level }}</p>
+        </div>
+    </div>
+
+    <!-- Classement -->
+    <div class="animate-fadeIn bg-white rounded-xl shadow-lg p-6 card-hover border-l-4 border-yellow-500" style="animation-delay: 0.3s;">
+        <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <i class="fas fa-crown text-yellow-600 text-xl"></i>
+            </div>
+            <span class="text-xs font-semibold text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full">
+                Top {{ student_rank.percentile|floatformat:0 }}%
+            </span>
+        </div>
+        <h3 class="text-3xl font-bold text-gray-800">#{{ student_rank.rank }}</h3>
+        <p class="text-sm text-gray-600 mt-2">Votre classement</p>
+        <p class="text-xs text-gray-500 mt-2">
+            <i class="fas fa-users mr-1"></i>
+            sur {{ student_rank.total_students }} étudiants
+        </p>
+    </div>
+</div>
+
+<!-- Section principale: Badges & Recommandations -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+    
+    <!-- Badges récents -->
+    <div class="lg:col-span-1">
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-bold text-gray-800">
+                    <i class="fas fa-award text-yellow-500 mr-2"></i>
+                    Mes Badges
+                </h2>
+                <span class="text-sm font-semibold text-gray-500">{{ badges|length }} / 14</span>
+            </div>
+            
+            {% if badges %}
+            <div class="space-y-3 max-h-96 overflow-y-auto">
+                {% for badge in badges|slice:":5" %}
+                <div class="flex items-center space-x-3 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
+                    <div class="flex-shrink-0">
+                        <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md">
+                            <i class="{{ badge.icon }} text-yellow-600 text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-gray-800 truncate">{{ badge.name }}</p>
+                        <p class="text-xs text-gray-600">{{ badge.description|truncatewords:8 }}</p>
+                        <div class="flex items-center mt-1">
+                            <span class="text-xs font-medium text-yellow-700 bg-yellow-200 px-2 py-0.5 rounded">
+                                {{ badge.rarity }}
+                            </span>
+                            <span class="ml-2 text-xs text-gray-500">+{{ badge.xp }} XP</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <i class="fas fa-medal text-gray-300 text-5xl mb-4"></i>
+                <p class="text-gray-500">Aucun badge pour le moment</p>
+                <p class="text-sm text-gray-400 mt-2">Complétez des tests pour gagner des badges !</p>
+            </div>
+            {% endif %}
+            
+            <a href="{% url 'evaluation:student_dashboard' %}" class="mt-4 block text-center text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors">
+                Voir tous les badges <i class="fas fa-arrow-right ml-1"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- Recommandations IA -->
+    <div class="lg:col-span-2">
+        <div class="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl shadow-lg p-6 border border-purple-100">
+            <div class="flex items-center mb-6">
+                <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center mr-3">
+                    <i class="fas fa-brain text-white text-lg"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800">Recommandations IA</h2>
+                    <p class="text-sm text-gray-600">Conseils personnalisés pour vous</p>
+                </div>
+            </div>
+            
+            {% if recommendations %}
+            <div class="space-y-4">
+                {% for rec in recommendations|slice:":4" %}
+                <div class="bg-white rounded-lg p-4 shadow-sm border-l-4 {% if rec.priority == 'high' %}border-red-500{% elif rec.priority == 'medium' %}border-yellow-500{% else %}border-blue-500{% endif %}">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 mt-1">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center {% if rec.priority == 'high' %}bg-red-100{% elif rec.priority == 'medium' %}bg-yellow-100{% else %}bg-blue-100{% endif %}">
+                                <i class="fas fa-lightbulb {% if rec.priority == 'high' %}text-red-600{% elif rec.priority == 'medium' %}text-yellow-600{% else %}text-blue-600{% endif %}"></i>
+                            </div>
+                        </div>
+                        <div class="ml-3 flex-1">
+                            <h3 class="text-sm font-semibold text-gray-800">{{ rec.title }}</h3>
+                            <p class="text-sm text-gray-600 mt-1">{{ rec.message }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <i class="fas fa-robot text-gray-300 text-5xl mb-4"></i>
+                <p class="text-gray-500">Aucune recommandation pour le moment</p>
+                <p class="text-sm text-gray-400 mt-2">Complétez plus de tests pour obtenir des conseils personnalisés</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Performances par matière -->
+{% if analytics.subjects %}
+<div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+    <h2 class="text-xl font-bold text-gray-800 mb-6">
+        <i class="fas fa-book text-blue-600 mr-2"></i>
+        Performances par Matière
+    </h2>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for subject, data in analytics.subjects.items %}
+        <div class="bg-gradient-to-br from-gray-50 to-white rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-semibold text-gray-800 truncate">{{ subject }}</h3>
+                <span class="text-xs font-medium px-2 py-1 rounded {% if data.average >= 75 %}bg-green-100 text-green-700{% elif data.average >= 60 %}bg-yellow-100 text-yellow-700{% else %}bg-red-100 text-red-700{% endif %}">
+                    {% if data.trend == 'improving' %}
+                    <i class="fas fa-arrow-up"></i>
+                    {% elif data.trend == 'declining' %}
+                    <i class="fas fa-arrow-down"></i>
+                    {% else %}
+                    <i class="fas fa-minus"></i>
+                    {% endif %}
+                </span>
+            </div>
+            
+            <div class="flex items-end justify-between mb-2">
+                <span class="text-2xl font-bold {% if data.average >= 75 %}text-green-600{% elif data.average >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                    {{ data.average|floatformat:1 }}%
+                </span>
+                <span class="text-xs text-gray-500">{{ data.count }} test{{ data.count|pluralize }}</span>
+            </div>
+            
+            <div class="bg-gray-200 rounded-full h-2 mb-2">
+                <div class="h-2 rounded-full {% if data.average >= 75 %}bg-green-500{% elif data.average >= 60 %}bg-yellow-500{% else %}bg-red-500{% endif %}" style="width: {{ data.average }}%"></div>
+            </div>
+            
+            <p class="text-xs text-gray-600">
+                Dernier score: <span class="font-semibold">{{ data.last_score|floatformat:1 }}%</span>
+            </p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Tests disponibles & Classement -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+    
+    <!-- Tests disponibles -->
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-gray-800">
+                <i class="fas fa-clipboard-list text-blue-600 mr-2"></i>
+                Tests Disponibles
+            </h2>
+            <span class="bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-1 rounded-full">
+                {{ available_tests|length }} nouveau{{ available_tests|length|pluralize:"x" }}
+            </span>
+        </div>
+        
+        {% if available_tests %}
+        <div class="space-y-3 max-h-96 overflow-y-auto">
+            {% for test in available_tests|slice:":5" %}
+            <div class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-gray-800">{{ test.title }}</h3>
+                        <p class="text-sm text-gray-600 mt-1 line-clamp-2">{{ test.description|truncatewords:15 }}</p>
+                        <div class="flex items-center space-x-4 mt-3 text-xs text-gray-500">
+                            <span><i class="fas fa-book mr-1"></i>{{ test.subject }}</span>
+                            <span><i class="fas fa-question-circle mr-1"></i>{{ test.questions.count }} questions</span>
+                            <span><i class="fas fa-clock mr-1"></i>{{ test.duration }} min</span>
+                        </div>
+                    </div>
+                    <a href="{% url 'evaluation:test_detail' test.id %}" class="ml-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors btn-hover-lift">
+                        Commencer
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <i class="fas fa-check-circle text-gray-300 text-5xl mb-4"></i>
+            <p class="text-gray-500">Aucun test disponible</p>
+            <p class="text-sm text-gray-400 mt-2">Revenez plus tard pour de nouveaux tests</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Classement général -->
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-6">
+            <i class="fas fa-ranking-star text-yellow-500 mr-2"></i>
+            Classement Général
+        </h2>
+        
+        {% if leaderboard_all_time %}
+        <div class="space-y-2">
+            {% for entry in leaderboard_all_time %}
+            <div class="flex items-center justify-between p-3 rounded-lg {% if entry.is_current_user %}bg-blue-50 border border-blue-200{% else %}bg-gray-50{% endif %}">
+                <div class="flex items-center space-x-3">
+                    <div class="flex-shrink-0">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold {% if forloop.counter == 1 %}bg-yellow-400 text-white{% elif forloop.counter == 2 %}bg-gray-300 text-gray-700{% elif forloop.counter == 3 %}bg-orange-400 text-white{% else %}bg-gray-200 text-gray-600{% endif %}">
+                            {{ forloop.counter }}
+                        </div>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-800 {% if entry.is_current_user %}text-blue-700{% endif %}">
+                            {% if entry.is_current_user %}Vous{% else %}{{ entry.student_name }}{% endif %}
+                        </p>
+                        <p class="text-xs text-gray-500">Niveau {{ entry.level }}</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-lg font-bold text-gray-800">{{ entry.average_score|floatformat:1 }}%</p>
+                    <p class="text-xs text-gray-500">{{ entry.total_xp }} XP</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <i class="fas fa-trophy text-gray-300 text-5xl mb-4"></i>
+            <p class="text-gray-500">Classement non disponible</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Résultats récents -->
+{% if results %}
+<div class="bg-white rounded-xl shadow-lg p-6">
+    <h2 class="text-xl font-bold text-gray-800 mb-6">
+        <i class="fas fa-history text-gray-600 mr-2"></i>
+        Résultats Récents
+    </h2>
+    
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Test</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matière</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for result in results|slice:":5" %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">{{ result.test.title|truncatewords:5 }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm text-gray-600">{{ result.test.subject }}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full {% if result.score >= 75 %}bg-green-100 text-green-800{% elif result.score >= 60 %}bg-yellow-100 text-yellow-800{% else %}bg-red-100 text-red-800{% endif %}">
+                            {{ result.score|floatformat:1 }}%
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ result.created_at|date:"d/m/Y" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <a href="{% url 'evaluation:view_result' result.id %}" class="text-blue-600 hover:text-blue-800 font-medium">
+                            Détails <i class="fas fa-arrow-right ml-1 text-xs"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="mt-4 text-center">
+        <a href="{% url 'evaluation:student_progress' %}" class="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors">
+            Voir tous mes résultats <i class="fas fa-arrow-right ml-2"></i>
+        </a>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+

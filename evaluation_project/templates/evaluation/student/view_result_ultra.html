@@ -1,0 +1,491 @@
+{% extends 'base.html' %}
+
+{% block title %}Résultat - {{ result.test.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    @keyframes gradientShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+    
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .hero-result {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        background-size: 200% 200%;
+        animation: gradientShift 8s ease infinite;
+        border-radius: 25px;
+        padding: 35px;
+        color: white;
+        margin-bottom: 25px;
+        box-shadow: 0 20px 60px rgba(102, 126, 234, 0.4);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .hero-result::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+        background-size: 50px 50px;
+        animation: pulse 4s ease-in-out infinite;
+    }
+    
+    .score-circle {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #fff 0%, #f0f0f0 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        margin: 0 auto 20px;
+        position: relative;
+        z-index: 1;
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .score-circle .score-value {
+        font-size: 2.5rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .score-circle .score-label {
+        color: #666;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-top: 5px;
+    }
+    
+    .stat-card-modern {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        animation: slideUp 0.6s ease-out;
+        border: 2px solid transparent;
+    }
+    
+    .stat-card-modern:hover {
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.3);
+        border-color: #667eea;
+    }
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 10px;
+        font-size: 1.5rem;
+    }
+    
+    .section-card {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+        margin-bottom: 20px;
+        border-left: 5px solid transparent;
+        transition: all 0.3s ease;
+    }
+    
+    .section-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
+    }
+    
+    .section-card.ai-analysis {
+        border-left-color: #667eea;
+        background: linear-gradient(135deg, #f6f9ff 0%, #ffffff 100%);
+    }
+    
+    .section-card.strengths {
+        border-left-color: #38a169;
+        background: linear-gradient(135deg, #f0fff4 0%, #ffffff 100%);
+    }
+    
+    .section-card.weaknesses {
+        border-left-color: #e74c3c;
+        background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
+    }
+    
+    .section-card.recommendations {
+        border-left-color: #f7971e;
+        background: linear-gradient(135deg, #fffaf0 0%, #ffffff 100%);
+    }
+    
+    .badge-skill {
+        display: inline-block;
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-weight: 600;
+        margin: 5px;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+    
+    .badge-skill:hover {
+        transform: scale(1.1);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .badge-expert {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+    }
+    
+    .badge-competent {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+    
+    .badge-developing {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        color: white;
+    }
+    
+    .badge-beginner {
+        background: linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%);
+        color: white;
+    }
+    
+    .question-review {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+        border-left: 5px solid transparent;
+        transition: all 0.3s ease;
+    }
+    
+    .question-review.correct {
+        border-left-color: #38a169;
+        background: linear-gradient(135deg, #f0fff4 0%, #ffffff 100%);
+    }
+    
+    .question-review.incorrect {
+        border-left-color: #e74c3c;
+        background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
+    }
+    
+    .question-review:hover {
+        transform: translateX(5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+    
+    .option-badge {
+        display: inline-block;
+        padding: 8px 15px;
+        border-radius: 20px;
+        margin: 5px;
+        font-weight: 500;
+    }
+    
+    .option-correct {
+        background: linear-gradient(135deg, #38a169 0%, #48bb78 100%);
+        color: white;
+    }
+    
+    .option-wrong {
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        color: white;
+    }
+    
+    .option-neutral {
+        background: #e2e8f0;
+        color: #4a5568;
+    }
+    
+    .progress-ring {
+        width: 150px;
+        height: 150px;
+        position: relative;
+        margin: 0 auto;
+    }
+    
+    .btn-modern {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        padding: 15px 40px;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-modern:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+        color: white;
+    }
+    
+    .fade-in {
+        animation: slideUp 0.8s ease-out;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    <!-- Hero Section -->
+    <div class="hero-result">
+        <div class="row align-items-center">
+            <div class="col-md-6 text-center">
+                <div class="score-circle">
+                    <div class="score-value">{{ result.percentage_score|floatformat:0 }}%</div>
+                    <div class="score-label">Score Global</div>
+                </div>
+                {% if result.percentage_score >= result.test.passing_score %}
+                    <h2 class="mb-3">
+                        <i class="fas fa-trophy me-2" style="font-size: 3rem; animation: pulse 1.5s infinite;"></i>
+                    </h2>
+                    <h1 class="display-4 fw-bold">Félicitations !</h1>
+                    <p class="lead">Vous avez brillamment réussi ce test</p>
+                {% else %}
+                    <h2 class="mb-3">
+                        <i class="fas fa-chart-line me-2" style="font-size: 3rem;"></i>
+                    </h2>
+                    <h1 class="display-5 fw-bold">Continuez vos efforts !</h1>
+                    <p class="lead">Vous progressez, persistez !</p>
+                {% endif %}
+            </div>
+            
+            <div class="col-md-6">
+                <h2 class="mb-4 fw-bold">{{ result.test.title }}</h2>
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 15px; backdrop-filter: blur(10px);">
+                            <h3 class="mb-0">{{ result.total_score|floatformat:1 }}/{{ result.test.total_points|floatformat:1 }}</h3>
+                            <p class="mb-0">Points obtenus</p>
+                        </div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 15px; backdrop-filter: blur(10px);">
+                            <h3 class="mb-0">{{ result.grade }}</h3>
+                            <p class="mb-0">Note finale</p>
+                        </div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 15px; backdrop-filter: blur(10px);">
+                            <h3 class="mb-0">{{ result.test.duration }} min</h3>
+                            <p class="mb-0">Durée</p>
+                        </div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 15px; backdrop-filter: blur(10px);">
+                            <h3 class="mb-0">{{ result.test.passing_score }}%</h3>
+                            <p class="mb-0">Seuil requis</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques détaillées -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="stat-card-modern">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #38a169 0%, #48bb78 100%); color: white;">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h3 class="mb-2" style="color: #38a169; font-size: 2rem; font-weight: 700;">
+                    {{ result.correct_answers|default:0 }}
+                </h3>
+                <p class="text-muted mb-0">Réponses Correctes</p>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="stat-card-modern">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white;">
+                    <i class="fas fa-times-circle"></i>
+                </div>
+                <h3 class="mb-2" style="color: #e74c3c; font-size: 2rem; font-weight: 700;">
+                    {{ result.incorrect_answers|default:0 }}
+                </h3>
+                <p class="text-muted mb-0">Réponses Incorrectes</p>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="stat-card-modern">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <i class="fas fa-list-ol"></i>
+                </div>
+                <h3 class="mb-2" style="color: #667eea; font-size: 2rem; font-weight: 700;">
+                    {{ result.test.questions.count }}
+                </h3>
+                <p class="text-muted mb-0">Questions Total</p>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="stat-card-modern">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); color: white;">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h3 class="mb-2" style="color: #f7971e; font-size: 2rem; font-weight: 700;">
+                    {{ result.time_taken|default:result.test.duration }}
+                </h3>
+                <p class="text-muted mb-0">Minutes Utilisées</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analyse IA -->
+    {% if result.ai_analysis %}
+    <div class="section-card ai-analysis">
+        <h3 class="mb-4">
+            <i class="fas fa-brain me-3" style="color: #667eea;"></i>
+            Analyse Intelligente de Votre Performance
+        </h3>
+        
+        {% if result.ai_analysis.overall_feedback %}
+        <div style="background: white; border-radius: 15px; padding: 25px; margin-bottom: 20px; border-left: 4px solid #667eea;">
+            <h5 style="color: #667eea; margin-bottom: 15px;">
+                <i class="fas fa-comment-dots me-2"></i>Feedback Global
+            </h5>
+            <p style="font-size: 1.05rem; line-height: 1.8; color: #2d3748;">{{ result.ai_analysis.overall_feedback }}</p>
+        </div>
+        {% endif %}
+        
+        {% if result.ai_analysis.encouragement %}
+        <div style="background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%); border-radius: 15px; padding: 25px; margin-bottom: 20px; border-left: 4px solid #38a169;">
+            <h5 style="color: #276749; margin-bottom: 15px;">
+                <i class="fas fa-thumbs-up me-2"></i>Message d'Encouragement
+            </h5>
+            <p style="font-size: 1.05rem; line-height: 1.8; color: #22543d;">{{ result.ai_analysis.encouragement }}</p>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Points Forts -->
+    {% if result.ai_analysis.strengths %}
+    <div class="section-card strengths">
+        <h3 class="mb-4">
+            <i class="fas fa-star me-3" style="color: #38a169;"></i>
+            Vos Points Forts
+        </h3>
+        <div class="row">
+            {% for strength in result.ai_analysis.strengths %}
+            <div class="col-md-6 mb-3">
+                <div style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 3px 10px rgba(0,0,0,0.05);">
+                    <div class="d-flex align-items-start">
+                        <div style="background: linear-gradient(135deg, #38a169 0%, #48bb78 100%); color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div>
+                            <h6 style="color: #276749; font-weight: 600; margin-bottom: 5px;">{{ strength.skill|default:"Compétence" }}</h6>
+                            <p style="color: #2d3748; margin-bottom: 0; font-size: 0.95rem;">{{ strength.description|default:strength }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Points Faibles -->
+    {% if result.ai_analysis.weaknesses %}
+    <div class="section-card weaknesses">
+        <h3 class="mb-4">
+            <i class="fas fa-exclamation-triangle me-3" style="color: #e74c3c;"></i>
+            Points à Améliorer
+        </h3>
+        <div class="row">
+            {% for weakness in result.ai_analysis.weaknesses %}
+            <div class="col-md-6 mb-3">
+                <div style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 3px 10px rgba(0,0,0,0.05);">
+                    <div class="d-flex align-items-start">
+                        <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                        <div>
+                            <h6 style="color: #c53030; font-weight: 600; margin-bottom: 5px;">{{ weakness.skill|default:"Compétence" }}</h6>
+                            <p style="color: #2d3748; margin-bottom: 0; font-size: 0.95rem;">{{ weakness.description|default:weakness }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recommandations -->
+    {% if result.ai_analysis.recommendations %}
+    <div class="section-card recommendations">
+        <h3 class="mb-4">
+            <i class="fas fa-lightbulb me-3" style="color: #f7971e;"></i>
+            Recommandations Personnalisées
+        </h3>
+        <div class="row">
+            {% for rec in result.ai_analysis.recommendations %}
+            <div class="col-md-12 mb-3">
+                <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 3px 10px rgba(0,0,0,0.05); border-left: 4px solid #f7971e;">
+                    <h5 style="color: #c05621; font-weight: 600; margin-bottom: 10px;">
+                        <i class="fas fa-arrow-right me-2"></i>{{ rec.title|default:"Conseil" }}
+                    </h5>
+                    <p style="color: #2d3748; margin-bottom: 0; font-size: 1rem; line-height: 1.7;">{{ rec.message|default:rec }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="text-center mb-5">
+        <a href="{% url 'evaluation:test_history' result.test.id %}" class="btn-modern me-3">
+            <i class="fas fa-history me-2"></i>Voir l'Historique Complet
+        </a>
+        {% if result.test.allow_multiple_attempts %}
+        <a href="{% url 'evaluation:test_detail' result.test.id %}" class="btn-modern">
+            <i class="fas fa-redo me-2"></i>Retenter le Test
+        </a>
+        {% endif %}
+        <a href="{% url 'evaluation:student_dashboard' %}" class="btn-modern" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+            <i class="fas fa-home me-2"></i>Retour au Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

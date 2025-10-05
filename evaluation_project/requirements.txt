@@ -1,0 +1,51 @@
+# ===================================
+# Évaluation & Suivi IA - Requirements
+# Date: 5 octobre 2025
+# ===================================
+
+# ========== PACKAGES INSTALLÉS ==========
+
+# Django Framework
+Django==4.2.16
+asgiref==3.9.2
+sqlparse==0.2.4
+
+# MongoDB Integration
+djongo==1.3.7
+pymongo==4.15.2
+dnspython==2.8.0
+
+# Python Utilities
+six==1.17.0
+pytz==2025.2
+tzdata==2025.2
+typing_extensions==4.15.0
+
+# HTTP Requests (Hugging Face API)
+requests==2.32.5
+certifi==2025.10.5
+charset-normalizer==3.4.3
+idna==3.10
+urllib3==2.5.0
+
+# ========== OPTIONNEL (IA Locale) ==========
+# Décommenter pour exécuter modèles IA localement (consomme beaucoup de RAM)
+# transformers==4.30.0
+# torch==2.0.1
+
+# ========== OPTIONNEL (Sécurité) ==========
+# python-decouple==3.8  # Variables d'environnement
+
+# ========== OPTIONNEL (API REST) ==========
+# djangorestframework==3.14.0
+# django-cors-headers==4.0.0
+
+# ========== OPTIONNEL (Tests) ==========
+# pytest==7.3.1
+# pytest-django==4.5.2
+
+# ===================================
+# Installation:
+# pip install -r requirements.txt
+# ===================================
+# pytest-django==4.5.2

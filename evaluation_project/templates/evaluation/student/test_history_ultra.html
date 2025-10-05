@@ -1,0 +1,576 @@
+{% extends 'base.html' %}
+
+{% block title %}Historique - {{ test.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-20px); }
+    }
+    
+    @keyframes shimmer {
+        0% { background-position: -1000px 0; }
+        100% { background-position: 1000px 0; }
+    }
+    
+    .hero-history {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        background-size: 200% 200%;
+        border-radius: 25px;
+        padding: 60px;
+        color: white;
+        margin-bottom: 30px;
+        box-shadow: 0 25px 70px rgba(102, 126, 234, 0.5);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .hero-history::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 200%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        animation: shimmer 3s infinite;
+    }
+    
+    .stat-box {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        text-align: center;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+        transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-box::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+    
+    .stat-box:hover::before {
+        transform: scaleX(1);
+    }
+    
+    .stat-box:hover {
+        transform: translateY(-15px) scale(1.05);
+        box-shadow: 0 25px 60px rgba(102, 126, 234, 0.3);
+    }
+    
+    .stat-box .icon {
+        font-size: 3.5rem;
+        margin-bottom: 15px;
+        animation: float 3s ease-in-out infinite;
+    }
+    
+    .stat-box .value {
+        font-size: 3rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 10px;
+    }
+    
+    .chart-modern {
+        background: white;
+        border-radius: 25px;
+        padding: 40px;
+        box-shadow: 0 15px 50px rgba(0, 0, 0, 0.08);
+        margin-bottom: 30px;
+        position: relative;
+    }
+    
+    .chart-modern::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #667eea, #764ba2, #f093fb, #667eea);
+        background-size: 200% 100%;
+        animation: shimmer 4s linear infinite;
+        border-radius: 25px 25px 0 0;
+    }
+    
+    .timeline-item {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        margin-bottom: 25px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        border-left: 6px solid transparent;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -35px;
+        top: 50%;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: white;
+        border: 4px solid #667eea;
+        transform: translateY(-50%);
+    }
+    
+    .timeline-item:hover {
+        transform: translateX(10px);
+        box-shadow: 0 15px 45px rgba(102, 126, 234, 0.2);
+    }
+    
+    .timeline-item.excellent {
+        border-left-color: #38a169;
+        background: linear-gradient(135deg, #f0fff4 0%, #ffffff 100%);
+    }
+    
+    .timeline-item.good {
+        border-left-color: #4299e1;
+        background: linear-gradient(135deg, #ebf8ff 0%, #ffffff 100%);
+    }
+    
+    .timeline-item.average {
+        border-left-color: #f7971e;
+        background: linear-gradient(135deg, #fffaf0 0%, #ffffff 100%);
+    }
+    
+    .timeline-item.poor {
+        border-left-color: #e74c3c;
+        background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
+    }
+    
+    .score-badge-large {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        font-size: 1.5rem;
+        font-weight: 900;
+        color: white;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+    
+    .insight-card {
+        background: white;
+        border-radius: 20px;
+        padding: 35px;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .insight-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+    }
+    
+    .insight-card.strengths::before {
+        background: linear-gradient(90deg, #38a169, #48bb78);
+    }
+    
+    .insight-card.weaknesses::before {
+        background: linear-gradient(90deg, #e74c3c, #c0392b);
+    }
+    
+    .insight-card.learning-path::before {
+        background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+    
+    .progress-indicator {
+        width: 100%;
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 10px 0;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        border-radius: 10px;
+        transition: width 1s ease;
+    }
+    
+    .skill-tag {
+        display: inline-block;
+        padding: 8px 18px;
+        border-radius: 20px;
+        font-weight: 600;
+        margin: 5px;
+        font-size: 0.85rem;
+        transition: all 0.3s ease;
+    }
+    
+    .skill-tag:hover {
+        transform: scale(1.1);
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    .btn-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        padding: 12px 35px;
+        border-radius: 50px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-gradient:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    <!-- Hero -->
+    <div class="hero-history">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-4 fw-bold mb-3" style="position: relative; z-index: 1;">
+                    <i class="fas fa-history me-3"></i>
+                    Historique Détaillé
+                </h1>
+                <h3 class="mb-3" style="position: relative; z-index: 1;">{{ test.title }}</h3>
+                <p class="lead mb-0" style="position: relative; z-index: 1;">
+                    <i class="fas fa-book me-2"></i>{{ test.subject }}
+                    <span class="ms-4"><i class="fas fa-clock me-2"></i>{{ test.duration }} minutes</span>
+                </p>
+            </div>
+            <div class="col-md-4 text-end" style="position: relative; z-index: 1;">
+                <i class="fas fa-chart-line" style="font-size: 8rem; opacity: 0.3;"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques Globales -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="stat-box">
+                <div class="icon">
+                    <i class="fas fa-redo text-primary"></i>
+                </div>
+                <div class="value">{{ total_attempts }}</div>
+                <p class="text-muted mb-0 fw-bold">Tentatives</p>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="stat-box">
+                <div class="icon">
+                    <i class="fas fa-trophy text-success"></i>
+                </div>
+                <div class="value">{{ evolution_data.best_score|floatformat:0 }}%</div>
+                <p class="text-muted mb-0 fw-bold">Meilleur Score</p>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="stat-box">
+                <div class="icon">
+                    <i class="fas fa-chart-bar text-info"></i>
+                </div>
+                <div class="value">{{ evolution_data.average_score|floatformat:0 }}%</div>
+                <p class="text-muted mb-0 fw-bold">Score Moyen</p>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="stat-box">
+                <div class="icon">
+                    {% if passed %}
+                        <i class="fas fa-check-circle text-success"></i>
+                    {% else %}
+                        <i class="fas fa-hourglass-half text-warning"></i>
+                    {% endif %}
+                </div>
+                <div class="value" style="font-size: 2rem;">
+                    {% if passed %}Réussi{% else %}En Cours{% endif %}
+                </div>
+                <p class="text-muted mb-0 fw-bold">Statut</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphique d'Évolution -->
+    <div class="chart-modern">
+        <h3 class="mb-4">
+            <i class="fas fa-chart-line me-3" style="color: #667eea;"></i>
+            Courbe d'Évolution de Vos Performances
+        </h3>
+        <div style="position: relative; height: 350px;">
+            <canvas id="evolutionChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Insights -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="insight-card strengths">
+                <h4 class="mb-4" style="color: #38a169;">
+                    <i class="fas fa-star me-2"></i>Points Forts Persistants
+                </h4>
+                {% if persistent_strengths %}
+                    {% for strength in persistent_strengths %}
+                    <div class="mb-3 p-3" style="background: #f0fff4; border-radius: 12px; border-left: 4px solid #38a169;">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        <strong>{{ strength }}</strong>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Continuez à passer des tests pour identifier vos points forts.
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="insight-card weaknesses">
+                <h4 class="mb-4" style="color: #e74c3c;">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Lacunes Identifiées
+                </h4>
+                {% if persistent_weaknesses %}
+                    {% for weakness in persistent_weaknesses %}
+                    <div class="mb-3 p-3" style="background: #fff5f5; border-radius: 12px; border-left: 4px solid #e74c3c;">
+                        <i class="fas fa-arrow-up text-danger me-2"></i>
+                        <strong>{{ weakness }}</strong>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Aucune lacune majeure détectée !
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="insight-card learning-path">
+                <h4 class="mb-4" style="color: #667eea;">
+                    <i class="fas fa-route me-2"></i>Parcours d'Apprentissage
+                </h4>
+                {% if learning_path %}
+                    {% for step in learning_path %}
+                    <div class="mb-3 p-3" style="background: #f6f9ff; border-radius: 12px; border-left: 4px solid #667eea;">
+                        <i class="fas fa-arrow-right text-primary me-2"></i>
+                        <strong>{{ step }}</strong>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="mb-3 p-3" style="background: #f6f9ff; border-radius: 12px;">
+                        <i class="fas fa-lightbulb text-warning me-2"></i>
+                        <strong>Pratiquez régulièrement</strong>
+                    </div>
+                    <div class="mb-3 p-3" style="background: #f6f9ff; border-radius: 12px;">
+                        <i class="fas fa-book text-primary me-2"></i>
+                        <strong>Révisez vos erreurs</strong>
+                    </div>
+                    <div class="mb-3 p-3" style="background: #f6f9ff; border-radius: 12px;">
+                        <i class="fas fa-target text-success me-2"></i>
+                        <strong>Fixez-vous des objectifs</strong>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline des Tentatives -->
+    <div class="chart-modern">
+        <h3 class="mb-4">
+            <i class="fas fa-list-alt me-3" style="color: #667eea;"></i>
+            Historique de Toutes Vos Tentatives
+        </h3>
+        
+        <div style="border-left: 3px solid #e2e8f0; padding-left: 40px; margin-left: 20px;">
+            {% for result in results %}
+            <div class="timeline-item {% if result.percentage_score >= 90 %}excellent{% elif result.percentage_score >= 70 %}good{% elif result.percentage_score >= 50 %}average{% else %}poor{% endif %}">
+                <div class="row align-items-center">
+                    <div class="col-md-2 text-center">
+                        <div class="score-badge-large" style="background: linear-gradient(135deg, 
+                            {% if result.percentage_score >= 90 %}#38a169, #48bb78
+                            {% elif result.percentage_score >= 70 %}#4299e1, #63b3ed
+                            {% elif result.percentage_score >= 50 %}#f7971e, #ffd200
+                            {% else %}#e74c3c, #c0392b{% endif %});">
+                            {{ result.percentage_score|floatformat:0 }}%
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h5 class="mb-2 fw-bold">
+                            Tentative #{{ forloop.counter }}
+                            <span class="badge" style="background: linear-gradient(135deg, #667eea, #764ba2); margin-left: 10px;">
+                                {{ result.grade }}
+                            </span>
+                        </h5>
+                        <p class="text-muted mb-2">
+                            <i class="far fa-calendar me-2"></i>
+                            {{ result.created_at|date:"d/m/Y à H:i" }}
+                        </p>
+                        <div class="progress-indicator">
+                            <div class="progress-fill" style="width: {{ result.percentage_score }}%; background: linear-gradient(90deg, 
+                                {% if result.percentage_score >= 90 %}#38a169, #48bb78
+                                {% elif result.percentage_score >= 70 %}#4299e1, #63b3ed
+                                {% elif result.percentage_score >= 50 %}#f7971e, #ffd200
+                                {% else %}#e74c3c, #c0392b{% endif %});"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 text-end">
+                        <p class="mb-2">
+                            <strong>{{ result.total_score|floatformat:1 }}</strong> / {{ result.test.total_points|floatformat:1 }} points
+                        </p>
+                        <a href="{% url 'evaluation:view_result' result.id %}" class="btn btn-sm btn-gradient">
+                            <i class="fas fa-eye me-2"></i>Voir Détails
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-5">
+                <i class="fas fa-inbox text-muted" style="font-size: 5rem;"></i>
+                <h4 class="text-muted mt-3">Aucune tentative enregistrée</h4>
+                <a href="{% url 'evaluation:test_detail' test.id %}" class="btn-gradient mt-3">
+                    <i class="fas fa-play me-2"></i>Commencer ce test
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="text-center my-5">
+        <a href="{% url 'evaluation:student_dashboard' %}" class="btn-gradient me-3">
+            <i class="fas fa-home me-2"></i>Retour au Dashboard
+        </a>
+        <a href="{% url 'evaluation:student_progress' %}" class="btn-gradient" style="background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);">
+            <i class="fas fa-chart-bar me-2"></i>Ma Progression Globale
+        </a>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('evolutionChart');
+if (ctx) {
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ evolution_data.labels|safe }},
+            datasets: [{
+                label: 'Score (%)',
+                data: {{ evolution_data.scores|safe }},
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                borderWidth: 4,
+                tension: 0.4,
+                fill: true,
+                pointRadius: 8,
+                pointHoverRadius: 12,
+                pointBackgroundColor: '#667eea',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 3
+            }, {
+                label: 'Ligne de Passage',
+                data: Array({{ evolution_data.scores|length }}).fill({{ test.passing_score }}),
+                borderColor: '#e74c3c',
+                borderWidth: 2,
+                borderDash: [10, 5],
+                pointRadius: 0,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        boxWidth: 15,
+                        padding: 20,
+                        font: {
+                            size: 13,
+                            weight: '600'
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 15,
+                    titleFont: {
+                        size: 14,
+                        weight: 'bold'
+                    },
+                    bodyFont: {
+                        size: 13
+                    },
+                    cornerRadius: 10
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        },
+                        font: {
+                            size: 12
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: {
+                            size: 12
+                        }
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

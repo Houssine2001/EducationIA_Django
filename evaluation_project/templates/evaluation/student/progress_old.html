@@ -1,0 +1,320 @@
+{% extends 'base.html' %}
+
+{% block title %}Ma Progression{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- En-tête -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="display-5 fw-bold">
+                <i class="fas fa-chart-line text-primary me-2"></i>
+                Ma Progression
+            </h1>
+            <p class="text-muted">Suivez votre évolution et vos performances</p>
+        </div>
+    </div>
+
+    <!-- Statistiques Globales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h3 class="text-primary">{{ profile.total_tests_taken }}</h3>
+                <p><i class="fas fa-clipboard-check me-2"></i>Tests complétés</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h3 class="text-success">{{ profile.average_score|floatformat:1 }}%</h3>
+                <p><i class="fas fa-star me-2"></i>Score moyen</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h3 class="text-warning">{{ profile.current_streak }}</h3>
+                <p><i class="fas fa-fire me-2"></i>Série actuelle</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h3 class="text-info">{{ profile.best_streak }}</h3>
+                <p><i class="fas fa-trophy me-2"></i>Meilleure série</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphique d'évolution -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-chart-area me-2"></i>Évolution de vos scores
+        </div>
+        <div class="card-body">
+            <canvas id="scoreChart" height="80"></canvas>
+        </div>
+    </div>
+
+    <!-- Performances par Matière -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-book me-2"></i>Performances par matière
+        </div>
+        <div class="card-body">
+            {% if performance_by_subject %}
+                <div class="row">
+                    {% for subject, data in performance_by_subject.items %}
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">{{ subject }}</h5>
+                                <h2 class="
+                                    {% if data.avg_score >= 80 %}text-success
+                                    {% elif data.avg_score >= 60 %}text-warning
+                                    {% else %}text-danger
+                                    {% endif %}">
+                                    {{ data.avg_score|floatformat:1 }}%
+                                </h2>
+                                <p class="text-muted mb-2">{{ data.count }} test(s)</p>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar 
+                                        {% if data.avg_score >= 80 %}bg-success
+                                        {% elif data.avg_score >= 60 %}bg-warning
+                                        {% else %}bg-danger
+                                        {% endif %}" 
+                                        style="width: {{ data.avg_score }}%">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted text-center">Aucune donnée disponible</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Analyse des Faiblesses par IA -->
+    {% if weaknesses_analysis %}
+    <div class="card mb-4">
+        <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <i class="fas fa-brain me-2"></i>Analyse de vos points faibles (IA)
+        </div>
+        <div class="card-body">
+            {% if weaknesses_analysis.weaknesses %}
+            <div class="alert alert-warning">
+                <h6 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Points à travailler</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Compétence</th>
+                                <th>Score moyen</th>
+                                <th>Tendance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for weakness in weaknesses_analysis.weaknesses %}
+                            <tr>
+                                <td><strong>{{ weakness.skill }}</strong></td>
+                                <td>
+                                    <span class="badge bg-warning text-dark">
+                                        {{ weakness.average_score|floatformat:0 }}%
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if weakness.trend == 'declining' %}
+                                        <i class="fas fa-arrow-down text-danger"></i> En baisse
+                                    {% elif weakness.trend == 'stable' %}
+                                        <i class="fas fa-minus text-warning"></i> Stable
+                                    {% else %}
+                                        <i class="fas fa-arrow-up text-success"></i> En amélioration
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if weaknesses_analysis.strengths %}
+            <div class="alert alert-success">
+                <h6 class="alert-heading"><i class="fas fa-star me-2"></i>Vos points forts</h6>
+                <div class="row">
+                    {% for strength in weaknesses_analysis.strengths %}
+                    <div class="col-md-4 mb-2">
+                        <span class="badge bg-success me-2">{{ strength.skill }}</span>
+                        <small class="text-muted">{{ strength.average_score|floatformat:0 }}%</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if weaknesses_analysis.recommendations %}
+            <div class="alert alert-info mb-0">
+                <h6 class="alert-heading"><i class="fas fa-lightbulb me-2"></i>Recommandations personnalisées</h6>
+                <ul class="mb-0">
+                    {% for rec in weaknesses_analysis.recommendations %}
+                    <li>
+                        <strong>{{ rec.suggestion }}</strong>
+                        {% if rec.priority == 'high' %}
+                            <span class="badge bg-danger">Priorité haute</span>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Historique des Résultats -->
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-history me-2"></i>Historique des résultats
+        </div>
+        <div class="card-body">
+            {% if results %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Test</th>
+                                <th>Matière</th>
+                                <th>Score</th>
+                                <th>Pourcentage</th>
+                                <th>Date</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for result in results %}
+                            <tr>
+                                <td>
+                                    <strong>{{ result.test.title }}</strong>
+                                    {% if result.ai_analysis %}
+                                        <span class="ai-badge"><i class="fas fa-brain"></i></span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ result.test.subject }}</span>
+                                </td>
+                                <td>{{ result.score }}/{{ result.max_score }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="progress me-2" style="width: 100px; height: 20px;">
+                                            <div class="progress-bar 
+                                                {% if result.percentage >= 80 %}bg-success
+                                                {% elif result.percentage >= 60 %}bg-warning
+                                                {% else %}bg-danger
+                                                {% endif %}" 
+                                                style="width: {{ result.percentage }}%">
+                                            </div>
+                                        </div>
+                                        <span class="badge 
+                                            {% if result.percentage >= 80 %}bg-success
+                                            {% elif result.percentage >= 60 %}bg-warning text-dark
+                                            {% else %}bg-danger
+                                            {% endif %}">
+                                            {{ result.percentage|floatformat:0 }}%
+                                        </span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <small class="text-muted">
+                                        {{ result.created_at|date:"d/m/Y H:i" }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <a href="{% url 'view_result' result.id %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i>Détails
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination si nécessaire -->
+                {% if results.count > 10 %}
+                <nav class="mt-3">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item"><a class="page-link" href="#">Précédent</a></li>
+                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                        <li class="page-item"><a class="page-link" href="#">2</a></li>
+                        <li class="page-item"><a class="page-link" href="#">3</a></li>
+                        <li class="page-item"><a class="page-link" href="#">Suivant</a></li>
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">Aucun résultat pour le moment</p>
+                    <a href="{% url 'evaluation:student_dashboard' %}" class="btn btn-primary">
+                        <i class="fas fa-play-circle me-2"></i>Commencer un test
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+// Données pour le graphique
+const chartData = {
+    labels: [{% for result in results|slice:":10" %}'{{ result.created_at|date:"d/m" }}',{% endfor %}],
+    datasets: [{
+        label: 'Score (%)',
+        data: [{% for result in results|slice:":10" %}{{ result.percentage }},{% endfor %}],
+        borderColor: '#4A90E2',
+        backgroundColor: 'rgba(74, 144, 226, 0.1)',
+        tension: 0.4,
+        fill: true
+    }]
+};
+
+// Configuration du graphique
+const config = {
+    type: 'line',
+    data: chartData,
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top'
+            },
+            tooltip: {
+                mode: 'index',
+                intersect: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100,
+                ticks: {
+                    callback: function(value) {
+                        return value + '%';
+                    }
+                }
+            }
+        }
+    }
+};
+
+// Créer le graphique
+const ctx = document.getElementById('scoreChart').getContext('2d');
+new Chart(ctx, config);
+</script>
+{% endblock %}

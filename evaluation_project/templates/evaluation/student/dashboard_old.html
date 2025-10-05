@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+
+{% block title %}Tableau de bord - Étudiant{% endblock %}
+
+{% block page_title %}Tableau de bord{% endblock %}
+{% block page_subtitle %}Bonjour {{ user.get_full_name|default:user.username }}, bienvenue sur votre espace d'apprentissage{% endblock %}
+
+{% block content %}
+    <!-- En-tête avec Profil -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="display-5 fw-bold">
+                <i class="fas fa-user-graduate text-primary me-2"></i>
+                Bonjour, {{ user.get_full_name|default:user.username }} !
+            </h1>
+            <p class="text-muted">Continuez votre parcours d'apprentissage</p>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card text-center">
+                <h3 class="text-success">{{ profile.average_score|floatformat:1 }}%</h3>
+                <p>Score moyen global</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stat-card border-start border-primary border-4">
+                <h3 class="text-primary">{{ profile.total_tests_taken }}</h3>
+                <p><i class="fas fa-clipboard-check me-2"></i>Tests complétés</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card border-start border-warning border-4">
+                <h3 class="text-warning">{{ pending_tests|length }}</h3>
+                <p><i class="fas fa-hourglass-half me-2"></i>Tests en attente</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card border-start border-info border-4">
+                <h3 class="text-info">{{ profile.current_streak }}</h3>
+                <p><i class="fas fa-fire me-2"></i>Série en cours</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tests Disponibles -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-clipboard-list me-2"></i>Tests Disponibles
+        </div>
+        <div class="card-body">
+            {% if available_tests %}
+                <div class="row">
+                    {% for test in available_tests %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <h5 class="card-title">{{ test.title }}</h5>
+                                    {% if test.ai_enabled %}
+                                        <span class="ai-badge"><i class="fas fa-brain"></i> IA</span>
+                                    {% endif %}
+                                </div>
+                                
+                                <p class="card-text text-muted">{{ test.description|truncatewords:20 }}</p>
+                                
+                                <div class="mb-3">
+                                    <span class="badge bg-info me-2">
+                                        <i class="fas fa-book me-1"></i>{{ test.subject }}
+                                    </span>
+                                    <span class="badge bg-secondary me-2">
+                                        <i class="fas fa-question-circle me-1"></i>{{ test.questions.count }} questions
+                                    </span>
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-clock me-1"></i>{{ test.time_limit }} min
+                                    </span>
+                                </div>
+
+                                {% if test.difficulty %}
+                                <div class="mb-3">
+                                    <small class="text-muted">Difficulté : </small>
+                                    {% if test.difficulty == 'beginner' %}
+                                        <span class="badge bg-success">Débutant</span>
+                                    {% elif test.difficulty == 'intermediate' %}
+                                        <span class="badge bg-warning text-dark">Intermédiaire</span>
+                                    {% elif test.difficulty == 'advanced' %}
+                                        <span class="badge bg-danger">Avancé</span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+
+                                <div class="d-grid gap-2">
+                                    <a href="{% url 'test_detail' test.id %}" class="btn btn-primary">
+                                        <i class="fas fa-play-circle me-2"></i>Commencer le test
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-light">
+                                <small class="text-muted">
+                                    <i class="far fa-calendar me-1"></i>
+                                    Disponible jusqu'au {{ test.end_date|date:"d/m/Y à H:i" }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <p class="text-muted">Tous les tests disponibles ont été complétés !</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Résultats Récents -->
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-chart-line me-2"></i>Mes Résultats Récents
+        </div>
+        <div class="card-body">
+            {% if recent_results %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Test</th>
+                                <th>Score</th>
+                                <th>Résultat</th>
+                                <th>Date</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for result in recent_results %}
+                            <tr>
+                                <td>
+                                    <strong>{{ result.test.title }}</strong>
+                                    {% if result.ai_analysis %}
+                                        <span class="ai-badge"><i class="fas fa-brain"></i></span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <h5 class="mb-0">
+                                        <span class="badge 
+                                            {% if result.percentage >= 80 %}bg-success
+                                            {% elif result.percentage >= 60 %}bg-warning text-dark
+                                            {% else %}bg-danger
+                                            {% endif %}">
+                                            {{ result.score }}/{{ result.max_score }}
+                                        </span>
+                                    </h5>
+                                </td>
+                                <td>
+                                    <div class="progress" style="height: 25px;">
+                                        <div class="progress-bar 
+                                            {% if result.percentage >= 80 %}bg-success
+                                            {% elif result.percentage >= 60 %}bg-warning
+                                            {% else %}bg-danger
+                                            {% endif %}" 
+                                            style="width: {{ result.percentage }}%">
+                                            {{ result.percentage|floatformat:0 }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <small class="text-muted">
+                                        {{ result.created_at|date:"d/m/Y H:i" }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <a href="{% url 'view_result' result.id %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i>Voir détails
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3">
+                    <a href="{% url 'evaluation:student_progress' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-chart-bar me-2"></i>Voir toute ma progression
+                    </a>
+                </div>
+            {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-inbox fa-2x text-muted mb-3"></i>
+                    <p class="text-muted">Aucun résultat pour le moment</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Recommandations IA -->
+    {% if profile.ai_recommendations %}
+    <div class="card mt-4">
+        <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <i class="fas fa-brain me-2"></i>Recommandations personnalisées par IA
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for recommendation in profile.ai_recommendations %}
+                <div class="col-md-6 mb-3">
+                    <div class="alert alert-info mb-0">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-lightbulb me-2"></i>
+                            {{ recommendation.title }}
+                        </h6>
+                        <p class="mb-0">{{ recommendation.suggestion }}</p>
+                        {% if recommendation.priority == 'high' %}
+                            <span class="badge bg-danger mt-2">Priorité haute</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ test.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .test-hero {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        padding: 35px;
+        color: white;
+        margin-bottom: 25px;
+        box-shadow: 0 15px 50px rgba(102, 126, 234, 0.4);
+    }
+    
+    .info-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    
+    .info-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+    }
+    
+    .info-card .icon {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+    }
+    
+    .info-card .value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+    
+    .compact-table {
+        font-size: 0.9rem;
+    }
+    
+    .compact-table td, .compact-table th {
+        padding: 10px !important;
+    }
+    
+    .btn-start-test {
+        background: linear-gradient(135deg, #38a169 0%, #48bb78 100%);
+        border: none;
+        color: white;
+        padding: 15px 40px;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 30px rgba(56, 161, 105, 0.3);
+    }
+    
+    .btn-start-test:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 15px 40px rgba(56, 161, 105, 0.5);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    <!-- Hero Section -->
+    <div class="test-hero">
+        <div class="row align-items-center">
+            <div class="col-md-9">
+                <h1 class="display-6 fw-bold mb-2">{{ test.title }}</h1>
+                <p class="mb-2">
+                    <span class="badge bg-light text-dark me-2" style="font-size: 0.9rem;">
+                        <i class="fas fa-book me-1"></i>{{ test.subject|default:"Général" }}
+                    </span>
+                    {% if test.difficulty %}
+                    <span class="badge bg-light text-dark" style="font-size: 0.9rem;">
+                        <i class="fas fa-signal me-1"></i>{{ test.get_difficulty_display }}
+                    </span>
+                    {% endif %}
+                </p>
+                {% if test.description %}
+                <p class="mb-0" style="opacity: 0.9;">{{ test.description }}</p>
+                {% endif %}
+            </div>
+            <div class="col-md-3 text-end">
+                <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 15px; backdrop-filter: blur(10px);">
+                    <h2 class="mb-0 fw-bold">{{ test.passing_score }}%</h2>
+                    <p class="mb-0 small">Score requis pour réussir</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Informations Rapides -->
+    <div class="row mb-4">
+        <div class="col-6 col-md-3 mb-3">
+            <div class="info-card">
+                <div class="icon text-primary"><i class="fas fa-question-circle"></i></div>
+                <div class="value text-primary">{{ test.questions.count }}</div>
+                <div class="text-muted small">Questions</div>
+            </div>
+        </div>
+        
+        <div class="col-6 col-md-3 mb-3">
+            <div class="info-card">
+                <div class="icon text-warning"><i class="fas fa-clock"></i></div>
+                <div class="value text-warning">{{ test.duration }}</div>
+                <div class="text-muted small">Minutes</div>
+            </div>
+        </div>
+        
+        <div class="col-6 col-md-3 mb-3">
+            <div class="info-card">
+                <div class="icon text-success"><i class="fas fa-trophy"></i></div>
+                <div class="value text-success">{{ test.total_points|floatformat:1 }}</div>
+                <div class="text-muted small">Points totaux</div>
+            </div>
+        </div>
+        
+        <div class="col-6 col-md-3 mb-3">
+            <div class="info-card">
+                <div class="icon text-info"><i class="fas fa-redo"></i></div>
+                <div class="value text-info">{{ user_attempts|default:0 }}</div>
+                <div class="text-muted small">Tentative(s)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions Compactes -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Instructions importantes</strong>
+        </div>
+        <div class="card-body py-3">
+            <div class="row">
+                <div class="col-md-6">
+                    <ul class="mb-0 small">
+                        <li><strong>Durée :</strong> Vous disposez de {{ test.duration }} minutes pour compléter ce test.</li>
+                        <li><strong>Questions :</strong> Le test contient {{ test.questions.count }} questions pour un total de {{ test.total_points|floatformat:1 }} points.</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <ul class="mb-0 small">
+                        {% if test.shuffle_questions %}
+                        <li><strong>Ordre aléatoire :</strong> Les questions seront affichées dans un ordre aléatoire.</li>
+                        {% endif %}
+                        <li><strong>Score de passage :</strong> Vous devez obtenir au moins {{ test.passing_score }}% pour réussir ce test.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Types de Questions (si disponibles) -->
+    {% if question_types %}
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <i class="fas fa-list-alt me-2"></i>
+            <strong>Types de questions</strong>
+        </div>
+        <div class="card-body py-2">
+            <div class="d-flex flex-wrap gap-2">
+                {% for type, count in question_types.items %}
+                <span class="badge bg-secondary" style="font-size: 0.85rem; padding: 8px 15px;">
+                    {{ type }}: {{ count }}
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tentatives Précédentes (Compacte) -->
+    {% if user_results %}
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <i class="fas fa-history me-2"></i>
+            <strong>Vos tentatives précédentes</strong>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover compact-table mb-0">
+                    <thead style="background: #f8f9fa;">
+                        <tr>
+                            <th style="width: 15%;">Tentative</th>
+                            <th style="width: 20%;">Score</th>
+                            <th style="width: 15%;">Pourcentage</th>
+                            <th style="width: 25%;">Date</th>
+                            <th style="width: 25%;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in user_results %}
+                        <tr>
+                            <td><strong>Tentative #{{ forloop.counter }}</strong></td>
+                            <td>{{ result.total_score|floatformat:1 }}/{{ test.total_points|floatformat:1 }}</td>
+                            <td>
+                                <span class="badge" style="background: 
+                                    {% if result.percentage_score >= 90 %}linear-gradient(135deg, #38a169, #48bb78)
+                                    {% elif result.percentage_score >= 70 %}linear-gradient(135deg, #4299e1, #63b3ed)
+                                    {% elif result.percentage_score >= 50 %}linear-gradient(135deg, #f7971e, #ffd200)
+                                    {% else %}linear-gradient(135deg, #e74c3c, #c0392b){% endif %}; color: white;">
+                                    {{ result.percentage_score|floatformat:1 }}%
+                                </span>
+                            </td>
+                            <td class="small">{{ result.created_at|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                <a href="{% url 'evaluation:view_result' result.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye me-1"></i>Voir
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-light text-center py-2">
+            <a href="{% url 'evaluation:test_history' test.id %}" class="btn btn-sm btn-link">
+                <i class="fas fa-chart-line me-1"></i>Voir l'historique complet
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Bouton de Démarrage -->
+    <div class="text-center mb-5">
+        <form method="post" action="{% url 'evaluation:start_test' test.id %}">
+            {% csrf_token %}
+            <button type="submit" class="btn-start-test">
+                <i class="fas fa-play me-2"></i>
+                {% if user_results %}Retenter le Test{% else %}Commencer le Test{% endif %}
+            </button>
+        </form>
+        <p class="text-muted mt-3 small">
+            <i class="fas fa-info-circle me-1"></i>
+            Le chronomètre démarrera dès que vous cliquerez sur le bouton
+        </p>
+    </div>
+</div>
+{% endblock %}
