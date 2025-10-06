@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Liste des Exercices{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">
+            <i class="fas fa-list text-blue-600"></i> Tous les Exercices Générés
+        </h1>
+        <p class="text-gray-600">Parcourez, filtrez et gérez vos exercices générés par l'IA</p>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Type</label>
+                <select name="type" class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    <option value="">Tous les types</option>
+                    <option value="mcq" {% if request.GET.type == 'mcq' %}selected{% endif %}>QCM</option>
+                    <option value="true_false" {% if request.GET.type == 'true_false' %}selected{% endif %}>Vrai/Faux</option>
+                    <option value="fill_blank" {% if request.GET.type == 'fill_blank' %}selected{% endif %}>Texte à trous</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Difficulté</label>
+                <select name="difficulty" class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    <option value="">Toutes</option>
+                    <option value="easy" {% if request.GET.difficulty == 'easy' %}selected{% endif %}>Facile</option>
+                    <option value="medium" {% if request.GET.difficulty == 'medium' %}selected{% endif %}>Moyen</option>
+                    <option value="hard" {% if request.GET.difficulty == 'hard' %}selected{% endif %}>Difficile</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Statut</label>
+                <select name="status" class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    <option value="">Tous</option>
+                    <option value="draft" {% if request.GET.status == 'draft' %}selected{% endif %}>Brouillon</option>
+                    <option value="validated" {% if request.GET.status == 'validated' %}selected{% endif %}>Validé</option>
+                    <option value="published" {% if request.GET.status == 'published' %}selected{% endif %}>Publié</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-filter"></i> Filtrer
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Exercise List -->
+    <div class="space-y-4">
+        {% for exercise in exercises %}
+        <div class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-6">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <div class="flex items-center space-x-3 mb-2">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                            {% if exercise.exercise_type == 'mcq' %}bg-blue-100 text-blue-800
+                            {% elif exercise.exercise_type == 'true_false' %}bg-green-100 text-green-800
+                            {% else %}bg-purple-100 text-purple-800{% endif %}">
+                            {{ exercise.get_exercise_type_display }}
+                        </span>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                            {% if exercise.difficulty == 'easy' %}bg-green-100 text-green-800
+                            {% elif exercise.difficulty == 'medium' %}bg-yellow-100 text-yellow-800
+                            {% else %}bg-red-100 text-red-800{% endif %}">
+                            {{ exercise.get_difficulty_display }}
+                        </span>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                            {% if exercise.status == 'validated' %}bg-green-100 text-green-800
+                            {% elif exercise.status == 'published' %}bg-blue-100 text-blue-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ exercise.get_status_display }}
+                        </span>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ exercise.question_text|truncatewords:20 }}</h3>
+                    <div class="flex items-center space-x-4 text-sm text-gray-500">
+                        <span><i class="fas fa-tag"></i> {{ exercise.concept }}</span>
+                        <span><i class="fas fa-file"></i> {{ exercise.source_document.title|truncatewords:5 }}</span>
+                        <span><i class="fas fa-star"></i> Qualité: {{ exercise.quality_score|floatformat:2 }}</span>
+                        <span><i class="fas fa-calendar"></i> {{ exercise.created_at|date:"d/m/Y" }}</span>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <a href="{% url 'exercise_generator:exercise_detail' exercise.pk %}" 
+                       class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-eye mr-2"></i> Voir
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="bg-white rounded-lg shadow-sm p-12 text-center">
+            <i class="fas fa-inbox text-gray-300 text-6xl mb-4"></i>
+            <h3 class="text-xl font-semibold text-gray-700 mb-2">Aucun exercice trouvé</h3>
+            <p class="text-gray-500 mb-6">Commencez par générer des exercices à partir de vos documents</p>
+            <a href="{% url 'exercise_generator:quick_generate' %}" 
+               class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <i class="fas fa-magic mr-2"></i> Générer des exercices
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="mt-8 flex justify-center">
+        <nav class="inline-flex rounded-md shadow-sm -space-x-px">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}" 
+               class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-l-md">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+            {% endif %}
+            
+            <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}
+            </span>
+            
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}" 
+               class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-r-md">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+            {% endif %}
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

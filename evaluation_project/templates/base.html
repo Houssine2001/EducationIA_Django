@@ -202,6 +202,15 @@
                                 <i class="fas fa-tachometer-alt text-blue-400 group-hover:scale-110 transition-transform"></i>
                                 <span class="font-medium">Tableau de bord</span>
                             </a>
+                            
+                            <!-- Générateur IA - Section mise en avant -->
+                            <div class="bg-gradient-to-r from-purple-900/50 to-pink-900/50 rounded-lg p-1 my-2">
+                                <a href="{% url 'exercise_generator:dashboard' %}" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700/50 transition-all-300 group">
+                                    <i class="fas fa-robot text-pink-400 group-hover:scale-110 transition-transform"></i>
+                                    <span class="font-medium">🚀 Générateur IA</span>
+                                </a>
+                            </div>
+                            
                             <a href="{% url 'evaluation:create_test' %}" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition-all-300 group">
                                 <i class="fas fa-plus-circle text-green-400 group-hover:scale-110 transition-transform"></i>
                                 <span class="font-medium">Créer un test</span>

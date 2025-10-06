@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Configuration - Générateur{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">
+            <i class="fas fa-cog text-blue-600"></i> Configuration du Générateur
+        </h1>
+        <p class="text-gray-600">Personnalisez les paramètres de génération d'exercices par défaut</p>
+    </div>
+
+    <!-- Configuration Form -->
+    <div class="bg-white rounded-lg shadow-sm p-8">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- Distribution des types -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Distribution des Types d'Exercices</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-list-ul text-blue-500"></i> QCM (%)
+                        </label>
+                        <input type="number" name="mcq_percentage" value="{{ config.mcq_percentage|default:40 }}" min="0" max="100"
+                               class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-check-circle text-green-500"></i> Vrai/Faux (%)
+                        </label>
+                        <input type="number" name="true_false_percentage" value="{{ config.true_false_percentage|default:30 }}" min="0" max="100"
+                               class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-pen text-purple-500"></i> Texte à trous (%)
+                        </label>
+                        <input type="number" name="fill_blank_percentage" value="{{ config.fill_blank_percentage|default:30 }}" min="0" max="100"
+                               class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Distribution des difficultés -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Distribution des Difficultés</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-smile text-green-500"></i> Facile (%)
+                        </label>
+                        <input type="number" name="easy_percentage" value="{{ config.easy_percentage|default:30 }}" min="0" max="100"
+                               class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-meh text-yellow-500"></i> Moyen (%)
+                        </label>
+                        <input type="number" name="medium_percentage" value="{{ config.medium_percentage|default:50 }}" min="0" max="100"
+                               class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-frown text-red-500"></i> Difficile (%)
+                        </label>
+                        <input type="number" name="hard_percentage" value="{{ config.hard_percentage|default:20 }}" min="0" max="100"
+                               class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Paramètres IA -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Paramètres IA</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Seuil de qualité minimum (0-1)
+                        </label>
+                        <input type="number" name="min_quality_score" value="{{ config.min_quality_score|default:0.5 }}" 
+                               min="0" max="1" step="0.1"
+                               class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                        <p class="mt-1 text-sm text-gray-500">Les exercices en dessous de ce seuil seront rejetés automatiquement</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Nombre maximum de mots-clés extraits
+                        </label>
+                        <input type="number" name="max_keywords" value="{{ config.max_keywords|default:20 }}" min="5" max="50"
+                               class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="flex items-center space-x-3">
+                            <input type="checkbox" name="auto_validate" {% if config.auto_validate %}checked{% endif %}
+                                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm font-medium text-gray-700">
+                                Valider automatiquement les exercices de haute qualité (score > 0.8)
+                            </span>
+                        </label>
+                    </div>
+
+                    <div>
+                        <label class="flex items-center space-x-3">
+                            <input type="checkbox" name="generate_explanations" {% if config.generate_explanations %}checked{% endif %}
+                                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm font-medium text-gray-700">
+                                Générer automatiquement les explications
+                            </span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+                <a href="{% url 'exercise_generator:dashboard' %}" 
+                   class="text-gray-600 hover:text-gray-900 transition-colors">
+                    <i class="fas fa-arrow-left mr-2"></i> Retour au dashboard
+                </a>
+                <button type="submit" 
+                        class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                    <i class="fas fa-save mr-2"></i> Enregistrer la configuration
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Info Box -->
+    <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="flex">
+            <i class="fas fa-info-circle text-blue-600 text-xl mr-3"></i>
+            <div class="flex-1">
+                <h4 class="text-sm font-semibold text-blue-900 mb-1">À propos de la configuration</h4>
+                <p class="text-sm text-blue-700">
+                    Ces paramètres s'appliquent à toutes les nouvelles générations d'exercices. 
+                    Les pourcentages doivent totaliser 100% pour chaque catégorie.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

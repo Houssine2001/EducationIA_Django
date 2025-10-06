@@ -1,0 +1,389 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Nouveau Document - Générateur IA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-card {
+        transition: all 0.3s ease;
+    }
+    .form-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+    }
+    .step-indicator {
+        transition: all 0.3s ease;
+    }
+    .step-indicator:hover {
+        transform: scale(1.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <!-- Header avec animation -->
+        <div class="text-center mb-12">
+            <a href="{% url 'exercise_generator:dashboard' %}" 
+               class="inline-flex items-center text-sm text-gray-600 hover:text-indigo-600 mb-6 transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Retour au tableau de bord
+            </a>
+            
+            <div class="inline-block p-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full mb-6">
+                <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+            </div>
+            
+            <h1 class="text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
+                Nouveau Document de Cours
+            </h1>
+            <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                Créez un document et laissez l'IA générer automatiquement des exercices pédagogiques
+            </p>
+        </div>
+        
+        <!-- Comment ça marche -->
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl shadow-lg p-8 mb-8 border border-blue-100">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-4 flex-1">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Comment ça marche ?</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex items-start step-indicator">
+                            <div class="flex-shrink-0 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold mr-3">1</div>
+                            <p class="text-gray-700">Fournissez un texte de cours ou uploadez un PDF</p>
+                        </div>
+                        <div class="flex items-start step-indicator">
+                            <div class="flex-shrink-0 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold mr-3">2</div>
+                            <p class="text-gray-700">L'IA analyse automatiquement le contenu</p>
+                        </div>
+                        <div class="flex items-start step-indicator">
+                            <div class="flex-shrink-0 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold mr-3">3</div>
+                            <p class="text-gray-700">Des exercices variés sont générés (QCM, Vrai/Faux, Texte à trous)</p>
+                        </div>
+                        <div class="flex items-start step-indicator">
+                            <div class="flex-shrink-0 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold mr-3">4</div>
+                            <p class="text-gray-700">Vous validez et créez des tests personnalisés</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Formulaire principal -->
+        <div class="form-card bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-6">
+                <h2 class="text-2xl font-bold text-white flex items-center">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                    Informations du Document
+                </h2>
+            </div>
+            
+            <div class="p-8">
+                <form method="post" enctype="multipart/form-data" id="documentForm">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                    <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl mb-8">
+                        <div class="flex items-start">
+                            <svg class="w-6 h-6 text-red-500 mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div>
+                                <h3 class="text-red-800 font-semibold mb-2">Erreurs détectées :</h3>
+                                <ul class="list-disc list-inside text-red-700 space-y-1">
+                                    {% for field, errors in form.errors.items %}
+                                        {% for error in errors %}
+                                        <li>{{ field }}: {{ error }}</li>
+                                        {% endfor %}
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Section 1: Informations de base -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Informations de base
+                        </h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="{{ form.title.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-2">
+                                    {{ form.title.label }}
+                                    <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" name="{{ form.title.name }}" id="{{ form.title.id_for_label }}" 
+                                       value="{{ form.title.value|default:'' }}"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                                       placeholder="Ex: Introduction à la Photosynthèse"
+                                       required>
+                                {% if form.title.help_text %}
+                                <p class="mt-2 text-sm text-gray-600">{{ form.title.help_text }}</p>
+                                {% endif %}
+                            </div>
+                            
+                            <div>
+                                <label for="{{ form.subject.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-2">
+                                    {{ form.subject.label }}
+                                </label>
+                                <input type="text" name="{{ form.subject.name }}" id="{{ form.subject.id_for_label }}"
+                                       value="{{ form.subject.value|default:'' }}"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                                       placeholder="Ex: Biologie">
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                            <div>
+                                <label for="{{ form.topic.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-2">
+                                    {{ form.topic.label }}
+                                </label>
+                                <input type="text" name="{{ form.topic.name }}" id="{{ form.topic.id_for_label }}"
+                                       value="{{ form.topic.value|default:'' }}"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                                       placeholder="Ex: Sciences naturelles">
+                            </div>
+                            
+                            <div>
+                                <label for="{{ form.level.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-2">
+                                    {{ form.level.label }}
+                                </label>
+                                <input type="text" name="{{ form.level.name }}" id="{{ form.level.id_for_label }}"
+                                       value="{{ form.level.value|default:'' }}"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                                       placeholder="Ex: Lycée, Université">
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6">
+                            <label for="{{ form.description.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-2">
+                                {{ form.description.label }}
+                            </label>
+                            <textarea name="{{ form.description.name }}" id="{{ form.description.id_for_label }}" rows="3"
+                                      class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-none"
+                                      placeholder="Description courte du document (optionnel)">{{ form.description.value|default:'' }}</textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="border-t border-gray-200 my-8"></div>
+                    
+                    <!-- Section 2: Type et contenu -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            Type et contenu du document
+                        </h3>
+                        
+                        <!-- Sélecteur de type -->
+                        <div class="mb-6">
+                            <label for="{{ form.document_type.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-3">
+                                {{ form.document_type.label }}
+                                <span class="text-red-500">*</span>
+                            </label>
+                            <div class="grid grid-cols-2 gap-4">
+                                <button type="button" onclick="selectDocType('text')" 
+                                        id="btn-text"
+                                        class="doc-type-btn p-6 border-2 border-gray-300 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 transition-all text-center">
+                                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    </svg>
+                                    <h4 class="font-semibold text-gray-900 mb-1">Texte</h4>
+                                    <p class="text-sm text-gray-600">Collez directement votre contenu</p>
+                                </button>
+                                
+                                <button type="button" onclick="selectDocType('pdf')"
+                                        id="btn-pdf"
+                                        class="doc-type-btn p-6 border-2 border-gray-300 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 transition-all text-center">
+                                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                    </svg>
+                                    <h4 class="font-semibold text-gray-900 mb-1">PDF</h4>
+                                    <p class="text-sm text-gray-600">Uploadez un fichier PDF</p>
+                                </button>
+                            </div>
+                            <select name="{{ form.document_type.name }}" id="{{ form.document_type.id_for_label }}" class="hidden">
+                                <option value="text">text</option>
+                                <option value="pdf">pdf</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Contenu textuel -->
+                        <div id="textContent" class="hidden">
+                            <label for="{{ form.content.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-2">
+                                {{ form.content.label }}
+                                <span class="text-red-500">*</span>
+                            </label>
+                            <textarea name="{{ form.content.name }}" id="{{ form.content.id_for_label }}" rows="12"
+                                      class="w-full px-4 py-3 border {% if form.content.errors %}border-red-500{% else %}border-gray-300{% endif %} rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-none font-mono text-sm"
+                                      placeholder="Collez ici le contenu de votre cours...&#10;&#10;Exemple:&#10;La photosynthèse est le processus biologique qui permet aux plantes de convertir l'énergie lumineuse en énergie chimique...">{{ form.content.value|default:'' }}</textarea>
+                            {% if form.content.errors %}
+                            <div class="mt-2 text-sm text-red-600">
+                                {% for error in form.content.errors %}
+                                    <p>{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="mt-2 flex items-center text-sm text-gray-600">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                Minimum 50 mots recommandés pour une génération optimale d'exercices
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Upload PDF -->
+                        <div id="pdfUpload" class="hidden">
+                            <label for="{{ form.file_path.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-2">
+                                {{ form.file_path.label }}
+                                <span class="text-red-500">*</span>
+                            </label>
+                            <div class="border-2 border-dashed {% if form.file_path.errors %}border-red-500{% else %}border-gray-300 hover:border-indigo-500{% endif %} rounded-xl p-8 text-center transition-all">
+                                <svg class="w-16 h-16 mx-auto mb-4 {% if form.file_path.errors %}text-red-400{% else %}text-gray-400{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                </svg>
+                                <label for="{{ form.file_path.id_for_label }}" class="cursor-pointer">
+                                    <span class="px-6 py-3 {% if form.file_path.errors %}bg-red-600 hover:bg-red-700{% else %}bg-indigo-600 hover:bg-indigo-700{% endif %} text-white font-semibold rounded-xl transition-all inline-block">
+                                        Choisir un fichier PDF
+                                    </span>
+                                    <input type="file" name="{{ form.file_path.name }}" id="{{ form.file_path.id_for_label }}" 
+                                           accept=".pdf"
+                                           class="hidden"
+                                           onchange="displayFileName(this)">
+                                </label>
+                                <p class="mt-2 text-sm {% if form.file_path.errors %}text-red-600{% else %}text-gray-600{% endif %}" id="fileName">Aucun fichier sélectionné</p>
+                                {% if form.file_path.errors %}
+                                <div class="mt-3 text-sm text-red-600">
+                                    {% for error in form.file_path.errors %}
+                                        <p>{{ error }}</p>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <p class="mt-4 text-xs text-gray-500">
+                                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    Le texte sera automatiquement extrait du PDF pour la génération d'exercices
+                                </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="border-t border-gray-200 my-8"></div>
+                    
+                    <!-- Actions -->
+                    <div class="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                        <div class="flex gap-4 w-full sm:w-auto">
+                            <button type="submit" 
+                                    class="flex-1 sm:flex-none inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl hover:from-indigo-700 hover:to-purple-700 transform hover:scale-105 transition-all shadow-lg">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                                </svg>
+                                Analyser et Générer des Exercices
+                            </button>
+                            
+                            <a href="{% url 'exercise_generator:dashboard' %}" 
+                               class="flex-1 sm:flex-none inline-flex items-center justify-center px-8 py-4 bg-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-300 transition-all">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                                Annuler
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Note d'information -->
+                    <div class="mt-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-xl">
+                        <div class="flex items-start">
+                            <svg class="w-5 h-5 text-yellow-600 mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div>
+                                <p class="text-sm font-medium text-yellow-800">
+                                    <strong>Note :</strong> Le traitement peut prendre quelques secondes selon la longueur du document. 
+                                    L'IA analysera le contenu et générera automatiquement des exercices variés et pertinents.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const documentTypeSelect = document.getElementById('{{ form.document_type.id_for_label }}');
+    const textContent = document.getElementById('textContent');
+    const pdfUpload = document.getElementById('pdfUpload');
+    const btnText = document.getElementById('btn-text');
+    const btnPdf = document.getElementById('btn-pdf');
+    
+    // Fonction pour sélectionner le type de document
+    window.selectDocType = function(type) {
+        documentTypeSelect.value = type;
+        
+        if (type === 'text') {
+            // Style du bouton sélectionné
+            btnText.classList.remove('border-gray-300');
+            btnText.classList.add('border-indigo-500', 'bg-indigo-50', 'ring-2', 'ring-indigo-500');
+            btnPdf.classList.remove('border-indigo-500', 'bg-indigo-50', 'ring-2', 'ring-indigo-500');
+            btnPdf.classList.add('border-gray-300');
+            
+            // Affichage des champs
+            textContent.classList.remove('hidden');
+            pdfUpload.classList.add('hidden');
+        } else if (type === 'pdf') {
+            // Style du bouton sélectionné
+            btnPdf.classList.remove('border-gray-300');
+            btnPdf.classList.add('border-indigo-500', 'bg-indigo-50', 'ring-2', 'ring-indigo-500');
+            btnText.classList.remove('border-indigo-500', 'bg-indigo-50', 'ring-2', 'ring-indigo-500');
+            btnText.classList.add('border-gray-300');
+            
+            // Affichage des champs
+            pdfUpload.classList.remove('hidden');
+            textContent.classList.add('hidden');
+        }
+    };
+    
+    // Fonction pour afficher le nom du fichier sélectionné
+    window.displayFileName = function(input) {
+        const fileNameDisplay = document.getElementById('fileName');
+        if (input.files && input.files[0]) {
+            fileNameDisplay.textContent = input.files[0].name;
+            fileNameDisplay.classList.remove('text-gray-600');
+            fileNameDisplay.classList.add('text-indigo-600', 'font-semibold');
+        }
+    };
+    
+    // État initial : sélectionner "text" par défaut
+    selectDocType('text');
+});
+</script>
+{% endblock %}

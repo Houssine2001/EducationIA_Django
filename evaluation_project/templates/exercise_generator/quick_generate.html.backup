@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Génération Rapide - Générateur IA{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h1 class="mb-4">
+                <i class="fas fa-magic"></i> Génération Rapide d'Exercices
+            </h1>
+            
+            <div class="alert alert-info">
+                <strong><i class="fas fa-lightbulb"></i> Mode Rapide</strong>
+                <p class="mb-0">
+                    Collez un texte de cours et générez instantanément des exercices !<br>
+                    Minimum 50 mots recommandés pour des résultats optimaux.
+                </p>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5>Votre Texte de Cours</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <strong>Erreurs :</strong>
+                            <ul>
+                                {% for field, errors in form.errors.items %}
+                                    {% for error in errors %}
+                                    <li>{{ field }}: {{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="form-group">
+                            <label for="{{ form.text.id_for_label }}">{{ form.text.label }}</label>
+                            {{ form.text }}
+                            <small class="form-text text-muted">
+                                Collez ici le texte de votre cours (minimum 50 mots).
+                            </small>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.subject.id_for_label }}">{{ form.subject.label }}</label>
+                                    {{ form.subject }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.num_exercises.id_for_label }}">{{ form.num_exercises.label }}</label>
+                                    {{ form.num_exercises }}
+                                    <small class="form-text text-muted">Entre 5 et 30 exercices</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-success btn-lg btn-block">
+                                <i class="fas fa-magic"></i> Générer les Exercices
+                            </button>
+                        </div>
+                        
+                        <div class="text-center mt-3">
+                            <a href="{% url 'exercise_generator:dashboard' %}" class="btn btn-link">
+                                <i class="fas fa-arrow-left"></i> Retour au tableau de bord
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Exemple de texte -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-info-circle"></i> Exemple de Texte</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Essayez avec ce texte sur la photosynthèse :</strong></p>
+                    <div class="bg-light p-3 rounded">
+                        <p style="font-size: 0.9em; line-height: 1.6;">
+                            La photosynthèse est le processus par lequel les plantes vertes transforment 
+                            la lumière solaire en énergie chimique. Ce processus se déroule dans les 
+                            chloroplastes, organites spécialisés présents dans les cellules végétales. 
+                            La photosynthèse nécessite trois éléments essentiels : l'eau, le dioxyde de 
+                            carbone (CO2) et la lumière. Les produits de cette réaction sont le glucose, 
+                            qui sert de source d'énergie pour la plante, et l'oxygène, qui est libéré 
+                            dans l'atmosphère. Ce processus est vital pour la vie sur Terre car il 
+                            produit l'oxygène que nous respirons et constitue la base de la chaîne 
+                            alimentaire. Les plantes utilisent la chlorophylle, un pigment vert, pour 
+                            capter l'énergie lumineuse du soleil.
+                        </p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary mt-2" onclick="copyExampleText()">
+                        <i class="fas fa-copy"></i> Copier ce texte
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyExampleText() {
+    const text = `La photosynthèse est le processus par lequel les plantes vertes transforment la lumière solaire en énergie chimique. Ce processus se déroule dans les chloroplastes, organites spécialisés présents dans les cellules végétales. La photosynthèse nécessite trois éléments essentiels : l'eau, le dioxyde de carbone (CO2) et la lumière. Les produits de cette réaction sont le glucose, qui sert de source d'énergie pour la plante, et l'oxygène, qui est libéré dans l'atmosphère. Ce processus est vital pour la vie sur Terre car il produit l'oxygène que nous respirons et constitue la base de la chaîne alimentaire. Les plantes utilisent la chlorophylle, un pigment vert, pour capter l'énergie lumineuse du soleil.`;
+    
+    const textarea = document.getElementById('{{ form.text.id_for_label }}');
+    textarea.value = text;
+    textarea.focus();
+    
+    // Notification
+    alert('✅ Texte copié dans le formulaire !');
+}
+</script>
+{% endblock %}

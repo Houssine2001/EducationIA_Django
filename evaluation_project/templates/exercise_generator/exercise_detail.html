@@ -1,0 +1,341 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ exercise.concept }} - Exercice{% endblock %}
+
+{% block extra_css %}
+<style>
+    .option-card {
+        transition: all 0.3s ease;
+    }
+    .option-card:hover {
+        transform: translateX(4px);
+    }
+    .info-card {
+        transition: all 0.3s ease;
+    }
+    .info-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- En-tête -->
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <a href="{% url 'exercise_generator:document_detail' exercise.source_document.pk %}" 
+                   class="inline-flex items-center text-sm text-gray-600 hover:text-indigo-600 mb-4 transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Retour au document
+                </a>
+                <h1 class="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    Détails de l'Exercice
+                </h1>
+            </div>
+        </div>
+        
+        <!-- Badges -->
+        <div class="flex flex-wrap gap-3 mb-8">
+            <span class="px-4 py-2 text-sm font-semibold rounded-full
+                {% if exercise.exercise_type == 'mcq' %}bg-blue-100 text-blue-800
+                {% elif exercise.exercise_type == 'true_false' %}bg-purple-100 text-purple-800
+                {% else %}bg-green-100 text-green-800{% endif %}">
+                {% if exercise.exercise_type == 'mcq' %}QCM
+                {% elif exercise.exercise_type == 'true_false' %}Vrai/Faux
+                {% else %}Texte à trous{% endif %}
+            </span>
+            
+            <span class="px-4 py-2 text-sm font-semibold rounded-full
+                {% if exercise.difficulty == 'easy' %}bg-gray-100 text-gray-800
+                {% elif exercise.difficulty == 'medium' %}bg-orange-100 text-orange-800
+                {% else %}bg-red-100 text-red-800{% endif %}">
+                {% if exercise.difficulty == 'easy' %}Facile
+                {% elif exercise.difficulty == 'medium' %}Moyen
+                {% else %}Difficile{% endif %}
+            </span>
+            
+            <span class="px-4 py-2 text-sm font-semibold rounded-full bg-indigo-100 text-indigo-800 flex items-center">
+                <svg class="w-4 h-4 mr-1 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                </svg>
+                Qualité: {{ exercise.quality_score|floatformat:2 }}
+            </span>
+            
+            <span class="px-4 py-2 text-sm font-semibold rounded-full
+                {% if exercise.status == 'validated' %}bg-green-100 text-green-800
+                {% elif exercise.status == 'published' %}bg-blue-100 text-blue-800
+                {% elif exercise.status == 'rejected' %}bg-red-100 text-red-800
+                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                {% if exercise.status == 'validated' %}✓ Validé
+                {% elif exercise.status == 'published' %}📤 Publié
+                {% elif exercise.status == 'rejected' %}✗ Rejeté
+                {% else %}⊙ Brouillon{% endif %}
+            </span>
+        </div>
+        
+        <!-- Question Card -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-6">
+                <h2 class="text-2xl font-bold text-white flex items-center">
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Question
+                </h2>
+            </div>
+            <div class="p-8">
+                <h3 class="text-2xl font-semibold text-gray-900 mb-6">{{ exercise.question_text }}</h3>
+                
+                <!-- Options selon le type -->
+                {% if exercise.exercise_type == 'mcq' %}
+                <div class="space-y-3">
+                    {% for key, value in exercise.options_data.options.items %}
+                    <div class="option-card p-4 rounded-xl {% if key == exercise.options_data.correct %}bg-green-50 border-2 border-green-500{% else %}bg-gray-50 border-2 border-gray-200{% endif %}">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <span class="flex-shrink-0 w-8 h-8 rounded-full {% if key == exercise.options_data.correct %}bg-green-500{% else %}bg-gray-400{% endif %} text-white font-bold flex items-center justify-center mr-3">
+                                    {{ key }}
+                                </span>
+                                <span class="text-gray-900 font-medium">{{ value }}</span>
+                            </div>
+                            {% if key == exercise.options_data.correct %}
+                            <span class="px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full">✓ Correcte</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                {% elif exercise.exercise_type == 'true_false' %}
+                <div class="space-y-3">
+                    <div class="option-card p-6 rounded-xl {% if exercise.options_data.correct %}bg-green-50 border-2 border-green-500{% else %}bg-gray-50 border-2 border-gray-200{% endif %}">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <svg class="w-8 h-8 mr-3 {% if exercise.options_data.correct %}text-green-500{% else %}text-gray-400{% endif %}" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                </svg>
+                                <span class="text-xl font-bold text-gray-900">Vrai</span>
+                            </div>
+                            {% if exercise.options_data.correct %}
+                            <span class="px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full">✓ Correcte</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="option-card p-6 rounded-xl {% if not exercise.options_data.correct %}bg-green-50 border-2 border-green-500{% else %}bg-gray-50 border-2 border-gray-200{% endif %}">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <svg class="w-8 h-8 mr-3 {% if not exercise.options_data.correct %}text-green-500{% else %}text-gray-400{% endif %}" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                </svg>
+                                <span class="text-xl font-bold text-gray-900">Faux</span>
+                            </div>
+                            {% if not exercise.options_data.correct %}
+                            <span class="px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full">✓ Correcte</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                {% elif exercise.exercise_type == 'fill_blank' %}
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-xl">
+                    <p class="text-sm font-semibold text-blue-900 mb-3">Texte à compléter :</p>
+                    <p class="text-lg text-gray-900 mb-4 leading-relaxed">{{ exercise.options_data.text }}</p>
+                    <hr class="border-blue-200 my-4">
+                    <div class="flex items-center">
+                        <span class="text-sm font-semibold text-blue-900 mr-3">Réponse :</span>
+                        <span class="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg">{{ exercise.options_data.correct }}</span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Explication -->
+        {% if exercise.explanation %}
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
+            <div class="bg-gradient-to-r from-blue-500 to-cyan-500 px-8 py-4">
+                <h2 class="text-xl font-bold text-white flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Explication
+                </h2>
+            </div>
+            <div class="p-8">
+                <p class="text-gray-700 leading-relaxed">{{ exercise.explanation }}</p>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Informations complémentaires -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            <!-- Informations Card -->
+            <div class="info-card bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4">
+                    <h2 class="text-xl font-bold text-white flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                        </svg>
+                        Informations
+                    </h2>
+                </div>
+                <div class="p-6">
+                    <dl class="space-y-4">
+                        <div class="flex justify-between items-start">
+                            <dt class="font-semibold text-gray-700 w-1/3">Concept :</dt>
+                            <dd class="text-gray-900 w-2/3 text-right">{{ exercise.concept }}</dd>
+                        </div>
+                        <div class="flex justify-between items-start border-t pt-4">
+                            <dt class="font-semibold text-gray-700 w-1/3">Thème :</dt>
+                            <dd class="text-gray-900 w-2/3 text-right">{{ exercise.topic|default:"Non spécifié" }}</dd>
+                        </div>
+                        <div class="flex justify-between items-start border-t pt-4">
+                            <dt class="font-semibold text-gray-700 w-1/3">Document source :</dt>
+                            <dd class="text-gray-900 w-2/3 text-right">
+                                <a href="{% url 'exercise_generator:document_detail' exercise.source_document.pk %}" 
+                                   class="text-indigo-600 hover:text-indigo-800 hover:underline">
+                                    {{ exercise.source_document.title }}
+                                </a>
+                            </dd>
+                        </div>
+                        <div class="flex justify-between items-start border-t pt-4">
+                            <dt class="font-semibold text-gray-700 w-1/3">Créé le :</dt>
+                            <dd class="text-gray-900 w-2/3 text-right">{{ exercise.created_at|date:"d/m/Y à H:i" }}</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+            
+            <!-- Statistiques Card -->
+            <div class="info-card bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="bg-gradient-to-r from-green-500 to-teal-500 px-6 py-4">
+                    <h2 class="text-xl font-bold text-white flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        Statistiques
+                    </h2>
+                </div>
+                <div class="p-6">
+                    <dl class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <dt class="font-semibold text-gray-700">Fois utilisé :</dt>
+                            <dd class="text-2xl font-bold text-gray-900">{{ exercise.times_used }}</dd>
+                        </div>
+                        <div class="flex justify-between items-center border-t pt-4">
+                            <dt class="font-semibold text-gray-700">Taux de réussite :</dt>
+                            <dd class="text-2xl font-bold text-green-600">{{ exercise.average_success_rate|floatformat:0 }}%</dd>
+                        </div>
+                        <div class="border-t pt-4">
+                            <dt class="font-semibold text-gray-700 mb-2">Score qualité :</dt>
+                            <dd class="w-full">
+                                <div class="relative pt-1">
+                                    <div class="flex mb-2 items-center justify-between">
+                                        <div>
+                                            <span class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full 
+                                                {% if exercise.quality_score >= 0.7 %}text-green-600 bg-green-200
+                                                {% elif exercise.quality_score >= 0.5 %}text-yellow-600 bg-yellow-200
+                                                {% else %}text-red-600 bg-red-200{% endif %}">
+                                                {{ exercise.quality_score|floatformat:2 }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="overflow-hidden h-3 text-xs flex rounded-full bg-gray-200">
+                                        <div style="width:{% widthratio exercise.quality_score 1 100 %}%" 
+                                             class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center 
+                                             {% if exercise.quality_score >= 0.7 %}bg-green-500
+                                             {% elif exercise.quality_score >= 0.5 %}bg-yellow-500
+                                             {% else %}bg-red-500{% endif %}">
+                                        </div>
+                                    </div>
+                                </div>
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Phrase source -->
+        {% if exercise.source_sentence %}
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
+            <div class="bg-gradient-to-r from-gray-600 to-gray-700 px-6 py-4">
+                <h2 class="text-xl font-bold text-white flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+                    </svg>
+                    Phrase Source du Document
+                </h2>
+            </div>
+            <div class="p-8">
+                <blockquote class="border-l-4 border-gray-400 pl-6 italic text-gray-700 text-lg leading-relaxed">
+                    "{{ exercise.source_sentence }}"
+                </blockquote>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Actions de validation -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="bg-gradient-to-r from-orange-500 to-red-500 px-6 py-4">
+                <h2 class="text-xl font-bold text-white flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    Actions de Validation
+                </h2>
+            </div>
+            <div class="p-8">
+                <form method="post" action="{% url 'exercise_generator:exercise_validate' exercise.pk %}" class="space-y-6">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="exercise_generator:exercise_detail">
+                    
+                    <div>
+                        <label for="notes" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Notes de validation :
+                        </label>
+                        <textarea name="notes" id="notes" rows="4"
+                                  class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-none"
+                                  placeholder="Ajoutez des commentaires sur cet exercice...">{{ exercise.validation_notes|default:"" }}</textarea>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-4">
+                        <button type="submit" name="action" value="validate" 
+                                class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-xl hover:from-green-600 hover:to-green-700 transform hover:scale-105 transition-all shadow-lg">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Valider
+                        </button>
+                        
+                        <button type="submit" name="action" value="publish" 
+                                class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-xl hover:from-blue-600 hover:to-blue-700 transform hover:scale-105 transition-all shadow-lg">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                            </svg>
+                            Publier
+                        </button>
+                        
+                        <button type="submit" name="action" value="reject" 
+                                class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:from-red-600 hover:to-red-700 transform hover:scale-105 transition-all shadow-lg">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            Rejeter
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}

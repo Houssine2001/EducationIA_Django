@@ -28,10 +28,16 @@ charset-normalizer==3.4.3
 idna==3.10
 urllib3==2.5.0
 
-# ========== OPTIONNEL (IA Locale) ==========
+# ========== GÉNÉRATEUR D'EXERCICES IA ==========
+# Extraction de texte depuis PDF
+PyPDF2==3.0.1
+
+# ========== OPTIONNEL (IA Locale Avancée) ==========
 # Décommenter pour exécuter modèles IA localement (consomme beaucoup de RAM)
 # transformers==4.30.0
 # torch==2.0.1
+# spacy==3.7.0  # NLP avancé
+# sentence-transformers==2.2.2  # Embeddings
 
 # ========== OPTIONNEL (Sécurité) ==========
 # python-decouple==3.8  # Variables d'environnement

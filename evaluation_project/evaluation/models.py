@@ -6,6 +6,12 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 import json
+import sys
+import os
+
+# Import du champ JSON compatible
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from exercise_generator.fields import CompatibleJSONField
 
 
 # ============================================
@@ -16,8 +22,17 @@ class UserProfile(models.Model):
     """
     Profil étudiant étendu avec analyse de performance et recommandations IA
     """
+    ROLE_CHOICES = [
+        ('student', 'Étudiant'),
+        ('teacher', 'Professeur'),
+        ('admin', 'Administrateur'),
+    ]
+    
     # Liaison avec l'utilisateur Django
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    
+    # Rôle de l'utilisateur
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
     
     # Informations personnelles
     student_id = models.CharField(max_length=50, blank=True, null=True)  # Retiré unique=True pour compatibilité MongoDB
@@ -36,19 +51,19 @@ class UserProfile(models.Model):
     # Gamification
     level = models.IntegerField(default=1)  # Niveau du joueur
     total_xp = models.IntegerField(default=0)  # Points d'expérience totaux
-    badges = models.JSONField(default=list)  # Liste des badges obtenus
+    badges = CompatibleJSONField(default=list)  # Liste des badges obtenus
     
     # Analyse des performances (structure JSON)
-    strengths = models.JSONField(default=list)  # Points forts: ["mathématiques", "logique", ...]
-    weaknesses = models.JSONField(default=list)  # Points faibles: ["grammaire", "orthographe", ...]
+    strengths = CompatibleJSONField(default=list)  # Points forts: ["mathématiques", "logique", ...]
+    weaknesses = CompatibleJSONField(default=list)  # Points faibles: ["grammaire", "orthographe", ...]
     
     # Recommandations IA
-    ai_recommendations = models.JSONField(default=dict)  # Recommandations personnalisées
+    ai_recommendations = CompatibleJSONField(default=dict)  # Recommandations personnalisées
     learning_style = models.CharField(max_length=50, blank=True, null=True)  # Visuel, auditif, kinesthésique
     
     # Historique et progression (données pour IA)
-    performance_history = models.JSONField(default=list)  # Historique des scores
-    skill_progress = models.JSONField(default=dict)  # Progression par compétence
+    performance_history = CompatibleJSONField(default=list)  # Historique des scores
+    skill_progress = CompatibleJSONField(default=dict)  # Progression par compétence
     
     # Métadonnées
     created_at = models.DateTimeField(auto_now_add=True)
@@ -121,11 +136,11 @@ class Test(models.Model):
     published_at = models.DateTimeField(null=True, blank=True)
     
     # Tags et catégories pour IA
-    tags = models.JSONField(default=list)  # ["algèbre", "équations", "niveau-2"]
-    skills_tested = models.JSONField(default=list)  # Compétences évaluées
+    tags = CompatibleJSONField(default=list)  # ["algèbre", "équations", "niveau-2"]
+    skills_tested = CompatibleJSONField(default=list)  # Compétences évaluées
     
     # Métadonnées pour analyse IA
-    ai_metadata = models.JSONField(default=dict)  # Données pour l'IA
+    ai_metadata = CompatibleJSONField(default=dict)  # Données pour l'IA
     
     # Statistiques du test
     total_attempts = models.IntegerField(default=0)
@@ -181,7 +196,7 @@ class Question(models.Model):
     
     # Options pour QCM (stockées en JSON)
     # Structure: [{"text": "Option A", "is_correct": true}, {"text": "Option B", "is_correct": false}, ...]
-    options = models.JSONField(default=list)
+    options = CompatibleJSONField(default=list)
     
     # Réponse correcte (pour vrai/faux, réponse courte)
     correct_answer = models.TextField(blank=True, null=True)
@@ -195,11 +210,11 @@ class Question(models.Model):
     media_type = models.CharField(max_length=50, blank=True, null=True)  # image, video, audio
     
     # Compétences évaluées
-    skills = models.JSONField(default=list)  # ["calcul", "raisonnement logique"]
+    skills = CompatibleJSONField(default=list)  # ["calcul", "raisonnement logique"]
     
     # Métadonnées pour IA
-    ai_analysis = models.JSONField(default=dict)  # Analyse de difficulté, patterns, etc.
-    common_mistakes = models.JSONField(default=list)  # Erreurs fréquentes
+    ai_analysis = CompatibleJSONField(default=dict)  # Analyse de difficulté, patterns, etc.
+    common_mistakes = CompatibleJSONField(default=list)  # Erreurs fréquentes
     
     # Statistiques
     times_answered = models.IntegerField(default=0)
@@ -249,7 +264,7 @@ class Submission(models.Model):
     
     # Réponses (structure JSON)
     # Structure: {"question_id": {"answer": "...", "time_spent": 120, "is_correct": true}, ...}
-    answers = models.JSONField(default=dict)
+    answers = CompatibleJSONField(default=dict)
     
     # Temps et progression
     started_at = models.DateTimeField(auto_now_add=True)
@@ -273,8 +288,8 @@ class Submission(models.Model):
     graded_at = models.DateTimeField(null=True, blank=True)
     
     # Analyse IA
-    ai_feedback = models.JSONField(default=dict)  # Feedback automatique de l'IA
-    performance_analysis = models.JSONField(default=dict)  # Analyse détaillée
+    ai_feedback = CompatibleJSONField(default=dict)  # Feedback automatique de l'IA
+    performance_analysis = CompatibleJSONField(default=dict)  # Analyse détaillée
     
     # Métadonnées
     ip_address = models.GenericIPAddressField(null=True, blank=True)
@@ -324,7 +339,7 @@ class Result(models.Model):
     essay_score = models.FloatField(default=0.0)
     
     # Analyse par compétence
-    skills_breakdown = models.JSONField(default=dict)  # {"mathématiques": 85, "logique": 90, ...}
+    skills_breakdown = CompatibleJSONField(default=dict)  # {"mathématiques": 85, "logique": 90, ...}
     
     # Comparaisons et classement
     rank = models.IntegerField(null=True, blank=True)  # Classement par rapport aux autres
@@ -337,7 +352,7 @@ class Result(models.Model):
     time_efficiency = models.FloatField(default=0.0)  # Score d'efficacité temporelle
     
     # Analyse IA approfondie
-    ai_analysis = models.JSONField(default=dict)
+    ai_analysis = CompatibleJSONField(default=dict)
     # Structure suggérée:
     # {
     #     "strengths": ["calcul rapide", "raisonnement logique"],
@@ -349,15 +364,15 @@ class Result(models.Model):
     # }
     
     # Recommandations personnalisées
-    recommendations = models.JSONField(default=list)
-    study_suggestions = models.JSONField(default=list)
+    recommendations = CompatibleJSONField(default=list)
+    study_suggestions = CompatibleJSONField(default=list)
     
     # Patterns détectés par l'IA
-    error_patterns = models.JSONField(default=list)  # Types d'erreurs récurrentes
-    learning_gaps = models.JSONField(default=list)  # Lacunes identifiées
+    error_patterns = CompatibleJSONField(default=list)  # Types d'erreurs récurrentes
+    learning_gaps = CompatibleJSONField(default=list)  # Lacunes identifiées
     
     # Données pour graphiques et visualisations
-    performance_chart_data = models.JSONField(default=dict)
+    performance_chart_data = CompatibleJSONField(default=dict)
     
     # Métadonnées
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,0 +1,306 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ document.title }} - Détails{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    }
+    .exercise-card {
+        transition: all 0.3s ease;
+        border-left: 4px solid transparent;
+    }
+    .exercise-card:hover {
+        transform: translateX(4px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    }
+    .exercise-card.validated {
+        border-left-color: #10b981;
+    }
+    .exercise-card.draft {
+        border-left-color: #f59e0b;
+    }
+    .exercise-card.rejected {
+        border-left-color: #ef4444;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- En-tête du document -->
+        <div class="bg-white rounded-2xl shadow-lg p-8 mb-8">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <a href="{% url 'exercise_generator:document_list' %}" class="inline-flex items-center text-sm text-gray-600 hover:text-indigo-600 mb-4 transition-colors">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                        </svg>
+                        Retour aux documents
+                    </a>
+                    
+                    <h1 class="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
+                        {{ document.title }}
+                    </h1>
+                    
+                    <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            Créé le {{ document.created_at|date:"d/m/Y à H:i" }}
+                        </div>
+                        
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            {% if document.file_type %}{{ document.file_type|upper }}{% else %}TEXTE{% endif %}
+                        </div>
+                        
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                            </svg>
+                            Sujet: {{ document.subject|default:"Général" }}
+                        </div>
+                    </div>
+                    
+                    {% if document.description %}
+                    <p class="mt-4 text-gray-700 leading-relaxed">{{ document.description }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="ml-8">
+                    <a href="{% url 'exercise_generator:document_reprocess' document.id %}" 
+                       class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-xl hover:from-indigo-700 hover:to-purple-700 transform hover:scale-105 transition-all shadow-lg">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Régénérer
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiques des exercices -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="stat-card bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl shadow-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-indigo-100 text-sm font-medium mb-1">Total Exercices</p>
+                        <p class="text-4xl font-bold">{{ exercise_stats.total }}</p>
+                    </div>
+                    <div class="bg-white bg-opacity-20 rounded-xl p-3">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-green-100 text-sm font-medium mb-1">Validés</p>
+                        <p class="text-4xl font-bold">{{ exercise_stats.validated }}</p>
+                    </div>
+                    <div class="bg-white bg-opacity-20 rounded-xl p-3">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl shadow-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-yellow-100 text-sm font-medium mb-1">Brouillons</p>
+                        <p class="text-4xl font-bold">{{ exercise_stats.draft }}</p>
+                    </div>
+                    <div class="bg-white bg-opacity-20 rounded-xl p-3">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card bg-gradient-to-br from-red-500 to-red-600 rounded-2xl shadow-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-red-100 text-sm font-medium mb-1">Rejetés</p>
+                        <p class="text-4xl font-bold">{{ exercise_stats.rejected }}</p>
+                    </div>
+                    <div class="bg-white bg-opacity-20 rounded-xl p-3">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Distribution par type -->
+        <div class="bg-white rounded-2xl shadow-lg p-8 mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">Distribution par type</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="flex items-center p-4 bg-blue-50 rounded-xl">
+                    <div class="flex-shrink-0 w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                        QCM
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <p class="text-sm text-gray-600">Questions à choix multiples</p>
+                        <p class="text-2xl font-bold text-gray-900">{{ exercise_stats.mcq }}</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center p-4 bg-purple-50 rounded-xl">
+                    <div class="flex-shrink-0 w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                        V/F
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <p class="text-sm text-gray-600">Vrai ou Faux</p>
+                        <p class="text-2xl font-bold text-gray-900">{{ exercise_stats.true_false }}</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center p-4 bg-green-50 rounded-xl">
+                    <div class="flex-shrink-0 w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                        TXT
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <p class="text-sm text-gray-600">Textes à trous</p>
+                        <p class="text-2xl font-bold text-gray-900">{{ exercise_stats.fill_blank }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Liste des exercices -->
+        <div class="bg-white rounded-2xl shadow-lg p-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">Exercices générés</h2>
+            
+            {% if page_obj %}
+                <div class="space-y-4">
+                    {% for exercise in page_obj %}
+                        <div class="exercise-card {{ exercise.status }} bg-gray-50 rounded-xl p-6 hover:bg-gray-100">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-3 mb-3">
+                                        <span class="px-3 py-1 text-xs font-semibold rounded-full
+                                            {% if exercise.exercise_type == 'mcq' %}bg-blue-100 text-blue-800
+                                            {% elif exercise.exercise_type == 'true_false' %}bg-purple-100 text-purple-800
+                                            {% else %}bg-green-100 text-green-800{% endif %}">
+                                            {% if exercise.exercise_type == 'mcq' %}QCM
+                                            {% elif exercise.exercise_type == 'true_false' %}Vrai/Faux
+                                            {% else %}Texte à trous{% endif %}
+                                        </span>
+                                        
+                                        <span class="px-3 py-1 text-xs font-semibold rounded-full
+                                            {% if exercise.status == 'validated' %}bg-green-100 text-green-800
+                                            {% elif exercise.status == 'draft' %}bg-yellow-100 text-yellow-800
+                                            {% else %}bg-red-100 text-red-800{% endif %}">
+                                            {% if exercise.status == 'validated' %}✓ Validé
+                                            {% elif exercise.status == 'draft' %}⊙ Brouillon
+                                            {% else %}✗ Rejeté{% endif %}
+                                        </span>
+                                        
+                                        <span class="px-3 py-1 text-xs font-semibold rounded-full
+                                            {% if exercise.difficulty == 'easy' %}bg-gray-100 text-gray-800
+                                            {% elif exercise.difficulty == 'medium' %}bg-orange-100 text-orange-800
+                                            {% else %}bg-red-100 text-red-800{% endif %}">
+                                            {% if exercise.difficulty == 'easy' %}Facile
+                                            {% elif exercise.difficulty == 'medium' %}Moyen
+                                            {% else %}Difficile{% endif %}
+                                        </span>
+                                        
+                                        <div class="flex items-center text-yellow-500">
+                                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                            </svg>
+                                            <span class="text-xs font-semibold">{{ exercise.quality_score|floatformat:2 }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ exercise.question }}</h3>
+                                    
+                                    {% if exercise.concept %}
+                                    <p class="text-sm text-gray-600 mb-2">
+                                        <span class="font-medium">Concept:</span> {{ exercise.concept }}
+                                    </p>
+                                    {% endif %}
+                                    
+                                    <p class="text-xs text-gray-500">
+                                        Créé le {{ exercise.created_at|date:"d/m/Y à H:i" }}
+                                    </p>
+                                </div>
+                                
+                                <div class="ml-4">
+                                    <a href="{% url 'exercise_generator:exercise_detail' exercise.id %}" 
+                                       class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
+                                        Voir détails
+                                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                        </svg>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                <div class="mt-8 flex justify-center">
+                    <nav class="flex items-center gap-2">
+                        {% if page_obj.has_previous %}
+                            <a href="?page={{ page_obj.previous_page_number }}" 
+                               class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                                Précédent
+                            </a>
+                        {% endif %}
+                        
+                        <span class="px-4 py-2 text-gray-700">
+                            Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}
+                        </span>
+                        
+                        {% if page_obj.has_next %}
+                            <a href="?page={{ page_obj.next_page_number }}" 
+                               class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                                Suivant
+                            </a>
+                        {% endif %}
+                    </nav>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-12">
+                    <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Aucun exercice généré</h3>
+                    <p class="text-gray-600 mb-6">Ce document n'a pas encore d'exercices générés.</p>
+                    <a href="{% url 'exercise_generator:document_reprocess' document.id %}" 
+                       class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                        </svg>
+                        Générer des exercices
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+        
+    </div>
+</div>
+{% endblock %}

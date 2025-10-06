@@ -38,8 +38,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
-    # Application personnalisée
+    # Applications personnalisées
     'evaluation',
+    'exercise_generator',  # Générateur d'exercices IA
 ]
 
 MIDDLEWARE = [
@@ -84,6 +85,11 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Désactiver la vérification JSONField pour Python 3.7
+# JSONField sera simulé avec TextField
+import sys
+DISABLE_SERVER_SIDE_CURSORS = True
 
 
 # Password validation
