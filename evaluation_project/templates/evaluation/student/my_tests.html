@@ -1,0 +1,617 @@
+{% extends 'base.html' %}
+
+{% block title %}Mes Tests{% endblock %}
+
+{% block extra_css %}
+<style>
+    .test-stats-hero {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        padding: 40px;
+        color: white;
+        margin-bottom: 30px;
+        box-shadow: 0 15px 50px rgba(102, 126, 234, 0.4);
+    }
+    
+    .stat-box {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 25px;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    
+    .stat-box:hover {
+        background: rgba(255, 255, 255, 0.25);
+        transform: translateY(-5px);
+    }
+    
+    .stat-box .icon {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        opacity: 0.9;
+    }
+    
+    .stat-box .value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+    
+    .stat-box .label {
+        font-size: 0.9rem;
+        opacity: 0.85;
+    }
+    
+    .chart-container {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        margin-bottom: 25px;
+    }
+    
+    .chart-wrapper {
+        position: relative;
+        height: 300px;
+    }
+    
+    .tests-table {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+    }
+    
+    .tests-table table {
+        border-collapse: separate;
+        border-spacing: 0 10px;
+    }
+    
+    .tests-table th {
+        padding: 15px !important;
+        background: #f9fafb;
+        font-weight: 700;
+        color: #374151;
+    }
+    
+    .tests-table td {
+        padding: 18px !important;
+        vertical-align: middle;
+        background: white;
+    }
+    
+    .test-row {
+        border-bottom: 1px solid #e5e7eb;
+        transition: all 0.3s ease;
+    }
+    
+    .test-row:hover {
+        background: #f9fafb;
+        border-radius: 10px;
+    }
+    
+    .test-row:last-child {
+        border-bottom: none;
+    }
+    
+    .badge-status {
+        padding: 6px 15px;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .badge-excellent {
+        background: linear-gradient(135deg, #38a169, #48bb78);
+        color: white;
+    }
+    
+    .badge-good {
+        background: linear-gradient(135deg, #4299e1, #63b3ed);
+        color: white;
+    }
+    
+    .badge-average {
+        background: linear-gradient(135deg, #f7971e, #ffd200);
+        color: white;
+    }
+    
+    .badge-poor {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        color: white;
+    }
+    
+    .badge-not-attempted {
+        background: #e5e7eb;
+        color: #6b7280;
+    }
+    
+    .actions-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+    
+    .btn-action {
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+        white-space: nowrap;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .btn-view {
+        background: #667eea;
+        color: white;
+    }
+    
+    .btn-view:hover {
+        background: #5568d3;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        color: white;
+    }
+    
+    .btn-retry {
+        background: #38a169;
+        color: white;
+    }
+    
+    .btn-retry:hover {
+        background: #2f855a;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(56, 161, 105, 0.3);
+        color: white;
+    }
+    
+    .btn-start {
+        background: #f7971e;
+        color: white;
+    }
+    
+    .btn-start:hover {
+        background: #e88512;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(247, 151, 30, 0.3);
+        color: white;
+    }
+    
+    .pagination-container {
+        margin-top: 30px;
+        margin-bottom: 20px;
+    }
+    
+    .pagination {
+        gap: 5px;
+    }
+    
+    .pagination .page-link {
+        border-radius: 8px;
+        border: 2px solid #e5e7eb;
+        color: #667eea;
+        font-weight: 600;
+        padding: 8px 15px;
+        transition: all 0.3s ease;
+    }
+    
+    .pagination .page-link:hover {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+        transform: translateY(-2px);
+    }
+    
+    .pagination .page-item.active .page-link {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-color: #667eea;
+        color: white;
+    }
+    
+    .pagination .page-item.disabled .page-link {
+        background: #f9fafb;
+        border-color: #e5e7eb;
+        color: #9ca3af;
+    }
+    
+    .filter-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .filter-tab {
+        padding: 10px 25px;
+        background: white;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 600;
+    }
+    
+    .filter-tab:hover {
+        border-color: #667eea;
+        color: #667eea;
+    }
+    
+    .filter-tab.active {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border-color: transparent;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Hero avec statistiques -->
+    <div class="test-stats-hero">
+        <h1 class="text-3xl font-bold mb-4">📚 Mes Tests</h1>
+        <p class="mb-4 opacity-90">Suivez votre progression et consultez vos résultats</p>
+        
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <div class="stat-box">
+                    <div class="icon"><i class="fas fa-clipboard-check"></i></div>
+                    <div class="value">{{ stats.total_tests }}</div>
+                    <div class="label">Tests Complétés</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stat-box">
+                    <div class="icon"><i class="fas fa-chart-line"></i></div>
+                    <div class="value">{{ stats.average_score|floatformat:1 }}%</div>
+                    <div class="label">Score Moyen</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stat-box">
+                    <div class="icon"><i class="fas fa-trophy"></i></div>
+                    <div class="value">{{ stats.tests_passed }}</div>
+                    <div class="label">Tests Réussis</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stat-box">
+                    <div class="icon"><i class="fas fa-clock"></i></div>
+                    <div class="value">{{ stats.total_time|floatformat:1 }}h</div>
+                    <div class="label">Temps Total</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphiques de progression -->
+    <div class="row mb-5">
+        <div class="col-md-6 mb-4">
+            <div class="chart-container">
+                <h3 class="mb-3"><i class="fas fa-chart-line text-primary"></i> Évolution des Scores</h3>
+                <div class="chart-wrapper">
+                    <canvas id="scoreEvolutionChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-4">
+            <div class="chart-container">
+                <h3 class="mb-3"><i class="fas fa-chart-bar text-success"></i> Performance par Matière</h3>
+                <div class="chart-wrapper">
+                    <canvas id="subjectPerformanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="filter-tabs" style="margin-top: 40px; margin-bottom: 30px;">
+        <div class="filter-tab active" data-filter="all">
+            <i class="fas fa-th-large me-2"></i>Tous les Tests
+        </div>
+        <div class="filter-tab" data-filter="completed">
+            <i class="fas fa-check-circle me-2"></i>Complétés
+        </div>
+        <div class="filter-tab" data-filter="not-completed">
+            <i class="fas fa-circle-notch me-2"></i>Non Complétés
+        </div>
+        <div class="filter-tab" data-filter="passed">
+            <i class="fas fa-star me-2"></i>Réussis
+        </div>
+    </div>
+
+    <!-- Tableau des tests -->
+    <div class="tests-table">
+        <h2 class="mb-4"><i class="fas fa-list-alt text-primary"></i> Liste de Mes Tests</h2>
+        
+        {% if tests %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Test</th>
+                        <th>Matière</th>
+                        <th>Tentatives</th>
+                        <th>Meilleur Score</th>
+                        <th>Dernier Score</th>
+                        <th>Statut</th>
+                        <th style="min-width: 280px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for test in tests %}
+                    <tr class="test-row" data-status="{% if test.attempts > 0 %}completed{% else %}not-completed{% endif %} {% if test.best_score >= test.test_obj.passing_score %}passed{% endif %}">
+                        <td>
+                            <div>
+                                <strong>{{ test.test_obj.title }}</strong>
+                                <br>
+                                <small class="text-muted">
+                                    <i class="fas fa-question-circle"></i> {{ test.test_obj.questions.count }} questions
+                                    • <i class="fas fa-clock"></i> {{ test.test_obj.duration }} min
+                                </small>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">{{ test.test_obj.subject|default:"Général" }}</span>
+                        </td>
+                        <td>
+                            <strong>{{ test.attempts }}</strong> fois
+                        </td>
+                        <td>
+                            {% if test.best_score is not None %}
+                                <span class="badge {% if test.best_score >= 90 %}badge-excellent{% elif test.best_score >= 70 %}badge-good{% elif test.best_score >= 50 %}badge-average{% else %}badge-poor{% endif %}">
+                                    {{ test.best_score|floatformat:1 }}%
+                                </span>
+                            {% else %}
+                                <span class="badge badge-not-attempted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if test.last_score is not None %}
+                                <span class="badge {% if test.last_score >= 90 %}badge-excellent{% elif test.last_score >= 70 %}badge-good{% elif test.last_score >= 50 %}badge-average{% else %}badge-poor{% endif %}">
+                                    {{ test.last_score|floatformat:1 }}%
+                                </span>
+                            {% else %}
+                                <span class="badge badge-not-attempted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if test.attempts == 0 %}
+                                <span class="badge badge-not-attempted">
+                                    <i class="fas fa-circle-notch"></i> Non tenté
+                                </span>
+                            {% elif test.best_score >= test.test_obj.passing_score %}
+                                <span class="badge badge-excellent">
+                                    <i class="fas fa-check-circle"></i> Réussi
+                                </span>
+                            {% else %}
+                                <span class="badge badge-poor">
+                                    <i class="fas fa-times-circle"></i> Non réussi
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td style="min-width: 280px;">
+                            <div class="actions-container">
+                                {% if test.last_result_id %}
+                                <a href="{% url 'evaluation:view_result' test.last_result_id %}" class="btn-action btn-view">
+                                    <i class="fas fa-eye"></i> Voir
+                                </a>
+                                <a href="{% url 'evaluation:test_history' test.test_obj.id %}" class="btn-action btn-view" style="background: #764ba2;">
+                                    <i class="fas fa-history"></i> Historique
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'evaluation:test_detail' test.test_obj.id %}" class="btn-action {% if test.attempts > 0 %}btn-retry{% else %}btn-start{% endif %}">
+                                    <i class="fas fa-{% if test.attempts > 0 %}redo{% else %}play{% endif %}"></i> 
+                                    {% if test.attempts > 0 %}Retenter{% else %}Commencer{% endif %}
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if tests.has_other_pages %}
+        <div class="pagination-container mt-4">
+            <nav aria-label="Pagination des tests">
+                <ul class="pagination justify-content-center">
+                    {% if tests.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1" aria-label="Première">
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ tests.previous_page_number }}" aria-label="Précédente">
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="fas fa-angle-double-left"></i></span>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="fas fa-angle-left"></i></span>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in tests.paginator.page_range %}
+                        {% if tests.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                        {% elif num > tests.number|add:'-3' and num < tests.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if tests.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ tests.next_page_number }}" aria-label="Suivante">
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ tests.paginator.num_pages }}" aria-label="Dernière">
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="fas fa-angle-right"></i></span>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="fas fa-angle-double-right"></i></span>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            <p class="text-center text-muted mt-2">
+                Page {{ tests.number }} sur {{ tests.paginator.num_pages }} ({{ tests.paginator.count }} test{{ tests.paginator.count|pluralize }})
+            </p>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-inbox text-muted" style="font-size: 4rem;"></i>
+            <p class="text-muted mt-3">Aucun test disponible pour le moment</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Données pour le graphique d'évolution
+    const scoreEvolutionData = {{ score_evolution_data|safe }};
+    
+    // Graphique d'évolution des scores
+    const ctxEvolution = document.getElementById('scoreEvolutionChart').getContext('2d');
+    new Chart(ctxEvolution, {
+        type: 'line',
+        data: {
+            labels: scoreEvolutionData.labels,
+            datasets: [{
+                label: 'Score (%)',
+                data: scoreEvolutionData.scores,
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 5,
+                pointBackgroundColor: '#667eea',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Données pour le graphique par matière
+    const subjectData = {{ subject_performance_data|safe }};
+    
+    // Graphique de performance par matière
+    const ctxSubject = document.getElementById('subjectPerformanceChart').getContext('2d');
+    new Chart(ctxSubject, {
+        type: 'bar',
+        data: {
+            labels: subjectData.labels,
+            datasets: [{
+                label: 'Score Moyen (%)',
+                data: subjectData.scores,
+                backgroundColor: [
+                    'rgba(102, 126, 234, 0.8)',
+                    'rgba(56, 161, 105, 0.8)',
+                    'rgba(247, 151, 30, 0.8)',
+                    'rgba(229, 62, 62, 0.8)',
+                    'rgba(118, 75, 162, 0.8)',
+                    'rgba(66, 153, 225, 0.8)'
+                ],
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Filtres
+    const filterTabs = document.querySelectorAll('.filter-tab');
+    const testRows = document.querySelectorAll('.test-row');
+    
+    filterTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            // Retirer active de tous les tabs
+            filterTabs.forEach(t => t.classList.remove('active'));
+            // Ajouter active au tab cliqué
+            this.classList.add('active');
+            
+            const filter = this.dataset.filter;
+            
+            testRows.forEach(row => {
+                if (filter === 'all') {
+                    row.style.display = '';
+                } else {
+                    if (row.dataset.status.includes(filter)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -174,6 +174,73 @@
         </div>
     </div>
 
+    <!-- Points Forts & Lacunes -->
+    <div class="lg:col-span-2">
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <div class="flex items-center mb-6">
+                <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg flex items-center justify-center mr-3">
+                    <i class="fas fa-chart-pie text-white text-lg"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800">Analyse de Performance</h2>
+                    <p class="text-sm text-gray-600">Vos points forts et lacunes</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Points Forts -->
+                <div>
+                    <h3 class="text-lg font-semibold text-green-700 mb-4 flex items-center">
+                        <i class="fas fa-star mr-2"></i>
+                        Points Forts
+                    </h3>
+                    {% if strengths %}
+                    <div class="space-y-2">
+                        {% for strength in strengths|slice:":5" %}
+                        <div class="bg-green-50 border-l-4 border-green-500 p-3 rounded-lg">
+                            <p class="text-sm font-medium text-green-800">{{ strength }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="bg-gray-50 rounded-lg p-6 text-center">
+                        <i class="fas fa-clipboard-check text-gray-300 text-4xl mb-3"></i>
+                        <p class="text-gray-500 text-sm">Passez plus de tests pour identifier vos points forts.</p>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Lacunes -->
+                <div>
+                    <h3 class="text-lg font-semibold text-red-700 mb-4 flex items-center">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        Lacunes à Améliorer
+                    </h3>
+                    {% if weaknesses %}
+                    <div class="space-y-2">
+                        {% for weakness in weaknesses|slice:":5" %}
+                        <div class="bg-red-50 border-l-4 border-red-500 p-3 rounded-lg">
+                            <p class="text-sm font-medium text-red-800">{{ weakness }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="bg-gray-50 rounded-lg p-6 text-center">
+                        <i class="fas fa-chart-line text-gray-300 text-4xl mb-3"></i>
+                        <p class="text-gray-500 text-sm">Continuez vos efforts, aucune lacune majeure détectée.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="mt-4 text-center">
+                <a href="{% url 'evaluation:student_progress' %}" class="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors">
+                    Voir l'analyse complète <i class="fas fa-arrow-right ml-2"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
     <!-- Recommandations IA -->
     <div class="lg:col-span-2">
         <div class="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl shadow-lg p-6 border border-purple-100">
@@ -219,13 +286,21 @@
 <!-- Performances par matière -->
 {% if analytics.subjects %}
 <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-    <h2 class="text-xl font-bold text-gray-800 mb-6">
-        <i class="fas fa-book text-blue-600 mr-2"></i>
-        Performances par Matière
-    </h2>
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-bold text-gray-800">
+            <i class="fas fa-book text-blue-600 mr-2"></i>
+            Performances par Matière
+        </h2>
+        {% if analytics.subjects|length > 6 %}
+        <a href="{% url 'evaluation:my_tests' %}" class="text-sm text-blue-600 hover:text-blue-700 font-semibold">
+            Voir tout ({{ analytics.subjects|length }})
+            <i class="fas fa-arrow-right ml-1"></i>
+        </a>
+        {% endif %}
+    </div>
     
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {% for subject, data in analytics.subjects.items %}
+        {% for subject, data in analytics.subjects.items|slice:":6" %}
         <div class="bg-gradient-to-br from-gray-50 to-white rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
             <div class="flex items-center justify-between mb-3">
                 <h3 class="font-semibold text-gray-800 truncate">{{ subject }}</h3>

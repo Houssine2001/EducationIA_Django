@@ -1,0 +1,533 @@
+{% extends 'base.html' %}
+
+{% block title %}Liste des Étudiants{% endblock %}
+
+{% block extra_css %}
+<style>
+    .students-hero {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        border-radius: 20px;
+        padding: 40px;
+        color: white;
+        margin-bottom: 30px;
+        box-shadow: 0 15px 50px rgba(79, 172, 254, 0.4);
+    }
+    
+    .student-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        border-left: 5px solid #e5e7eb;
+    }
+    
+    .student-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+    }
+    
+    .student-card.level-pro {
+        border-left-color: #38a169;
+        background: linear-gradient(to right, rgba(56, 161, 105, 0.05), white);
+    }
+    
+    .student-card.level-moyen {
+        border-left-color: #f7971e;
+        background: linear-gradient(to right, rgba(247, 151, 30, 0.05), white);
+    }
+    
+    .student-card.level-faible {
+        border-left-color: #e74c3c;
+        background: linear-gradient(to right, rgba(231, 76, 60, 0.05), white);
+    }
+    
+    .student-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: white;
+        font-weight: 700;
+    }
+    
+    .level-badge {
+        padding: 8px 20px;
+        border-radius: 50px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        display: inline-block;
+    }
+    
+    .level-badge.pro {
+        background: linear-gradient(135deg, #38a169, #48bb78);
+        color: white;
+    }
+    
+    .level-badge.moyen {
+        background: linear-gradient(135deg, #f7971e, #ffd200);
+        color: white;
+    }
+    
+    .level-badge.faible {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        color: white;
+    }
+    
+    .mini-badge {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        margin: 2px;
+    }
+    
+    .stat-item {
+        text-align: center;
+        padding: 15px;
+        background: #f9fafb;
+        border-radius: 10px;
+    }
+    
+    .stat-item .value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+    
+    .stat-item .label {
+        font-size: 0.85rem;
+        color: #718096;
+    }
+    
+    .prediction-box {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-top: 15px;
+    }
+    
+    .prediction-box .icon {
+        font-size: 2rem;
+        margin-bottom: 10px;
+    }
+    
+    .prediction-box .title {
+        font-weight: 700;
+        font-size: 1.1rem;
+        margin-bottom: 10px;
+    }
+    
+    .prediction-box .prediction-level {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+    
+    .prediction-box .confidence {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .prediction-factors {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 10px;
+    }
+    
+    .prediction-factors ul {
+        margin: 0;
+        padding-left: 20px;
+    }
+    
+    .prediction-factors li {
+        margin-bottom: 5px;
+        font-size: 0.9rem;
+    }
+    
+    .overall-stats {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        margin-bottom: 30px;
+    }
+    
+    .filter-section {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+    }
+    
+    .filter-btn {
+        padding: 8px 20px;
+        border: 2px solid #e5e7eb;
+        background: white;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 600;
+        margin-right: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .filter-btn:hover {
+        border-color: #4facfe;
+        color: #4facfe;
+    }
+    
+    .filter-btn.active {
+        background: linear-gradient(135deg, #4facfe, #00f2fe);
+        color: white;
+        border-color: transparent;
+    }
+    
+    .strength-tag {
+        display: inline-block;
+        padding: 5px 12px;
+        background: rgba(56, 161, 105, 0.1);
+        color: #38a169;
+        border-radius: 5px;
+        font-size: 0.85rem;
+        margin: 3px;
+    }
+    
+    .weakness-tag {
+        display: inline-block;
+        padding: 5px 12px;
+        background: rgba(231, 76, 60, 0.1);
+        color: #e74c3c;
+        border-radius: 5px;
+        font-size: 0.85rem;
+        margin: 3px;
+    }
+    
+    .chart-mini {
+        height: 100px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Hero -->
+    <div class="students-hero">
+        <h1 class="text-3xl font-bold mb-3">👥 Liste des Étudiants</h1>
+        <p class="mb-0 opacity-90">Suivez la progression de vos étudiants et consultez les prédictions IA de leur niveau futur</p>
+    </div>
+
+    <!-- Statistiques globales -->
+    <div class="overall-stats">
+        <h2 class="mb-4"><i class="fas fa-chart-bar text-primary"></i> Vue d'ensemble</h2>
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <div class="stat-item" style="border-left: 4px solid #4facfe;">
+                    <div class="value" style="color: #4facfe;">{{ stats.total_students }}</div>
+                    <div class="label">Étudiants Total</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stat-item" style="border-left: 4px solid #38a169;">
+                    <div class="value" style="color: #38a169;">{{ stats.pro_students }}</div>
+                    <div class="label">Niveau Pro</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stat-item" style="border-left: 4px solid #f7971e;">
+                    <div class="value" style="color: #f7971e;">{{ stats.moyen_students }}</div>
+                    <div class="label">Niveau Moyen</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stat-item" style="border-left: 4px solid #e74c3c;">
+                    <div class="value" style="color: #e74c3c;">{{ stats.faible_students }}</div>
+                    <div class="label">Niveau Faible</div>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-md-4 mb-3">
+                <div class="stat-item">
+                    <div class="value" style="color: #667eea;">{{ stats.average_score|floatformat:1 }}%</div>
+                    <div class="label">Score Moyen Global</div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="stat-item">
+                    <div class="value" style="color: #764ba2;">{{ stats.total_tests }}</div>
+                    <div class="label">Tests Complétés</div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="stat-item">
+                    <div class="value" style="color: #f093fb;">{{ stats.total_badges }}</div>
+                    <div class="label">Badges Obtenus</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="filter-section">
+        <h3 class="mb-3"><i class="fas fa-filter"></i> Filtrer les étudiants</h3>
+        <div>
+            <button class="filter-btn active" data-filter="all">
+                <i class="fas fa-users"></i> Tous
+            </button>
+            <button class="filter-btn" data-filter="pro">
+                <i class="fas fa-star"></i> Niveau Pro
+            </button>
+            <button class="filter-btn" data-filter="moyen">
+                <i class="fas fa-chart-line"></i> Niveau Moyen
+            </button>
+            <button class="filter-btn" data-filter="faible">
+                <i class="fas fa-exclamation-triangle"></i> Niveau Faible
+            </button>
+            <button class="filter-btn" data-filter="improving">
+                <i class="fas fa-arrow-up"></i> En progression
+            </button>
+            <button class="filter-btn" data-filter="declining">
+                <i class="fas fa-arrow-down"></i> En difficulté
+            </button>
+        </div>
+    </div>
+
+    <!-- Liste des étudiants -->
+    <div id="studentsList">
+        {% for student in students %}
+        <div class="student-card level-{{ student.current_level_class }}" 
+             data-level="{{ student.current_level_class }}"
+             data-trend="{{ student.trend }}">
+            
+            <div class="row align-items-start">
+                <!-- Avatar et info de base -->
+                <div class="col-md-2 text-center">
+                    <div class="student-avatar">
+                        {{ student.initials }}
+                    </div>
+                    <div class="mt-2">
+                        <span class="level-badge {{ student.current_level_class }}">
+                            {{ student.current_level }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Informations principales -->
+                <div class="col-md-4">
+                    <h3 class="mb-2">{{ student.full_name }}</h3>
+                    <p class="text-muted mb-2">
+                        <i class="fas fa-envelope"></i> {{ student.email }}
+                    </p>
+                    
+                    <!-- Badges obtenus (mini icônes) -->
+                    <div class="mb-2">
+                        <strong class="text-muted small">Badges ({{ student.badges_count }}):</strong><br>
+                        {% for badge in student.recent_badges %}
+                        <span class="mini-badge" style="background: {{ badge.color }};" title="{{ badge.name }}">
+                            <i class="{{ badge.icon }}" style="font-size: 0.7rem;"></i>
+                        </span>
+                        {% endfor %}
+                        {% if student.badges_count > 5 %}
+                        <span class="text-muted small">+{{ student.badges_count|add:"-5" }} autres</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Points forts et lacunes -->
+                    <div class="mt-3">
+                        <div class="mb-2">
+                            <strong class="text-success small">
+                                <i class="fas fa-check-circle"></i> Points forts:
+                            </strong><br>
+                            {% for strength in student.strengths %}
+                            <span class="strength-tag">{{ strength }}</span>
+                            {% empty %}
+                            <span class="text-muted small">Aucun identifié</span>
+                            {% endfor %}
+                        </div>
+                        <div>
+                            <strong class="text-danger small">
+                                <i class="fas fa-times-circle"></i> Lacunes:
+                            </strong><br>
+                            {% for weakness in student.weaknesses %}
+                            <span class="weakness-tag">{{ weakness }}</span>
+                            {% empty %}
+                            <span class="text-muted small">Aucune identifiée</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistiques -->
+                <div class="col-md-3">
+                    <div class="row">
+                        <div class="col-6 mb-2">
+                            <div class="stat-item">
+                                <div class="value" style="color: #667eea; font-size: 1.5rem;">{{ student.average_score|floatformat:1 }}%</div>
+                                <div class="label">Score Moyen</div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <div class="stat-item">
+                                <div class="value" style="color: #38a169; font-size: 1.5rem;">{{ student.tests_completed }}</div>
+                                <div class="label">Tests Faits</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-item">
+                                <div class="value" style="color: #f7971e; font-size: 1.5rem;">{{ student.tests_passed }}</div>
+                                <div class="label">Tests Réussis</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-item">
+                                <div class="value" style="color: #764ba2; font-size: 1.5rem;">{{ student.total_xp }}</div>
+                                <div class="label">XP Total</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tendance -->
+                    <div class="mt-2 text-center">
+                        {% if student.trend == 'improving' %}
+                        <span class="badge bg-success">
+                            <i class="fas fa-arrow-up"></i> En progression
+                        </span>
+                        {% elif student.trend == 'declining' %}
+                        <span class="badge bg-danger">
+                            <i class="fas fa-arrow-down"></i> En difficulté
+                        </span>
+                        {% else %}
+                        <span class="badge bg-secondary">
+                            <i class="fas fa-minus"></i> Stable
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Prédiction IA -->
+                <div class="col-md-3">
+                    <div class="prediction-box">
+                        <div class="icon text-center">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="title text-center">Prédiction IA</div>
+                        <div class="prediction-level text-center">
+                            {% if student.ai_prediction.future_level == 'Pro' %}
+                            🌟 Niveau Pro
+                            {% elif student.ai_prediction.future_level == 'Moyen' %}
+                            📈 Niveau Moyen
+                            {% else %}
+                            ⚠️ Niveau Faible
+                            {% endif %}
+                        </div>
+                        <div class="confidence text-center">
+                            Confiance: {{ student.ai_prediction.confidence|floatformat:0 }}%
+                        </div>
+                        
+                        <div class="prediction-factors">
+                            <strong class="small">Facteurs clés:</strong>
+                            <ul class="small mt-2">
+                                {% for factor in student.ai_prediction.key_factors %}
+                                <li>{{ factor }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        
+                        <div class="text-center mt-3">
+                            <small class="opacity-75">
+                                <i class="fas fa-calendar-alt"></i> 
+                                Prédiction dans {{ student.ai_prediction.timeframe }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mini graphique d'évolution -->
+            <div class="row mt-3">
+                <div class="col-12">
+                    <canvas id="studentChart{{ student.id }}" class="chart-mini"></canvas>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-center py-5">
+            <i class="fas fa-users-slash text-muted" style="font-size: 5rem;"></i>
+            <p class="text-muted mt-3">Aucun étudiant inscrit</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Créer des mini graphiques pour chaque étudiant
+    {% for student in students %}
+    const ctx{{ student.id }} = document.getElementById('studentChart{{ student.id }}').getContext('2d');
+    new Chart(ctx{{ student.id }}, {
+        type: 'line',
+        data: {
+            labels: {{ student.score_history.labels|safe }},
+            datasets: [{
+                data: {{ student.score_history.scores|safe }},
+                borderColor: '{% if student.current_level_class == "pro" %}#38a169{% elif student.current_level_class == "moyen" %}#f7971e{% else %}#e74c3c{% endif %}',
+                backgroundColor: 'rgba({% if student.current_level_class == "pro" %}56, 161, 105{% elif student.current_level_class == "moyen" %}247, 151, 30{% else %}231, 76, 60{% endif %}, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
+            },
+            scales: {
+                x: { display: false },
+                y: { display: false, beginAtZero: true, max: 100 }
+            }
+        }
+    });
+    {% endfor %}
+    
+    // Filtres
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const studentCards = document.querySelectorAll('.student-card');
+    
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            filterBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            const filter = this.dataset.filter;
+            
+            studentCards.forEach(card => {
+                if (filter === 'all') {
+                    card.style.display = '';
+                } else if (filter === 'improving' || filter === 'declining') {
+                    card.style.display = card.dataset.trend === filter ? '' : 'none';
+                } else {
+                    card.style.display = card.dataset.level === filter ? '' : 'none';
+                }
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -15,11 +15,14 @@ urlpatterns = [
     path('teacher/test/<int:test_id>/edit/', views.edit_test, name='edit_test'),
     path('teacher/test/<int:test_id>/question/add/', views.add_question, name='add_question'),
     path('teacher/test/<int:test_id>/statistics/', views.test_statistics, name='test_statistics'),
+    path('teacher/students/', views.students_list, name='students_list'),
     
     # ============================================
     # URLs Étudiants
     # ============================================
     path('', views.student_dashboard, name='student_dashboard'),
+    path('my-tests/', views.my_tests, name='my_tests'),
+    path('my-badges/', views.my_badges, name='my_badges'),
     path('test/<int:test_id>/', views.test_detail, name='test_detail'),
     path('test/<int:test_id>/start/', views.start_test, name='start_test'),
     path('test/<int:test_id>/history/', views.test_history, name='test_history'),

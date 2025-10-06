@@ -332,8 +332,10 @@ def student_dashboard(request):
         'study_time': analytics_data['study_time'],
         'progression': analytics_data['progression'],
         'subjects_performance': analytics_data['subjects'],
-        'strengths': analytics_data['strengths'],
-        'weaknesses': analytics_data['weaknesses'],
+        
+        # Points forts/lacunes depuis UserProfile (mis à jour par analyze_student_strengths)
+        'strengths': profile.strengths or [],  # Utiliser les données du profil au lieu d'analytics
+        'weaknesses': profile.weaknesses or [],  # Utiliser les données du profil au lieu d'analytics
         
         # Recommandations IA
         'recommendations': recommendations[:6],  # Top 6 recommandations
@@ -653,41 +655,68 @@ def student_progress(request):
     }
     
     # 8. PRÉPARER DONNÉES STRUCTURÉES POUR FAIBLESSES/FORCES
-    # Analyser les performances par compétence
-    weak_areas = {}
+    # Utiliser les données du profil mises à jour par analyze_student_strengths
+    # au lieu de recalculer (plus précis et cohérent)
+    
+    # Convertir profile.strengths (liste de strings) en format dict pour le template
     strong_areas = {}
+    if profile.strengths:
+        for i, strength in enumerate(profile.strengths, 1):
+            # Format: "Excellence en Mathématiques (moyenne 91.2%)" 
+            # ou "Excellente performance globale (76.3%)"
+            strong_areas[f"Force {i}"] = {
+                'total': 1,
+                'correct': 1,
+                'score': 100,  # Afficher comme point fort
+                'description': strength
+            }
     
-    for result in all_results[:20]:  # Analyser les 20 derniers tests
-        test = result.test
-        # Calculer le score en %
-        percentage = (result.total_score / test.total_points * 100) if test.total_points > 0 else 0
-        
-        # Clé: matière du test
-        key = test.subject or "Général"
-        
-        if key not in weak_areas:
-            weak_areas[key] = {'total': 0, 'correct': 0, 'score': 0}
-            strong_areas[key] = {'total': 0, 'correct': 0, 'score': 0}
-        
-        # Compter les questions
-        weak_areas[key]['total'] += 1
-        strong_areas[key]['total'] += 1
-        
-        if percentage >= 70:
-            strong_areas[key]['correct'] += 1
-        else:
-            weak_areas[key]['correct'] += 1
+    # Convertir profile.weaknesses (liste de strings) en format dict pour le template
+    weak_areas = {}
+    if profile.weaknesses:
+        for i, weakness in enumerate(profile.weaknesses, 1):
+            # Format: "À améliorer en Chimie (moyenne 56.5%)"
+            # ou "Irrégularité en Histoire (écart de 37%)"
+            weak_areas[f"Lacune {i}"] = {
+                'total': 1,
+                'correct': 0,
+                'score': 40,  # Afficher comme point faible
+                'description': weakness
+            }
     
-    # Calculer les scores
-    for key in weak_areas:
-        if weak_areas[key]['total'] > 0:
-            weak_areas[key]['score'] = (weak_areas[key]['correct'] / weak_areas[key]['total']) * 100
-        if strong_areas[key]['total'] > 0:
-            strong_areas[key]['score'] = (strong_areas[key]['correct'] / strong_areas[key]['total']) * 100
-    
-    # Filtrer: faiblesses = score < 70%, forces = score >= 70%
-    final_weak_areas = {k: v for k, v in weak_areas.items() if v['score'] < 70 and v['total'] > 0}
-    final_strong_areas = {k: v for k, v in strong_areas.items() if v['score'] >= 70 and v['total'] > 0}
+    # Fallback: si profile.strengths/weaknesses sont vides, analyser les résultats
+    if not strong_areas and not weak_areas and all_results.count() > 0:
+        for result in all_results[:20]:  # Analyser les 20 derniers tests
+            test = result.test
+            # Calculer le score en %
+            percentage = (result.total_score / test.total_points * 100) if test.total_points > 0 else 0
+            
+            # Clé: matière du test
+            key = test.subject or "Général"
+            
+            if key not in weak_areas:
+                weak_areas[key] = {'total': 0, 'correct': 0, 'score': 0}
+                strong_areas[key] = {'total': 0, 'correct': 0, 'score': 0}
+            
+            # Compter les questions
+            weak_areas[key]['total'] += 1
+            strong_areas[key]['total'] += 1
+            
+            if percentage >= 70:
+                strong_areas[key]['correct'] += 1
+            else:
+                weak_areas[key]['correct'] += 1
+        
+        # Calculer les scores
+        for key in weak_areas:
+            if weak_areas[key]['total'] > 0:
+                weak_areas[key]['score'] = (weak_areas[key]['correct'] / weak_areas[key]['total']) * 100
+            if strong_areas[key]['total'] > 0:
+                strong_areas[key]['score'] = (strong_areas[key]['correct'] / strong_areas[key]['total']) * 100
+        
+        # Filtrer: faiblesses = score < 70%, forces = score >= 70%
+        weak_areas = {k: v for k, v in weak_areas.items() if v['score'] < 70 and v['total'] > 0}
+        strong_areas = {k: v for k, v in strong_areas.items() if v['score'] >= 70 and v['total'] > 0}
     
     # 9. GÉNÉRER RECOMMANDATIONS SI VIDES
     if not profile.ai_recommendations or len(profile.ai_recommendations) == 0:
@@ -736,8 +765,8 @@ def student_progress(request):
                 'trend': analytics_data['progression']['trend'],
                 'improvement': analytics_data['progression']['improvement'],
             },
-            'weak_areas': final_weak_areas,
-            'strong_areas': final_strong_areas,
+            'weak_areas': weak_areas,  # Utiliser weak_areas au lieu de final_weak_areas
+            'strong_areas': strong_areas,  # Utiliser strong_areas au lieu de final_strong_areas
         },
         'results': all_results,
         
@@ -992,5 +1021,384 @@ def test_history(request, test_id):
         'passed': any(r.percentage_score >= test.passing_score for r in results)
     }
     
-    return render(request, 'evaluation/student/test_history.html', context)
+    return render(request, 'evaluation/student/test_history_ultra.html', context)
+
+
+# ============================================
+# Nouvelles Vues pour Interfaces Modernes
+# ============================================
+
+@login_required
+def my_tests(request):
+    """
+    Interface moderne pour afficher tous les tests de l'étudiant.
+    Affiche un tableau avec statistiques et graphiques.
+    """
+    from .models import Test, Result, Submission
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+    from collections import defaultdict
+    import json
+    
+    # Récupérer tous les tests publiés
+    all_tests = Test.objects.filter(status='published').order_by('-created_at')
+    
+    # Préparer les données pour chaque test
+    tests_data = []
+    all_scores_evolution = []
+    subject_scores = defaultdict(list)
+    
+    for test in all_tests:
+        # Récupérer les résultats de l'étudiant pour ce test
+        results = Result.objects.filter(
+            submission__student=request.user,
+            submission__test=test,
+            submission__status='graded'
+        ).order_by('-created_at')
+        
+        attempts = results.count()
+        best_score = None
+        last_score = None
+        last_result_id = None
+        
+        if attempts > 0:
+            best_score = max(r.percentage_score for r in results)
+            last_result = results.first()
+            last_score = last_result.percentage_score
+            last_result_id = last_result.id
+            
+            # Ajouter aux données d'évolution
+            for result in results:
+                all_scores_evolution.append({
+                    'date': result.created_at.strftime('%d/%m'),
+                    'score': result.percentage_score
+                })
+            
+            # Ajouter aux scores par matière
+            subject_scores[test.subject or 'Général'].append(best_score)
+        
+        tests_data.append({
+            'test_obj': test,
+            'attempts': attempts,
+            'best_score': best_score,
+            'last_score': last_score,
+            'last_result_id': last_result_id
+        })
+    
+    # Pagination (10 tests par page)
+    paginator = Paginator(tests_data, 10)
+    page_number = request.GET.get('page', 1)
+    
+    try:
+        tests_page = paginator.page(page_number)
+    except PageNotAnInteger:
+        tests_page = paginator.page(1)
+    except EmptyPage:
+        tests_page = paginator.page(paginator.num_pages)
+    
+    # Calculer les statistiques globales
+    all_results = Result.objects.filter(
+        submission__student=request.user,
+        submission__status='graded'
+    )
+    
+    total_tests = all_results.count()
+    average_score = all_results.aggregate(Avg('percentage_score'))['percentage_score__avg'] or 0
+    tests_passed = sum(1 for r in all_results if r.percentage_score >= r.submission.test.passing_score)
+    
+    # Calculer le temps total (estimé)
+    total_time = sum(r.submission.test.duration for r in all_results) / 60  # En heures
+    
+    stats = {
+        'total_tests': total_tests,
+        'average_score': average_score,
+        'tests_passed': tests_passed,
+        'total_time': total_time
+    }
+    
+    # Préparer les données pour les graphiques
+    # Évolution des scores (derniers 10)
+    evolution_sorted = sorted(all_scores_evolution, key=lambda x: x['date'])[-10:]
+    score_evolution_data = {
+        'labels': [item['date'] for item in evolution_sorted],
+        'scores': [item['score'] for item in evolution_sorted]
+    }
+    
+    # Performance par matière
+    subject_performance_data = {
+        'labels': list(subject_scores.keys()),
+        'scores': [sum(scores)/len(scores) for scores in subject_scores.values()]
+    }
+    
+    context = {
+        'tests': tests_page,
+        'stats': stats,
+        'score_evolution_data': json.dumps(score_evolution_data),
+        'subject_performance_data': json.dumps(subject_performance_data)
+    }
+    
+    return render(request, 'evaluation/student/my_tests.html', context)
+
+
+@login_required
+def my_badges(request):
+    """
+    Interface moderne pour afficher les badges de l'étudiant.
+    Affiche les badges obtenus, les badges disponibles, et des statistiques.
+    """
+    from .gamification import GamificationService
+    from .models import UserProfile
+    import json
+    from collections import Counter
+    
+    # Récupérer ou créer le profil
+    profile, created = UserProfile.objects.get_or_create(
+        user=request.user
+    )
+    
+    # Service de gamification
+    gamification_service = GamificationService(profile)
+    
+    # Récupérer tous les badges disponibles depuis le service
+    all_badges_definitions = [
+        {'id': key, **value, 'category': 'achievement', 'xp_reward': value.get('points', 50)}
+        for key, value in GamificationService.BADGES.items()
+    ]
+    
+    # Récupérer les badges obtenus (depuis le champ badges JSON)
+    earned_badge_ids = profile.badges if isinstance(profile.badges, list) else []
+    
+    # Préparer les données des badges
+    badges = []
+    category_counts = Counter()
+    
+    for badge_def in all_badges_definitions:
+        badge_id = badge_def['id']
+        earned = badge_id in earned_badge_ids
+        
+        # La progression est à 0 si non obtenu, 100 si obtenu
+        progress = 100 if earned else 0
+        
+        badge_data = {
+            'id': badge_id,
+            'name': badge_def['name'],
+            'description': badge_def['description'],
+            'category': badge_def['category'],
+            'icon': badge_def['icon'],
+            'color': badge_def.get('color', '#667eea'),
+            'xp_reward': badge_def['xp_reward'],
+            'earned': earned,
+            'earned_date': profile.created_at if earned else None,  # Simplification
+            'progress': progress,
+            'requirement': badge_def.get('requirement_text', 'Complétez les objectifs')
+        }
+        
+        badges.append(badge_data)
+        category_counts[badge_def['category']] += 1
+    
+    # Statistiques
+    total_earned = len(earned_badge_ids)
+    total_available = len(all_badges_definitions)
+    completion_rate = (total_earned / total_available * 100) if total_available > 0 else 0
+    
+    # Compter les badges rares (ceux avec un XP élevé)
+    rarest_owned = sum(1 for b in badges if b['earned'] and b['xp_reward'] >= 200)
+    
+    stats = {
+        'total_earned': total_earned,
+        'total_available': total_available,
+        'completion_rate': completion_rate,
+        'rarest_owned': rarest_owned
+    }
+    
+    # Données pour les graphiques
+    category_data = {
+        'labels': list(category_counts.keys()),
+        'values': list(category_counts.values())
+    }
+    
+    # Progression dans le temps (simplifiée)
+    progress_data = {
+        'labels': ['Mois 1', 'Mois 2', 'Mois 3', 'Actuel'],
+        'values': [0, max(0, total_earned - 3), max(0, total_earned - 1), total_earned]
+    }
+    
+    context = {
+        'badges': badges,
+        'stats': stats,
+        'category_data': json.dumps(category_data),
+        'progress_data': json.dumps(progress_data)
+    }
+    
+    return render(request, 'evaluation/student/my_badges.html', context)
+
+
+@login_required
+def students_list(request):
+    """
+    Vue pour les enseignants: liste des étudiants avec prédictions IA.
+    Affiche pour chaque étudiant: niveau actuel, badges, scores, prédiction future.
+    """
+    from .models import UserProfile, Result, Submission
+    from .ai_prediction import StudentLevelPredictor, get_student_level_class, get_student_level_name
+    from .gamification import GamificationService
+    from django.contrib.auth import get_user_model
+    import json
+    
+    if not request.user.is_staff:
+        messages.error(request, "Accès réservé aux enseignants")
+        return redirect('evaluation:student_dashboard')
+    
+    User = get_user_model()
+    
+    # Récupérer tous les étudiants (non-staff users avec profil)
+    students_profiles = UserProfile.objects.filter(
+        user__is_staff=False
+    ).select_related('user')
+    
+    students_data = []
+    total_students = 0
+    pro_count = 0
+    moyen_count = 0
+    faible_count = 0
+    total_score_sum = 0
+    total_tests_all = 0
+    total_badges_all = 0
+    
+    for profile in students_profiles:
+        # Récupérer les résultats de l'étudiant
+        results = Result.objects.filter(
+            submission__student=profile.user,
+            submission__status='graded'
+        ).order_by('created_at')
+        
+        if results.count() == 0:
+            continue  # Ignorer les étudiants sans résultats
+        
+        total_students += 1
+        
+        # Calculer les statistiques
+        scores = [r.percentage_score for r in results]
+        average_score = sum(scores) / len(scores)
+        tests_completed = results.count()
+        tests_passed = sum(1 for r in results if r.percentage_score >= r.submission.test.passing_score)
+        
+        # Niveau actuel
+        current_level = get_student_level_name(average_score)
+        current_level_class = get_student_level_class(average_score)
+        
+        # Compter par niveau
+        if current_level == 'Pro':
+            pro_count += 1
+        elif current_level == 'Moyen':
+            moyen_count += 1
+        else:
+            faible_count += 1
+        
+        total_score_sum += average_score
+        total_tests_all += tests_completed
+        
+        # Prédiction IA
+        predictor = StudentLevelPredictor(profile)
+        ai_prediction = predictor.predict_future_level()
+        
+        # Tendance
+        if len(scores) >= 3:
+            recent_avg = sum(scores[-3:]) / 3
+            older_avg = sum(scores[:3]) / 3
+            if recent_avg > older_avg + 5:
+                trend = 'improving'
+            elif recent_avg < older_avg - 5:
+                trend = 'declining'
+            else:
+                trend = 'stable'
+        else:
+            trend = 'stable'
+        
+        # Badges
+        student_badges = profile.badges if isinstance(profile.badges, list) else []
+        badges_count = len(student_badges)
+        total_badges_all += badges_count
+        
+        # Récupérer quelques badges pour affichage
+        all_badge_defs = [
+            {'id': key, **value}
+            for key, value in GamificationService.BADGES.items()
+        ]
+        recent_badges = []
+        for badge_def in all_badge_defs[:5]:
+            if badge_def['id'] in student_badges:
+                recent_badges.append({
+                    'name': badge_def['name'],
+                    'icon': badge_def['icon'],
+                    'color': badge_def.get('color', '#667eea')
+                })
+        
+        # Forces et faiblesses
+        strengths = []
+        weaknesses = []
+        
+        for result in results:
+            if result.ai_analysis:
+                for s in result.ai_analysis.get('strengths', [])[:2]:
+                    if isinstance(s, dict):
+                        strength_text = s.get('skill', s.get('description', ''))
+                    else:
+                        strength_text = str(s)
+                    if strength_text and strength_text not in strengths:
+                        strengths.append(strength_text)
+                
+                for w in result.ai_analysis.get('weaknesses', [])[:2]:
+                    if isinstance(w, dict):
+                        weakness_text = w.get('skill', w.get('description', ''))
+                    else:
+                        weakness_text = str(w)
+                    if weakness_text and weakness_text not in weaknesses:
+                        weaknesses.append(weakness_text)
+        
+        # Historique des scores pour mini graphique
+        score_history = {
+            'labels': [f"T{i+1}" for i in range(min(10, len(scores)))],
+            'scores': scores[-10:] if len(scores) > 10 else scores
+        }
+        
+        students_data.append({
+            'id': profile.user.id,
+            'full_name': profile.user.get_full_name() or profile.user.username,
+            'email': profile.user.email,
+            'initials': ''.join([n[0].upper() for n in profile.user.get_full_name().split()[:2]]) if profile.user.get_full_name() else profile.user.username[0].upper(),
+            'current_level': current_level,
+            'current_level_class': current_level_class,
+            'average_score': average_score,
+            'tests_completed': tests_completed,
+            'tests_passed': tests_passed,
+            'total_xp': profile.total_xp,
+            'badges_count': badges_count,
+            'recent_badges': recent_badges,
+            'strengths': strengths[:3],
+            'weaknesses': weaknesses[:3],
+            'trend': trend,
+            'ai_prediction': ai_prediction,
+            'score_history': score_history
+        })
+    
+    # Statistiques globales
+    stats = {
+        'total_students': total_students,
+        'pro_students': pro_count,
+        'moyen_students': moyen_count,
+        'faible_students': faible_count,
+        'average_score': total_score_sum / total_students if total_students > 0 else 0,
+        'total_tests': total_tests_all,
+        'total_badges': total_badges_all
+    }
+    
+    # Trier par score moyen décroissant
+    students_data.sort(key=lambda x: x['average_score'], reverse=True)
+    
+    context = {
+        'students': students_data,
+        'stats': stats
+    }
+    
+    return render(request, 'evaluation/teacher/students_list.html', context)
 
