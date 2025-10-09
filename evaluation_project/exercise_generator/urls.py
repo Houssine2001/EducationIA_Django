@@ -33,4 +33,17 @@ urlpatterns = [
     
     # Génération rapide
     path('quick-generate/', views.quick_generate, name='quick_generate'),
+    
+    # Exercise Sets - Collecte et Publication
+    path('sets/', views.exercise_sets_list, name='exercise_sets_list'),
+    path('sets/create/<int:document_id>/', views.create_exercise_set, name='create_exercise_set'),
+    path('sets/<int:set_id>/', views.exercise_set_detail, name='exercise_set_detail'),
+    path('sets/<int:set_id>/publish/', views.publish_exercise_set, name='publish_exercise_set'),
+    path('sets/<int:set_id>/unpublish/', views.unpublish_exercise_set, name='unpublish_exercise_set'),
+    path('sets/<int:set_id>/delete/', views.delete_exercise_set, name='delete_exercise_set'),
+    
+    # Étudiants - Accès aux sets publiés
+    path('student/sets/', views.student_exercise_sets, name='student_exercise_sets'),
+    path('student/sets/<int:set_id>/take/', views.student_take_exercise_set, name='student_take_exercise_set'),
+    path('student/sets/<int:set_id>/result/', views.student_exercise_result, name='student_exercise_result'),
 ]

@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ exercise_set.title }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-6xl mx-auto px-4">
+        <div class="mb-6">
+            <a href="{% url 'exercise_generator:exercise_sets_list' %}" class="text-indigo-600 hover:text-indigo-800">
+                ← Retour à mes sets
+            </a>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                        {{ exercise_set.title }}
+                    </h1>
+                    <p class="text-gray-600 mb-2">{{ exercise_set.description }}</p>
+                    <p class="text-sm text-gray-500">
+                        Document source : <strong>{{ exercise_set.source_document.title }}</strong>
+                    </p>
+                    <p class="text-sm text-gray-500">
+                        Créé le {{ exercise_set.created_at|date:"d/m/Y à H:i" }}
+                    </p>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    {% if exercise_set.status == 'draft' %}
+                        <span class="px-4 py-2 bg-gray-100 text-gray-800 font-semibold rounded-lg">
+                            📝 Brouillon
+                        </span>
+                    {% else %}
+                        <span class="px-4 py-2 bg-green-100 text-green-800 font-semibold rounded-lg">
+                            ✅ Publié
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex space-x-4 mb-6">
+                {% if exercise_set.status == 'draft' %}
+                    <a 
+                        href="{% url 'exercise_generator:publish_exercise_set' exercise_set.id %}" 
+                        class="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700"
+                        onclick="return confirm('Publier ce set ? Les étudiants pourront y accéder.')"
+                    >
+                        📢 Publier pour les étudiants
+                    </a>
+                {% else %}
+                    <a 
+                        href="{% url 'exercise_generator:unpublish_exercise_set' exercise_set.id %}" 
+                        class="px-6 py-3 bg-yellow-600 text-white font-semibold rounded-lg hover:bg-yellow-700"
+                        onclick="return confirm('Retirer de la publication ?')"
+                    >
+                        🔒 Retirer de la publication
+                    </a>
+                {% endif %}
+
+                <a 
+                    href="{% url 'exercise_generator:delete_exercise_set' exercise_set.id %}" 
+                    class="px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700"
+                    onclick="return confirm('Supprimer ce set définitivement ?')"
+                >
+                    🗑️ Supprimer
+                </a>
+            </div>
+
+            <!-- Statistiques -->
+            <div class="grid grid-cols-3 gap-4 mb-6">
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <p class="text-sm text-gray-600 mb-1">Exercices</p>
+                    <p class="text-2xl font-bold text-blue-600">{{ exercises.count }}</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <p class="text-sm text-gray-600 mb-1">Soumissions</p>
+                    <p class="text-2xl font-bold text-green-600">{{ exercise_set.submissions.count }}</p>
+                </div>
+                <div class="bg-purple-50 p-4 rounded-lg">
+                    <p class="text-sm text-gray-600 mb-1">Score moyen</p>
+                    <p class="text-2xl font-bold text-purple-600">
+                        {% if exercise_set.submissions.count > 0 %}
+                            {{ exercise_set.submissions.all|slice:":999"|length|floatformat:1 }}%
+                        {% else %}
+                            -
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Liste des exercices -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">
+                Exercices inclus ({{ exercises.count }})
+            </h2>
+
+            {% if exercises %}
+                <div class="space-y-6">
+                    {% for exercise in exercises %}
+                    <div class="border border-gray-200 rounded-lg p-6">
+                        <div class="flex items-start justify-between mb-4">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-2xl font-bold text-gray-400">#{{ forloop.counter }}</span>
+                                <div>
+                                    <span class="px-3 py-1 text-xs font-semibold rounded-full
+                                        {% if exercise.exercise_type == 'mcq' %}bg-blue-100 text-blue-800
+                                        {% elif exercise.exercise_type == 'true_false' %}bg-green-100 text-green-800
+                                        {% else %}bg-purple-100 text-purple-800{% endif %}">
+                                        {{ exercise.get_exercise_type_display }}
+                                    </span>
+                                    <span class="px-3 py-1 text-xs font-semibold rounded-full
+                                        {% if exercise.difficulty == 'easy' %}bg-green-100 text-green-800
+                                        {% elif exercise.difficulty == 'medium' %}bg-yellow-100 text-yellow-800
+                                        {% else %}bg-red-100 text-red-800{% endif %}">
+                                        {{ exercise.get_difficulty_display }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <p class="font-semibold text-gray-900 text-lg mb-2">{{ exercise.question_text }}</p>
+                            <p class="text-sm text-gray-600">Concept : {{ exercise.concept }}</p>
+                        </div>
+
+                        {% if exercise.exercise_type == 'mcq' %}
+                            <div class="space-y-2 ml-6">
+                                {% for key, value in exercise.options_data.options.items %}
+                                    <div class="flex items-center space-x-2">
+                                        <span class="w-8 h-8 flex items-center justify-center rounded-full 
+                                            {% if key == exercise.options_data.correct %}bg-green-100 text-green-800 font-bold
+                                            {% else %}bg-gray-100 text-gray-600{% endif %}">
+                                            {{ key }}
+                                        </span>
+                                        <span class="{% if key == exercise.options_data.correct %}font-semibold text-green-700{% endif %}">
+                                            {{ value }}
+                                        </span>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% elif exercise.exercise_type == 'true_false' %}
+                            <div class="ml-6">
+                                <p class="text-gray-700">
+                                    Réponse correcte : 
+                                    <span class="font-bold text-green-600">
+                                        {% if exercise.options_data.correct %}VRAI{% else %}FAUX{% endif %}
+                                    </span>
+                                </p>
+                            </div>
+                        {% elif exercise.exercise_type == 'fill_blank' %}
+                            <div class="ml-6">
+                                <p class="text-gray-700 mb-2">{{ exercise.options_data.text }}</p>
+                                <p class="text-sm text-gray-600">
+                                    Réponse : <span class="font-semibold text-green-600">{{ exercise.options_data.correct }}</span>
+                                </p>
+                            </div>
+                        {% endif %}
+
+                        {% if exercise.explanation %}
+                            <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+                                <p class="text-sm text-gray-700">💡 <strong>Explication :</strong> {{ exercise.explanation }}</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-center text-gray-600 py-8">Aucun exercice dans ce set</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

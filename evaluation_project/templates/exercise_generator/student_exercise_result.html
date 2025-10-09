@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Résultats - {{ exercise_set.title }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-4xl mx-auto px-4">
+        <div class="mb-6">
+            <a href="{% url 'exercise_generator:student_exercise_sets' %}" class="text-indigo-600 hover:text-indigo-800">
+                ← Retour aux exercices
+            </a>
+        </div>
+
+        <!-- Score global -->
+        <div class="bg-white rounded-lg shadow-md p-8 mb-6 text-center">
+            <h1 class="text-3xl font-bold text-gray-900 mb-4">
+                Résultats : {{ exercise_set.title }}
+            </h1>
+            
+            <div class="mb-6">
+                <div class="inline-block relative">
+                    <svg class="w-32 h-32" viewBox="0 0 36 36">
+                        <path class="text-gray-200" stroke="currentColor" stroke-width="3" fill="none" 
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
+                        <path class="{% if submission.score >= 75 %}text-green-500{% elif submission.score >= 50 %}text-yellow-500{% else %}text-red-500{% endif %}" 
+                              stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                              stroke-dasharray="{{ submission.score }}, 100"></path>
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <span class="text-3xl font-bold">{{ submission.score|floatformat:0 }}%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4 max-w-md mx-auto">
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <p class="text-sm text-gray-600 mb-1">Correct</p>
+                    <p class="text-2xl font-bold text-green-600">{{ submission.correct_count }}</p>
+                </div>
+                <div class="bg-red-50 p-4 rounded-lg">
+                    <p class="text-sm text-gray-600 mb-1">Incorrect</p>
+                    <p class="text-2xl font-bold text-red-600">{{ submission.total_count|add:"-"|add:submission.correct_count }}</p>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <p class="text-sm text-gray-600 mb-1">Total</p>
+                    <p class="text-2xl font-bold text-blue-600">{{ submission.total_count }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Détails par exercice -->
+        <div class="space-y-6">
+            <h2 class="text-2xl font-bold text-gray-900">Corrections Détaillées</h2>
+
+            {% for result in exercise_results %}
+            <div class="bg-white rounded-lg shadow-md p-6 {% if result.is_correct %}border-l-4 border-green-500{% else %}border-l-4 border-red-500{% endif %}">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-2xl">{% if result.is_correct %}✅{% else %}❌{% endif %}</span>
+                        <span class="text-2xl font-bold text-gray-400">#{{ forloop.counter }}</span>
+                        <span class="px-3 py-1 text-xs font-semibold rounded-full
+                            {% if result.exercise.exercise_type == 'mcq' %}bg-blue-100 text-blue-800
+                            {% elif result.exercise.exercise_type == 'true_false' %}bg-green-100 text-green-800
+                            {% else %}bg-purple-100 text-purple-800{% endif %}">
+                            {{ result.exercise.get_exercise_type_display }}
+                        </span>
+                    </div>
+                </div>
+
+                <p class="font-semibold text-gray-900 text-lg mb-4">{{ result.exercise.question_text }}</p>
+
+                {% if result.exercise.exercise_type == 'mcq' %}
+                    <div class="space-y-2 mb-4">
+                        {% for key, value in result.exercise.options_data.options.items %}
+                        <div class="p-3 rounded-lg
+                            {% if key == result.correct_answer %}bg-green-50 border border-green-200
+                            {% elif key == result.student_answer and key != result.correct_answer %}bg-red-50 border border-red-200
+                            {% else %}bg-gray-50 border border-gray-200{% endif %}">
+                            <div class="flex items-start space-x-2">
+                                <span class="font-semibold">{{ key }}.</span>
+                                <span>{{ value }}</span>
+                                {% if key == result.correct_answer %}
+                                    <span class="ml-2 text-green-600 font-semibold">✓ Bonne réponse</span>
+                                {% endif %}
+                                {% if key == result.student_answer and key != result.correct_answer %}
+                                    <span class="ml-2 text-red-600 font-semibold">✗ Votre réponse</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                {% elif result.exercise.exercise_type == 'true_false' %}
+                    <div class="space-y-2 mb-4">
+                        <div class="p-3 rounded-lg {% if result.correct_answer == 'True' %}bg-green-50 border border-green-200{% else %}bg-gray-50 border border-gray-200{% endif %}">
+                            <span class="font-semibold text-green-600">✓ VRAI</span>
+                            {% if result.correct_answer == 'True' %}
+                                <span class="ml-2 text-green-600 font-semibold">← Bonne réponse</span>
+                            {% endif %}
+                            {% if result.student_answer == 'True' and result.correct_answer != 'True' %}
+                                <span class="ml-2 text-red-600 font-semibold">← Votre réponse</span>
+                            {% endif %}
+                        </div>
+                        <div class="p-3 rounded-lg {% if result.correct_answer == 'False' %}bg-green-50 border border-green-200{% else %}bg-gray-50 border border-gray-200{% endif %}">
+                            <span class="font-semibold text-red-600">✗ FAUX</span>
+                            {% if result.correct_answer == 'False' %}
+                                <span class="ml-2 text-green-600 font-semibold">← Bonne réponse</span>
+                            {% endif %}
+                            {% if result.student_answer == 'False' and result.correct_answer != 'False' %}
+                                <span class="ml-2 text-red-600 font-semibold">← Votre réponse</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                {% elif result.exercise.exercise_type == 'fill_blank' %}
+                    <div class="mb-4 space-y-2">
+                        <div class="p-3 bg-gray-50 rounded-lg">
+                            <p class="text-sm text-gray-600 mb-1">Votre réponse :</p>
+                            <p class="font-semibold {% if result.is_correct %}text-green-600{% else %}text-red-600{% endif %}">
+                                {{ result.student_answer|default:"(non répondu)" }}
+                            </p>
+                        </div>
+                        {% if not result.is_correct %}
+                        <div class="p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <p class="text-sm text-gray-600 mb-1">Bonne réponse :</p>
+                            <p class="font-semibold text-green-600">{{ result.correct_answer }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                {% if result.exercise.explanation %}
+                <div class="p-4 bg-blue-50 rounded-lg">
+                    <p class="text-sm text-gray-700">
+                        <strong>💡 Explication :</strong> {{ result.exercise.explanation }}
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="mt-8 text-center">
+            <a 
+                href="{% url 'exercise_generator:student_exercise_sets' %}" 
+                class="inline-block px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700"
+            >
+                Retour aux exercices
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

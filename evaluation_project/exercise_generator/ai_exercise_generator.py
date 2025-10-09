@@ -117,6 +117,7 @@ class ExerciseGenerator:
     def _generate_mcq(self, analysis: Dict, count: int, config: Dict) -> List[Dict]:
         """
         Génère des questions à choix multiples
+        AMÉLIORATION: Validation stricte des concepts et questions
         """
         exercises = []
         
@@ -126,18 +127,68 @@ class ExerciseGenerator:
         important_sentences = analysis.get('important_sentences', [])
         
         # QCM basés sur les définitions
-        for definition in definitions[:count]:
+        for definition in definitions[:count * 2]:  # Plus pour filtrage
             term = definition['term']
             correct_def = definition['definition']
+            
+            # VALIDATION: Vérifier que le terme est complet et valide
+            if not self._is_valid_concept(term):
+                continue
+            
+            # VALIDATION: Limiter la longueur de la définition
+            # Maximum 20 mots ou 150 caractères pour une réponse
+            if len(correct_def.split()) > 20 or len(correct_def) > 150:
+                # Tronquer à la première phrase complète
+                correct_def = self._truncate_to_sentence(correct_def, max_words=20)
+            
+            # VALIDATION: Vérifier que la définition est complète mais pas trop longue
+            if len(correct_def.split()) < 5 or len(correct_def) < 20:
+                continue
+            if len(correct_def.split()) > 25 or len(correct_def) > 180:
+                continue
+            
+            # VALIDATION: La définition ne doit pas être une question
+            if correct_def.strip().endswith('?'):
+                continue
             
             # Génération de distracteurs (mauvaises réponses)
             distractors = self._generate_distractors(correct_def, analysis, num=3)
             
-            # Construction de la question
-            question_text = random.choice(self.mcq_templates).format(concept=term.title())
+            # VALIDATION: Vérifier la qualité des distracteurs
+            if len(distractors) < 3:
+                continue
+            
+            # Construction de la question avec validation
+            question_text = self._build_valid_question(term)
+            
+            # VALIDATION: Vérifier que la question est bien formée
+            if not question_text or len(question_text) < 10:
+                continue
+            
+            # VALIDATION: La question doit rester courte (max 15 mots)
+            if len(question_text.split()) > 15:
+                continue
             
             # Options (mélangées)
             options = [correct_def] + distractors
+            
+            # VALIDATION: S'assurer qu'il n'y a pas d'options identiques ou très similaires
+            unique_options = []
+            for opt in options:
+                is_duplicate = False
+                for existing_opt in unique_options:
+                    similarity = self._calculate_text_similarity(opt, existing_opt)
+                    if similarity > 0.90:  # 90% de similarité = doublon
+                        is_duplicate = True
+                        break
+                if not is_duplicate:
+                    unique_options.append(opt)
+            
+            # Si moins de 4 options uniques, passer à la question suivante
+            if len(unique_options) < 4:
+                continue
+            
+            options = unique_options[:4]  # Garder seulement 4 options
             random.shuffle(options)
             correct_index = options.index(correct_def)
             correct_option = chr(65 + correct_index)  # A, B, C, D
@@ -175,28 +226,74 @@ class ExerciseGenerator:
                 break
         
         # QCM basés sur les concepts (si pas assez de définitions)
+        used_sentences = set()  # Pour éviter les doublons
+        
         if len(exercises) < count:
             for concept in concepts:
+                # VALIDATION: Vérifier que le concept est valide
+                if not self._is_valid_concept(concept):
+                    continue
+                
                 # Recherche de phrases liées au concept
                 related_sentences = [
                     s for s in important_sentences 
-                    if concept in s['sentence'].lower()
+                    if concept in s['sentence'].lower() and s['sentence'] not in used_sentences
                 ]
                 
                 if related_sentences:
                     sentence = related_sentences[0]['sentence']
                     
-                    question_text = f"Concernant '{concept}', quelle affirmation est correcte ?"
+                    # VALIDATION: Vérifier que la phrase est complète et de qualité
+                    if len(sentence.split()) < 8 or len(sentence) < 30:
+                        continue
+                    
+                    # VALIDATION: Limiter la longueur de la phrase (max 25 mots ou 180 caractères)
+                    if len(sentence.split()) > 25 or len(sentence) > 180:
+                        sentence = self._truncate_to_sentence(sentence, max_words=20)
+                        # Vérifier après troncature
+                        if len(sentence.split()) < 8:
+                            continue
+                    
+                    # VALIDATION: Éviter les phrases qui ressemblent à des titres
+                    if sentence.endswith(':') or sentence.isupper():
+                        continue
+                    
+                    question_text = f"Concernant '{concept.title()}', quelle affirmation est correcte ?"
                     correct_answer = sentence
                     distractors = self._generate_distractors(sentence, analysis, num=3)
                     
+                    # VALIDATION: Vérifier qu'on a assez de distracteurs
+                    if len(distractors) < 3:
+                        continue
+                    
                     options = [correct_answer] + distractors
+                    
+                    # VALIDATION: S'assurer qu'il n'y a pas d'options identiques
+                    unique_options = []
+                    for opt in options:
+                        is_duplicate = False
+                        for existing_opt in unique_options:
+                            similarity = self._calculate_text_similarity(opt, existing_opt)
+                            if similarity > 0.90:
+                                is_duplicate = True
+                                break
+                        if not is_duplicate:
+                            unique_options.append(opt)
+                    
+                    if len(unique_options) < 4:
+                        continue
+                    
+                    options = unique_options[:4]
                     random.shuffle(options)
                     correct_index = options.index(correct_answer)
                     correct_option = chr(65 + correct_index)
                     
                     difficulty = self._calculate_difficulty(concept, correct_answer, distractors)
                     quality_score = self._calculate_quality_mcq(question_text, correct_answer, distractors)
+                    
+                    # VALIDATION: Vérifier le score de qualité minimum
+                    if quality_score < 0.5:
+                        continue
                     
                     exercise = {
                         'type': 'mcq',
@@ -216,51 +313,77 @@ class ExerciseGenerator:
                     }
                     
                     exercises.append(exercise)
+                    used_sentences.add(sentence)  # Marquer comme utilisée
                     
                     if len(exercises) >= count:
                         break
         
-        return exercises
+        # Éliminer les doublons finaux basés sur la similarité des questions
+        unique_exercises = self._remove_duplicate_exercises(exercises)
+        
+        # Vérifier qu'il n'y a pas de réponses identiques entre différentes questions
+        unique_exercises = self._remove_duplicate_answers(unique_exercises)
+        
+        return unique_exercises
     
     def _generate_true_false(self, analysis: Dict, count: int, config: Dict) -> List[Dict]:
         """
         Génère des questions Vrai/Faux
+        AMÉLIORATION V3: Évite les doublons et limite la longueur des affirmations
         """
         exercises = []
+        used_sentences = set()  # Pour éviter de réutiliser la même phrase
         
         important_sentences = analysis.get('important_sentences', [])
         concepts = analysis.get('key_concepts', [])
         
-        for sent_data in important_sentences[:count * 2]:  # Plus de phrases pour avoir le choix
+        for sent_data in important_sentences[:count * 3]:  # Plus de phrases pour avoir le choix
             sentence = sent_data['sentence']
             
-            # Génération d'une affirmation vraie
-            true_statement = sentence
-            true_exercise = self._create_true_false_exercise(
-                true_statement,
-                is_true=True,
-                concept=self._extract_main_concept(sentence, concepts),
-                source=sentence,
-                analysis=analysis
-            )
-            exercises.append(true_exercise)
+            # VALIDATION: Éviter les phrases déjà utilisées
+            if sentence in used_sentences:
+                continue
             
-            # Génération d'une affirmation fausse (négation ou modification)
-            false_statement = self._create_false_statement(sentence, analysis)
-            if false_statement:
-                false_exercise = self._create_true_false_exercise(
-                    false_statement,
-                    is_true=False,
+            # VALIDATION: Limiter la longueur (max 25 mots)
+            if len(sentence.split()) > 25:
+                sentence = self._truncate_to_sentence(sentence, max_words=20)
+            
+            # VALIDATION: Vérifier la longueur après troncature
+            if len(sentence.split()) < 8 or len(sentence.split()) > 25:
+                continue
+            
+            # Génération d'une affirmation vraie (1 sur 2 seulement)
+            if len([e for e in exercises if e['correct_answer'] is True]) < count * 0.5:
+                true_exercise = self._create_true_false_exercise(
+                    sentence,
+                    is_true=True,
                     concept=self._extract_main_concept(sentence, concepts),
                     source=sentence,
                     analysis=analysis
                 )
-                exercises.append(false_exercise)
+                exercises.append(true_exercise)
+                used_sentences.add(sentence)
+            
+            # Génération d'une affirmation fausse
+            false_statement = self._create_false_statement(sentence, analysis)
+            if false_statement and false_statement not in used_sentences:
+                # VALIDATION: Vérifier que l'affirmation fausse n'est pas identique à la vraie
+                if false_statement.lower().strip() != sentence.lower().strip():
+                    false_exercise = self._create_true_false_exercise(
+                        false_statement,
+                        is_true=False,
+                        concept=self._extract_main_concept(sentence, concepts),
+                        source=sentence,
+                        analysis=analysis
+                    )
+                    exercises.append(false_exercise)
+                    used_sentences.add(false_statement)
             
             if len(exercises) >= count:
                 break
         
-        return exercises[:count]
+        # Supprimer les doublons finaux
+        return self._remove_duplicate_exercises(exercises)[:count]
     
     def _generate_fill_blank(self, analysis: Dict, count: int, config: Dict) -> List[Dict]:
         """
@@ -316,26 +439,50 @@ class ExerciseGenerator:
     def _generate_distractors(self, correct_answer: str, analysis: Dict, num: int = 3) -> List[str]:
         """
         Génère des distracteurs plausibles pour un QCM
+        AMÉLIORATION: Limite la longueur des distracteurs pour éviter les paragraphes
         """
         distractors = []
+        correct_words = len(correct_answer.split())
         
         # Stratégie 1 : Utiliser d'autres phrases du document
         important_sentences = analysis.get('important_sentences', [])
         for sent_data in important_sentences:
             sentence = sent_data['sentence']
+            
+            # Filtrer les phrases selon la longueur
+            # Les distracteurs doivent avoir une longueur similaire à la réponse correcte
+            sentence_words = len(sentence.split())
+            
+            # VALIDATION: Longueur entre 5 et 25 mots maximum
+            if sentence_words < 5 or sentence_words > 25:
+                continue
+            
+            # VALIDATION: Pas trop différent de la réponse correcte (±50%)
+            if sentence_words < correct_words * 0.5 or sentence_words > correct_words * 1.5:
+                continue
+            
             if sentence != correct_answer and len(sentence) > 20:
+                # Tronquer si trop long
+                if len(sentence.split()) > 20:
+                    sentence = self._truncate_to_sentence(sentence, max_words=18)
+                
                 # Modification légère pour rendre plus plausible
                 modified = self._modify_sentence(sentence)
+                
+                # VALIDATION: Vérifier que le distracteur n'est pas identique à la réponse
                 if modified not in distractors and modified != correct_answer:
-                    distractors.append(modified)
-                    if len(distractors) >= num:
-                        return distractors
+                    # VALIDATION: Éviter les distracteurs trop similaires
+                    similarity = self._calculate_text_similarity(modified, correct_answer)
+                    if similarity < 0.8:  # Moins de 80% de similarité
+                        distractors.append(modified)
+                        if len(distractors) >= num:
+                            return distractors
         
-        # Stratégie 2 : Création de distracteurs génériques
+        # Stratégie 2 : Création de distracteurs génériques (seulement si pas assez)
         generic_distractors = [
             "Cette définition n'est pas mentionnée dans le cours.",
-            "Aucune des réponses proposées n'est correcte.",
             "Cette explication est incomplète ou incorrecte.",
+            "Cette réponse ne correspond pas au contenu du document.",
         ]
         
         for dist in generic_distractors:
@@ -351,6 +498,27 @@ class ExerciseGenerator:
         # Simplification : on retourne la phrase telle quelle
         # Dans une version plus avancée, on pourrait utiliser des synonymes
         return sentence
+    
+    def _calculate_text_similarity(self, text1: str, text2: str) -> float:
+        """
+        Calcule la similarité entre deux textes (coefficient de Jaccard)
+        NOUVEAU: Évite les distracteurs trop similaires à la réponse correcte
+        """
+        # Normaliser les textes
+        words1 = set(text1.lower().split())
+        words2 = set(text2.lower().split())
+        
+        if len(words1) == 0 or len(words2) == 0:
+            return 0.0
+        
+        # Intersection et union
+        intersection = words1 & words2
+        union = words1 | words2
+        
+        # Coefficient de Jaccard
+        similarity = len(intersection) / len(union) if len(union) > 0 else 0.0
+        
+        return similarity
     
     def _create_false_statement(self, true_sentence: str, analysis: Dict) -> str:
         """
@@ -485,3 +653,296 @@ class ExerciseGenerator:
             score -= 0.1
         
         return min(max(score, 0.0), 1.0)
+    
+    def _is_valid_concept(self, concept: str) -> bool:
+        """
+        Vérifie si un concept est valide et complet
+        V4 FINAL: Validation linguistique stricte
+        """
+        if not concept or len(concept.strip()) < 3:
+            return False
+        
+        concept = concept.strip()
+        
+        # Nettoyer les espaces multiples et caractères bizarres
+        concept = re.sub(r'\s+', ' ', concept)
+        concept = re.sub(r'[^\w\sàâäéèêëïîôùûüÿæœç\'-]', '', concept)
+        
+        # Limite de longueur stricte (max 35 caractères)
+        if len(concept) > 35:
+            return False
+        
+        # Pas de guillemets ou apostrophes multiples
+        if concept.count("'") > 1 or '"' in concept or '«' in concept or '»' in concept:
+            return False
+        
+        # Pas de ponctuation forte
+        if any(p in concept for p in ['.', ',', ';', ':', '!', '?', '(', ')']):
+            return False
+        
+        # NOUVEAU: Détecter les mots collés (ex: "En2009Chaque")
+        if re.search(r'\d+[A-Z]', concept) or re.search(r'[a-z][A-Z][a-z]', concept):
+            return False
+        
+        # NOUVEAU: Pas de répétition de mots (ex: "Les Les")
+        words = concept.lower().split()
+        if len(words) != len(set(words)):
+            return False
+        
+        # Patterns invalides étendus
+        invalid_patterns = [
+            r'^[A-Z]{1,2}$',  # 1-2 lettres majuscules seules
+            r'.*\s[A-Z]$',  # Se termine par une lettre majuscule seule
+            r'^[A-Z]\s.*',  # Commence par une lettre majuscule seule
+            r'.*\d+$',  # Se termine par un chiffre
+            r'^\d+.*',  # Commence par un chiffre
+            r'.*\s-\s*$',  # Se termine par un tiret
+            r'^\s*-\s.*',  # Commence par un tiret
+            r'.*\?.*',  # Contient un point d'interrogation
+            r'.*qui\s*$',  # Se termine par "qui" (ex: "Chose Qui")
+            r'.*que\s*$',  # Se termine par "que"
+            r'.*dont\s*$',  # Se termine par "dont"
+            r'.*où\s*$',  # Se termine par "où"
+        ]
+        
+        for pattern in invalid_patterns:
+            if re.match(pattern, concept, re.IGNORECASE):
+                return False
+        
+        # Vérifier qu'il n'y a pas de mots trop courts (< 2 lettres) sauf articles
+        words = concept.split()
+        allowed_short = {'le', 'la', 'un', 'de', 'du', 'à', 'au', 'en', 'et', 'ou'}
+        
+        # Maximum 4 mots pour un concept
+        if len(words) > 4:
+            return False
+        
+        for word in words:
+            if len(word) < 2:
+                return False
+            if len(word) == 2 and word.lower() not in allowed_short:
+                return False
+        
+        # Vérifier qu'il y a au moins un mot substantiel (5+ lettres)
+        has_substantial = any(len(w) >= 5 for w in words)
+        if not has_substantial:
+            return False
+        
+        # Éviter les titres de sections génériques et mots interrogatifs
+        generic_titles = [
+            'résultats', 'introduction', 'conclusion', 'exemple', 'cas', 
+            'partie', 'section', 'chapitre', 'titre', 'pourquoi', 'comment',
+            'chose', 'choses', 'quelque', 'quelques', 'autre', 'autres',
+            'même', 'mêmes', 'préexistante', 'préexistant', 'préexistantes',
+            'composée', 'composé', 'composés', 'virtuelle', 'virtuel', 'virtuels',
+            'document', 'documents', 'fichier', 'fichiers', 'chaque', 'création',
+            'organisme', 'compétent'
+        ]
+        
+        # Vérifier les mots complets uniquement
+        concept_words_lower = [w.lower() for w in words]
+        if any(title in concept_words_lower for title in generic_titles):
+            return False
+        
+        # NOUVEAU: Rejeter si commence par article + année (ex: "En 2009")
+        if len(words) >= 2:
+            if words[0].lower() in ['en', 'le', 'la', 'les', 'un', 'une', 'des'] and words[1].isdigit():
+                return False
+        
+        # NOUVEAU: Rejeter si contient tiret collé (ex: "a-la")
+        if '-' in concept and not re.match(r'^[\w]+-[\w]+$', concept):
+            return False
+        
+        # Maximum 1 adjectif
+        adjectives = ['virtuelle', 'composée', 'nouveau', 'nouvelle', 'ancien', 'ancienne', 
+                     'grand', 'grande', 'petit', 'petite', 'bon', 'bonne', 'mauvais', 'mauvaise',
+                     'chaque', 'tout', 'toute', 'tous', 'toutes']
+        adj_count = sum(1 for word in words if word.lower() in adjectives)
+        if adj_count > 0:  # Aucun adjectif accepté
+            return False
+        
+        # NOUVEAU: Rejeter si commence/termine par article (ex: "Les brevets")
+        if words[0].lower() in ['le', 'la', 'les', 'un', 'une', 'des', 'du', 'de']:
+            return False
+        if words[-1].lower() in ['le', 'la', 'les', 'un', 'une', 'des']:
+            return False
+        
+        # Rejeter si trop de majuscules (titre)
+        uppercase_words = sum(1 for w in words if len(w) > 1 and w[0].isupper())
+        if uppercase_words > len(words) * 0.6 and len(words) > 2:
+            return False
+        
+        return True
+    
+    def _build_valid_question(self, concept: str) -> str:
+        """
+        Construit une question valide à partir d'un concept
+        AMÉLIORATION V3: Questions ultra-courtes (1 phrase max, 10 mots max)
+        """
+        # Nettoyer le concept
+        concept = concept.strip()
+        
+        # Vérifier si le concept est valide
+        if not self._is_valid_concept(concept):
+            return None
+        
+        # Capitaliser correctement
+        concept_display = concept.title()
+        
+        # Templates de questions ultra-courts (max 10 mots)
+        templates = [
+            f"Que signifie {concept_display} ?",  # 3-4 mots
+            f"Définissez {concept_display}.",  # 2-3 mots
+            f"Qu'est-ce que {concept_display} ?",  # 3-4 mots
+        ]
+        
+        # Choisir un template aléatoire
+        question = random.choice(templates)
+        
+        # VALIDATION FINALE: Vérifier que la question est vraiment courte
+        if len(question.split()) > 10:
+            # Si trop long, utiliser le template le plus court
+            question = f"Définissez {concept_display}."
+        
+        return question
+    
+    def _truncate_to_sentence(self, text: str, max_words: int = 20) -> str:
+        """
+        Tronque un texte à la première phrase complète sans dépasser max_words
+        NOUVEAU: Évite les réponses trop longues (paragraphes entiers)
+        """
+        # Nettoyer le texte
+        text = text.strip()
+        
+        # Si déjà assez court, retourner tel quel
+        words = text.split()
+        if len(words) <= max_words:
+            return text
+        
+        # Chercher la première phrase complète
+        sentence_endings = ['.', '!', '?']
+        
+        for i, char in enumerate(text):
+            if char in sentence_endings:
+                # Vérifier que c'est bien une fin de phrase (pas une abréviation)
+                if i + 1 < len(text) and (text[i + 1] == ' ' or i + 1 == len(text)):
+                    first_sentence = text[:i + 1].strip()
+                    # Vérifier que la phrase n'est pas trop longue
+                    if len(first_sentence.split()) <= max_words:
+                        return first_sentence
+        
+        # Si pas de phrase complète trouvée, tronquer aux max_words
+        truncated = ' '.join(words[:max_words])
+        
+        # Ne pas ajouter de points de suspension si le texte se termine proprement
+        # Vérifier si le dernier mot est complet
+        if not truncated.endswith(('.', '!', '?', ',')):
+            truncated += '.'
+        
+        return truncated
+    
+    def _remove_duplicate_exercises(self, exercises: List[Dict]) -> List[Dict]:
+        """
+        Supprime les exercices en doublon basés sur la similarité
+        AMÉLIORATION V3: Détection plus stricte des doublons
+        """
+        unique = []
+        seen_concepts = set()
+        seen_questions_normalized = set()
+        seen_statements = set()  # Pour Vrai/Faux
+        
+        for exercise in exercises:
+            concept = exercise.get('concept', '').lower().strip()
+            question = exercise.get('question', '').lower().strip()
+            
+            # Pour les Vrai/Faux, vérifier aussi l'affirmation (statement)
+            if exercise.get('type') == 'true_false':
+                # Extraire l'affirmation de la question
+                statement = question
+                for template_start in ['selon le cours', 'il est correct d\'affirmer que']:
+                    if template_start in statement:
+                        statement = statement.split(template_start, 1)[-1].strip()
+                
+                # Normaliser l'affirmation
+                statement_normalized = re.sub(r'[^\w\s]', '', statement)
+                statement_normalized = ' '.join(statement_normalized.split())
+                
+                # Vérifier si on a déjà vu cette affirmation
+                if statement_normalized in seen_statements:
+                    continue  # Doublon détecté
+                seen_statements.add(statement_normalized)
+            
+            # Normaliser la question (retirer ponctuation, espaces multiples)
+            question_normalized = re.sub(r'[^\w\s]', '', question)
+            question_normalized = ' '.join(question_normalized.split())
+            
+            # Vérifier si on a déjà vu ce concept avec une question très similaire
+            concept_question_key = f"{concept}_{question_normalized[:50]}"
+            
+            if concept_question_key in seen_questions_normalized:
+                continue  # Doublon détecté
+            
+            # Vérifier la similarité avec les questions existantes
+            is_duplicate = False
+            for existing_q in seen_questions_normalized:
+                # Calcul de similarité simple (Jaccard)
+                words1 = set(question_normalized.split())
+                words2 = set(existing_q.split('_', 1)[-1].split() if '_' in existing_q else existing_q.split())
+                
+                if len(words1) > 0 and len(words2) > 0:
+                    intersection = len(words1 & words2)
+                    union = len(words1 | words2)
+                    similarity = intersection / union if union > 0 else 0
+                    
+                    # Si similarité > 65% (plus strict), c'est un doublon
+                    if similarity > 0.65:
+                        is_duplicate = True
+                        break
+            
+            if not is_duplicate:
+                unique.append(exercise)
+                seen_concepts.add(concept)
+                seen_questions_normalized.add(concept_question_key)
+        
+        return unique
+    
+    def _remove_duplicate_answers(self, exercises: List[Dict]) -> List[Dict]:
+        """
+        Supprime les exercices QCM qui ont des réponses identiques
+        NOUVEAU V3: Évite qu'une même phrase soit réponse correcte dans plusieurs QCM
+        """
+        if not exercises:
+            return exercises
+        
+        mcq_exercises = [e for e in exercises if e.get('type') == 'mcq']
+        other_exercises = [e for e in exercises if e.get('type') != 'mcq']
+        
+        # Tracker les réponses déjà utilisées
+        seen_answers = set()
+        unique_mcq = []
+        
+        for exercise in mcq_exercises:
+            # Récupérer la réponse correcte
+            correct_option = exercise.get('correct_answer')
+            options = exercise.get('options', {})
+            correct_answer = options.get(correct_option, '')
+            
+            # Normaliser la réponse
+            answer_normalized = re.sub(r'[^\w\s]', '', correct_answer.lower())
+            answer_normalized = ' '.join(answer_normalized.split())
+            
+            # Vérifier si cette réponse a déjà été utilisée
+            if answer_normalized and answer_normalized not in seen_answers:
+                # Vérifier aussi la similarité avec les réponses existantes
+                is_duplicate = False
+                for seen_answer in seen_answers:
+                    similarity = self._calculate_text_similarity(answer_normalized, seen_answer)
+                    if similarity > 0.85:  # 85% de similarité = doublon
+                        is_duplicate = True
+                        break
+                
+                if not is_duplicate:
+                    unique_mcq.append(exercise)
+                    seen_answers.add(answer_normalized)
+        
+        return unique_mcq + other_exercises

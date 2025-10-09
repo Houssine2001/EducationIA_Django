@@ -104,20 +104,81 @@ class DocumentAnalyzer:
         }
     
     def _clean_text(self, text: str) -> str:
-        """Nettoie le texte en supprimant les caractères inutiles"""
-        # Suppression des espaces multiples
-        text = re.sub(r'\s+', ' ', text)
-        # Suppression des retours à la ligne multiples
+        """
+        Nettoie le texte en supprimant les caractères spéciaux
+        NOUVEAU: Normalisation avancée pour éviter les fragments collés
+        """
+        # Normaliser les espaces autour de la ponctuation
+        text = re.sub(r'([.,;!?:])([A-Za-z])', r'\1 \2', text)
+        text = re.sub(r'([A-Za-z])([.,;!?:])', r'\1 \2', text)
+        
+        # Normaliser les espaces autour des chiffres
+        text = re.sub(r'(\d{4})([A-Za-z])', r'\1 \2', text)
+        text = re.sub(r'([A-Za-z])(\d{4})', r'\1 \2', text)
+        
+        # Supprimer les retours à la ligne multiples
         text = re.sub(r'\n+', '\n', text)
-        return text.strip()
+        
+        # Remplacer les tabulations par des espaces
+        text = text.replace('\t', ' ')
+        
+        # Normaliser les espaces multiples
+        text = re.sub(r' +', ' ', text)
+        
+        # Supprimer les fragments orphelins (mots < 2 chars seuls sur une ligne)
+        lines = []
+        for line in text.split('\n'):
+            words = line.strip().split()
+            # Garder la ligne si elle contient au moins un mot >= 3 caractères
+            if any(len(w.strip(string.punctuation)) >= 3 for w in words):
+                lines.append(line.strip())
+        
+        return ' '.join(lines)
     
     def _extract_sentences(self, text: str) -> List[str]:
-        """Extrait les phrases d'un texte"""
-        # Découpage basique par ponctuation forte
-        sentences = re.split(r'[.!?]+', text)
-        # Nettoyage et filtrage
-        sentences = [s.strip() for s in sentences if len(s.strip()) > 10]
-        return sentences
+        """Extrait les phrases d'un texte de manière plus intelligente"""
+        # Découpage par ponctuation forte tout en préservant les acronymes
+        sentences = re.split(r'[.!?]+\s+', text)
+        
+        # Nettoyage et filtrage avancé
+        cleaned_sentences = []
+        for s in sentences:
+            s = s.strip()
+            
+            # Filtres de qualité
+            if len(s) < 15:  # Trop courte
+                continue
+            if len(s.split()) < 4:  # Moins de 4 mots
+                continue
+            if not any(c.isalpha() for c in s):  # Pas de lettres
+                continue
+            if s.isupper() and len(s) < 50:  # Titres en majuscules (sauf longs)
+                continue
+            if s.endswith(':'):  # Titres de sections
+                continue
+            if re.match(r'^[IVX]+\.?\s*$', s):  # Numérotation romaine seule
+                continue
+            if re.match(r'^\d+\.?\s*$', s):  # Numérotation seule
+                continue
+            
+            # Vérifier que la phrase n'est pas tronquée
+            # Une phrase tronquée commence ou se termine souvent par des mots incomplets
+            words = s.split()
+            if len(words) > 0:
+                first_word = words[0]
+                last_word = words[-1]
+                
+                # Éviter les phrases qui commencent par un mot tronqué (moins de 3 caractères et pas d'article)
+                if len(first_word) < 3 and first_word.lower() not in ['le', 'la', 'un', 'de', 'à', 'en', 'il', 'on']:
+                    continue
+                
+                # Éviter les phrases qui se terminent par un mot incomplet (contient un tiret ou moins de 3 caractères)
+                if '-' in last_word or (len(last_word) < 3 and not last_word.isdigit()):
+                    continue
+            
+            cleaned_sentences.append(s)
+        
+        return cleaned_sentences
     
     def _extract_keywords(self, text: str, top_n: int = 20) -> List[str]:
         """
@@ -153,6 +214,7 @@ class DocumentAnalyzer:
         """
         Extrait les concepts (n-grammes) les plus importants
         Filtre les pronoms, conjonctions et mots non significatifs
+        AMÉLIORATION: Validation stricte pour éviter les concepts tronqués ou invalides
         """
         # Mots à éviter absolument (pronoms, conjonctions, articles, etc.)
         invalid_words = {
@@ -160,56 +222,89 @@ class DocumentAnalyzer:
             'qui', 'que', 'quoi', 'dont', 'où', 'lequel', 'laquelle', 'lesquels', 'lesquelles',
             'lorsque', "lorsqu", 'quand', 'comme', 'si', 'mais', 'ou', 'et', 'donc', 'or', 'ni', 'car',
             'ce', 'cet', 'cette', 'ces', 'mon', 'ton', 'son', 'ma', 'ta', 'sa', 'mes', 'tes', 'ses',
-            'notre', 'votre', 'nos', 'vos', 'leur', 'leurs', 'quel', 'quelle', 'quels', 'quelles'
+            'notre', 'votre', 'nos', 'vos', 'leur', 'leurs', 'quel', 'quelle', 'quels', 'quelles',
+            'pourquoi', 'parmi', 'selon', 'vers', 'chez', 'sans', 'sous', 'dans', 'avec', 'pour',
+            'résultats', 'cas', 'exemple', 'titre'  # Mots génériques souvent issus de titres
         }
         
-        # Tokenisation
-        words = re.findall(r'\b[a-zàâäéèêëïîôùûüÿæœç]+\b', text.lower())
+        # Patterns de mots invalides (tronqués, mal formés)
+        invalid_patterns = [
+            r'^[a-z]{1,2}$',  # Mots trop courts (1-2 lettres)
+            r'.*\d+.*',  # Contient des chiffres
+            r'^[A-Z]+$',  # Tout en majuscules (acronymes seuls)
+            r'.*-$',  # Se termine par un tiret
+            r'^-.*',  # Commence par un tiret
+        ]
+        
+        def is_valid_word(word: str) -> bool:
+            """Vérifie si un mot est valide pour faire partie d'un concept"""
+            if len(word) < 3:
+                return False
+            if word in self.french_stopwords or word in invalid_words:
+                return False
+            for pattern in invalid_patterns:
+                if re.match(pattern, word):
+                    return False
+            return True
+        
+        # Tokenisation plus stricte
+        words = re.findall(r'\b[a-zàâäéèêëïîôùûüÿæœç]{3,}\b', text.lower())
+        
+        # Filtrage préalable des mots
+        valid_words = [w for w in words if is_valid_word(w)]
         
         # Extraction de bigrammes (2 mots)
         bigrams = []
-        for i in range(len(words) - 1):
-            word1, word2 = words[i], words[i+1]
-            # Vérifier que les mots ne sont pas des stopwords ou des mots invalides
-            if (word1 not in self.french_stopwords and word2 not in self.french_stopwords and
-                word1 not in invalid_words and word2 not in invalid_words and
-                len(word1) > 3 and len(word2) > 3):
-                # Vérifier que c'est un concept substantiel (commence par une lettre minuscule dans le texte original)
-                bigram = f"{word1} {word2}"
-                bigrams.append(bigram)
+        for i in range(len(valid_words) - 1):
+            word1, word2 = valid_words[i], valid_words[i+1]
+            bigram = f"{word1} {word2}"
+            bigrams.append(bigram)
         
         # Extraction de trigrammes (3 mots)
         trigrams = []
-        for i in range(len(words) - 2):
-            word1, word2, word3 = words[i], words[i+1], words[i+2]
-            # Au moins 2 mots significatifs sur 3 et aucun mot invalide
-            significant_words = [w for w in [word1, word2, word3] 
-                               if w not in self.french_stopwords and w not in invalid_words and len(w) > 3]
-            invalid_count = sum(1 for w in [word1, word2, word3] if w in invalid_words)
-            
-            if len(significant_words) >= 2 and invalid_count == 0:
-                trigram = f"{word1} {word2} {word3}"
-                trigrams.append(trigram)
+        for i in range(len(valid_words) - 2):
+            word1, word2, word3 = valid_words[i], valid_words[i+1], valid_words[i+2]
+            trigram = f"{word1} {word2} {word3}"
+            trigrams.append(trigram)
         
         # Comptage des n-grammes
         ngram_freq = Counter(bigrams + trigrams)
         
         # Retour des N concepts les plus fréquents, avec validation finale
         concepts = []
-        for concept, freq in ngram_freq.most_common(top_n * 2):  # Prendre plus au départ pour filtrer
+        seen_concepts = set()  # Pour éviter les doublons
+        
+        for concept, freq in ngram_freq.most_common(top_n * 3):  # Prendre plus au départ pour filtrer
             if freq >= 2:  # Au moins 2 occurrences
-                # Validation finale : pas de pronoms ou conjonctions au début ou à la fin
-                words_in_concept = concept.split()
-                first_word = words_in_concept[0]
-                last_word = words_in_concept[-1]
+                # Normaliser le concept pour détecter les doublons
+                normalized = ' '.join(sorted(concept.split()))
                 
-                if first_word not in invalid_words and last_word not in invalid_words:
-                    # Vérifier qu'au moins un mot est un nom substantiel (commence par une voyelle ou consonne solide)
-                    has_substantial_word = any(len(w) >= 4 for w in words_in_concept)
-                    if has_substantial_word:
-                        concepts.append(concept)
-                        if len(concepts) >= top_n:
-                            break
+                if normalized in seen_concepts:
+                    continue  # Doublon détecté
+                
+                # Validation de qualité du concept
+                words_in_concept = concept.split()
+                
+                # Vérifier la longueur totale (pas trop court, pas trop long)
+                total_chars = sum(len(w) for w in words_in_concept)
+                if total_chars < 8 or total_chars > 50:
+                    continue
+                
+                # Vérifier qu'il y a au moins un mot "substantiel" (4+ lettres)
+                has_substantial = any(len(w) >= 5 for w in words_in_concept)
+                if not has_substantial:
+                    continue
+                
+                # Vérifier qu'aucun mot n'est générique ou titre-like
+                if any(w in ['résultats', 'exemple', 'cas', 'titre', 'partie', 'section'] for w in words_in_concept):
+                    continue
+                
+                # Ajouter le concept validé
+                concepts.append(concept)
+                seen_concepts.add(normalized)
+                
+                if len(concepts) >= top_n:
+                    break
         
         return concepts
     

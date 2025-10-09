@@ -91,6 +91,31 @@
             </div>
         </div>
 
+        <!-- NOUVEAU : Bouton Créer un Set d'Exercices -->
+        {% if exercise_stats.total >= 1 %}
+        <div class="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl shadow-lg p-6 mb-8 text-white">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="bg-white bg-opacity-20 rounded-xl p-4">
+                        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-bold mb-1">📦 Créer un Set d'Exercices</h3>
+                        <p class="text-green-100">
+                            Sélectionnez 4-6 exercices et créez un set pour le publier aux étudiants
+                        </p>
+                    </div>
+                </div>
+                <a href="{% url 'exercise_generator:create_exercise_set' document.id %}" 
+                   class="px-8 py-4 bg-white text-green-600 font-bold text-lg rounded-xl hover:bg-gray-100 shadow-lg transition-all hover:scale-105">
+                    Créer un Set →
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Statistiques des exercices -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div class="stat-card bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl shadow-lg p-6 text-white">
@@ -188,7 +213,15 @@
 
         <!-- Liste des exercices -->
         <div class="bg-white rounded-2xl shadow-lg p-8">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">Exercices générés</h2>
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-900">Exercices générés</h2>
+                {% if exercises.count >= 1 %}
+                <a href="{% url 'exercise_generator:create_exercise_set' document.id %}" 
+                   class="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700">
+                    📦 Créer un Set d'Exercices
+                </a>
+                {% endif %}
+            </div>
             
             {% if page_obj %}
                 <div class="space-y-4">

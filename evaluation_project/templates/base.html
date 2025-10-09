@@ -211,6 +211,11 @@
                                 </a>
                             </div>
                             
+                            <a href="{% url 'exercise_generator:exercise_sets_list' %}" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition-all-300 group">
+                                <i class="fas fa-box text-green-400 group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Sets d'exercices</span>
+                            </a>
+                            
                             <a href="{% url 'evaluation:create_test' %}" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition-all-300 group">
                                 <i class="fas fa-plus-circle text-green-400 group-hover:scale-110 transition-transform"></i>
                                 <span class="font-medium">Créer un test</span>
@@ -229,6 +234,15 @@
                                 <i class="fas fa-home text-blue-400 group-hover:scale-110 transition-transform"></i>
                                 <span class="font-medium">Accueil</span>
                             </a>
+                            
+                            <!-- NOUVEAU : Exercices IA -->
+                            <div class="bg-gradient-to-r from-purple-900/50 to-pink-900/50 rounded-lg p-1 my-2">
+                                <a href="{% url 'exercise_generator:student_exercise_sets' %}" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700/50 transition-all-300 group">
+                                    <i class="fas fa-brain text-pink-400 group-hover:scale-110 transition-transform"></i>
+                                    <span class="font-medium">📚 Exercices IA</span>
+                                </a>
+                            </div>
+                            
                             <a href="{% url 'evaluation:student_progress' %}" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition-all-300 group">
                                 <i class="fas fa-chart-line text-green-400 group-hover:scale-110 transition-transform"></i>
                                 <span class="font-medium">Ma progression</span>

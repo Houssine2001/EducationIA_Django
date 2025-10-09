@@ -275,3 +275,102 @@ class ExerciseGenerationConfig(models.Model):
     
     def __str__(self):
         return f"Config de {self.teacher.username}"
+
+
+class ExerciseSet(models.Model):
+    """
+    Ensemble d'exercices collectés et prêts à être publiés
+    Le prof collecte 4 exercices → crée un set → publie pour les étudiants
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Brouillon'),
+        ('published', 'Publié'),
+    ]
+    
+    # Informations de base
+    title = models.CharField(max_length=200, verbose_name="Titre du set")
+    description = models.TextField(blank=True, null=True, verbose_name="Description")
+    
+    # Créateur
+    teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name='exercise_sets')
+    
+    # Document source
+    source_document = models.ForeignKey(
+        CourseDocument, 
+        on_delete=models.CASCADE, 
+        related_name='exercise_sets'
+    )
+    
+    # Exercices inclus (maximum 4-6 exercices par set)
+    exercises = models.ManyToManyField(GeneratedExercise, related_name='in_sets')
+    
+    # Statut de publication
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    published_at = models.DateTimeField(null=True, blank=True)
+    
+    # Métadonnées
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'exercise_sets'
+        verbose_name = 'Ensemble d\'exercices'
+        verbose_name_plural = 'Ensembles d\'exercices'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.title} - {self.exercises.count()} exercices ({self.status})"
+    
+    def publish(self):
+        """Publier le set pour les étudiants"""
+        from django.utils import timezone
+        self.status = 'published'
+        self.published_at = timezone.now()
+        self.save()
+    
+    def unpublish(self):
+        """Retirer de la publication"""
+        self.status = 'draft'
+        self.published_at = None
+        self.save()
+
+
+class StudentExerciseSubmission(models.Model):
+    """
+    Soumission d'un étudiant pour un ExerciseSet
+    """
+    # Étudiant
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='exercise_submissions')
+    
+    # Set d'exercices
+    exercise_set = models.ForeignKey(ExerciseSet, on_delete=models.CASCADE, related_name='submissions')
+    
+    # Réponses de l'étudiant (JSON)
+    # Format: {"exercise_id": "answer", ...}
+    answers = CompatibleJSONField(default=dict, verbose_name="Réponses")
+    
+    # Résultats
+    score = models.FloatField(default=0.0, verbose_name="Score (%)")
+    correct_count = models.IntegerField(default=0)
+    total_count = models.IntegerField(default=0)
+    
+    # Temps passé (en secondes)
+    time_spent = models.IntegerField(default=0)
+    
+    # Statut
+    is_completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    # Métadonnées
+    started_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'student_exercise_submissions'
+        verbose_name = 'Soumission étudiant'
+        verbose_name_plural = 'Soumissions étudiants'
+        ordering = ['-started_at']
+        unique_together = [['student', 'exercise_set']]
+    
+    def __str__(self):
+        return f"{self.student.username} - {self.exercise_set.title} ({self.score}%)"

@@ -6,7 +6,9 @@ from .models import (
     CourseDocument, 
     GeneratedExercise, 
     GeneratedTest, 
-    ExerciseGenerationConfig
+    ExerciseGenerationConfig,
+    ExerciseSet,
+    StudentExerciseSubmission
 )
 
 
@@ -124,6 +126,66 @@ class ExerciseGenerationConfigAdmin(admin.ModelAdmin):
         }),
         ('Métadonnées', {
             'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(ExerciseSet)
+class ExerciseSetAdmin(admin.ModelAdmin):
+    list_display = ['title', 'teacher', 'source_document', 'exercise_count', 'status', 'submission_count', 'published_at', 'created_at']
+    list_filter = ['status', 'published_at', 'created_at']
+    search_fields = ['title', 'description', 'teacher__username']
+    filter_horizontal = ['exercises']
+    readonly_fields = ['published_at', 'created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Informations de base', {
+            'fields': ('title', 'description', 'teacher', 'source_document')
+        }),
+        ('Exercices', {
+            'fields': ('exercises',)
+        }),
+        ('Publication', {
+            'fields': ('status', 'published_at')
+        }),
+        ('Métadonnées', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def exercise_count(self, obj):
+        return obj.exercises.count()
+    exercise_count.short_description = 'Exercices'
+    
+    def submission_count(self, obj):
+        return obj.submissions.count()
+    submission_count.short_description = 'Soumissions'
+
+
+@admin.register(StudentExerciseSubmission)
+class StudentExerciseSubmissionAdmin(admin.ModelAdmin):
+    list_display = ['student', 'exercise_set', 'score', 'correct_count', 'total_count', 'is_completed', 'completed_at']
+    list_filter = ['is_completed', 'completed_at', 'started_at']
+    search_fields = ['student__username', 'exercise_set__title']
+    readonly_fields = ['started_at', 'updated_at']
+    
+    fieldsets = (
+        ('Étudiant', {
+            'fields': ('student', 'exercise_set')
+        }),
+        ('Réponses', {
+            'fields': ('answers',)
+        }),
+        ('Résultats', {
+            'fields': ('score', 'correct_count', 'total_count', 'time_spent')
+        }),
+        ('Statut', {
+            'fields': ('is_completed', 'completed_at')
+        }),
+        ('Métadonnées', {
+            'fields': ('started_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )

@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Mes Sets d'Exercices{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">
+                📦 Mes Sets d'Exercices
+            </h1>
+            <a href="{% url 'exercise_generator:dashboard' %}" 
+               class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700">
+                ← Retour au générateur
+            </a>
+        </div>
+
+        {% if exercise_sets %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for set in exercise_sets %}
+                <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex-1">
+                            <h2 class="text-xl font-bold text-gray-900 mb-2">
+                                {{ set.title }}
+                            </h2>
+                            <p class="text-sm text-gray-600 mb-2 line-clamp-2">{{ set.description }}</p>
+                        </div>
+                        <span class="px-3 py-1 text-xs font-semibold rounded-full
+                            {% if set.status == 'published' %}bg-green-100 text-green-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {% if set.status == 'published' %}✅ Publié{% else %}📝 Brouillon{% endif %}
+                        </span>
+                    </div>
+
+                    <div class="mb-4 pb-4 border-b border-gray-200">
+                        <p class="text-xs text-gray-500 mb-1">
+                            📄 {{ set.source_document.title }}
+                        </p>
+                        <p class="text-xs text-gray-500">
+                            Créé le {{ set.created_at|date:"d/m/Y à H:i" }}
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div class="bg-blue-50 p-3 rounded-lg text-center">
+                            <p class="text-2xl font-bold text-blue-600">{{ set.exercises.count }}</p>
+                            <p class="text-xs text-gray-600">Exercices</p>
+                        </div>
+                        <div class="bg-green-50 p-3 rounded-lg text-center">
+                            <p class="text-2xl font-bold text-green-600">{{ set.submissions.count }}</p>
+                            <p class="text-xs text-gray-600">Soumissions</p>
+                        </div>
+                    </div>
+
+                    <div class="flex space-x-2">
+                        <a href="{% url 'exercise_generator:exercise_set_detail' set.id %}" 
+                           class="flex-1 text-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 text-sm">
+                            Voir détails
+                        </a>
+                        {% if set.status == 'draft' %}
+                        <a href="{% url 'exercise_generator:publish_exercise_set' set.id %}" 
+                           class="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 text-sm"
+                           onclick="return confirm('Publier ce set ?')"
+                           title="Publier">
+                            📢
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-12 bg-white rounded-lg shadow-md">
+                <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                </svg>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Aucun set d'exercices</h3>
+                <p class="text-gray-600 mb-4">Créez votre premier set à partir d'un document avec des exercices générés</p>
+                <a href="{% url 'exercise_generator:dashboard' %}" 
+                   class="inline-block px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700">
+                    Aller au générateur IA
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
