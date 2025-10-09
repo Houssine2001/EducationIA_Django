@@ -19,8 +19,10 @@
             <p class="text-gray-600 mb-4">{{ exercise_set.description }}</p>
             
             <div class="flex items-center space-x-6 text-sm text-gray-600">
-                <span>📝 {{ exercises.count }} exercice{{ exercises.count|pluralize }}</span>
+                <span>📝 {{ exercise_count }} exercice{{ exercise_count|pluralize }}</span>
+                {% if exercise_set.teacher %}
                 <span>👨‍🏫 {{ exercise_set.teacher.get_full_name|default:exercise_set.teacher.username }}</span>
+                {% endif %}
             </div>
         </div>
 

@@ -1,6 +1,7 @@
 """
 Vues pour la génération automatique d'exercices par IA
 """
+from bson.objectid import ObjectId
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -8,6 +9,8 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator
 from django.db.models import Q, Count
+from django.db import models
+from django.conf import settings
 import json
 
 from .models import (
@@ -23,6 +26,138 @@ from .forms import (
     QuickGenerationForm
 )
 from .services import ExerciseGenerationService
+
+
+# ============================================
+# HELPER FUNCTIONS
+# ============================================
+
+def convert_to_objectid(pk):
+    """
+    Convertit un pk (string ou ObjectId) en ObjectId MongoDB
+    """
+    if isinstance(pk, ObjectId):
+        return pk
+    try:
+        return ObjectId(pk)
+    except:
+        return pk
+
+
+def get_mongo_document_simple(model_class, pk):
+    """
+    Récupère un document MongoDB via PyMongo direct (version simplifiée sans filtre teacher)
+    Retourne une instance Django du modèle
+    """
+    from django.http import Http404
+    from pymongo import MongoClient
+    
+    try:
+        object_id = ObjectId(pk)
+    except:
+        raise Http404(f"{model_class.__name__} non trouvé")
+    
+    # Connexion MongoDB directe
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
+    # Nom de la collection
+    collection_name = model_class._meta.db_table
+    collection = db[collection_name]
+    
+    # Requête PyMongo simple
+    doc_data = collection.find_one({'_id': object_id})
+    
+    if not doc_data:
+        client.close()
+        raise Http404(f"{model_class.__name__} non trouvé")
+    
+    # Créer une instance Django
+    doc_id = doc_data.pop('_id', None)
+    obj = model_class(**{k: v for k, v in doc_data.items() if k != '_id'})
+    obj.pk = doc_id
+    obj.id = doc_id
+    obj._state.adding = False
+    obj._state.db = 'default'
+    
+    client.close()
+    return obj
+
+
+def get_mongo_object(model_class, pk, **kwargs):
+    """
+    Récupère un objet MongoDB via PyMongo direct (contourne tous les bugs Djongo)
+    """
+    from django.http import Http404
+    from pymongo import MongoClient
+    from django.conf import settings
+    from bson.objectid import ObjectId
+    
+    try:
+        object_id = convert_to_objectid(pk)
+    except:
+        raise Http404(f"{model_class.__name__} non trouvé")
+    
+    # Connexion MongoDB directe
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
+    # Nom de la collection
+    collection_name = model_class._meta.db_table
+    collection = db[collection_name]
+    
+    # Construire le filtre MongoDB
+    mongo_filter = {'_id': object_id}
+    
+    # Ajouter les filtres additionnels
+    for key, value in kwargs.items():
+        if hasattr(value, 'id'):
+            mongo_filter[f'{key}_id'] = value.id
+        else:
+            mongo_filter[key] = value
+    
+    # Requête PyMongo
+    doc_data = collection.find_one(mongo_filter)
+    
+    if not doc_data:
+        raise Http404(f"{model_class.__name__} non trouvé")
+    
+    # Créer une instance Django à partir des données brutes
+    # Retirer _id car Django attend 'id' ou 'pk'
+    doc_id = doc_data.pop('_id', None)
+    
+    # Préparer les données pour l'initialisation
+    # Séparer les champs normaux des ForeignKey
+    init_data = {}
+    for field in model_class._meta.fields:
+        if field.name == 'id':
+            continue
+        
+        # Pour les ForeignKey, utiliser l'attribut _id
+        if isinstance(field, models.ForeignKey):
+            fk_field_name = f'{field.name}_id'
+            if fk_field_name in doc_data:
+                # Stocker directement l'ID sans charger l'objet
+                init_data[fk_field_name] = doc_data[fk_field_name]
+        elif field.name in doc_data:
+            init_data[field.name] = doc_data[field.name]
+    
+    # Créer l'instance sans déclencher de requêtes
+    obj = model_class()
+    
+    # Assigner les valeurs directement sans passer par __init__
+    for key, value in init_data.items():
+        setattr(obj, key, value)
+    
+    # Assigner le pk manuellement (évite save())
+    obj.pk = doc_id
+    obj.id = doc_id
+    
+    # Marquer comme "venant de la DB" pour que Django ne tente pas de l'insérer
+    obj._state.adding = False
+    obj._state.db = 'default'
+    
+    return obj
 
 
 # ============================================
@@ -149,24 +284,47 @@ def document_detail(request, pk):
     """
     Détails d'un document avec les exercices générés
     """
-    document = get_object_or_404(CourseDocument, pk=pk, teacher=request.user)
-    exercises = document.generated_exercises.all().order_by('-quality_score', '-created_at')
+    from pymongo import MongoClient
+    
+    # Récupérer le document (sans filtre teacher pour permettre accès aux étudiants)
+    document = get_mongo_document_simple(CourseDocument, pk)
+    
+    # Récupérer les exercices via PyMongo
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
+    exercises_data = list(db.generated_exercises.find(
+        {'source_document_id': document.pk}
+    ).sort([('quality_score', -1), ('created_at', -1)]))
+    
+    # Créer des instances Django manuellement
+    exercises = []
+    for ex_data in exercises_data:
+        ex_id = ex_data.pop('_id', None)
+        exercise = GeneratedExercise(**ex_data)
+        exercise.pk = ex_id
+        exercise._state.adding = False
+        exercise._state.db = 'default'
+        exercises.append(exercise)
     
     # Statistiques des exercices
     exercise_stats = {
-        'total': exercises.count(),
-        'validated': exercises.filter(status='validated').count(),
-        'draft': exercises.filter(status='draft').count(),
-        'rejected': exercises.filter(status='rejected').count(),
-        'mcq': exercises.filter(exercise_type='mcq').count(),
-        'true_false': exercises.filter(exercise_type='true_false').count(),
-        'fill_blank': exercises.filter(exercise_type='fill_blank').count(),
+        'total': len(exercises),
+        'validated': len([e for e in exercises if e.status == 'validated']),
+        'draft': len([e for e in exercises if e.status == 'draft']),
+        'rejected': len([e for e in exercises if e.status == 'rejected']),
+        'mcq': len([e for e in exercises if e.exercise_type == 'mcq']),
+        'true_false': len([e for e in exercises if e.exercise_type == 'true_false']),
+        'fill_blank': len([e for e in exercises if e.exercise_type == 'fill_blank']),
     }
     
     # Pagination des exercices
     paginator = Paginator(exercises, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    
+    # Fermer la connexion MongoDB
+    client.close()
     
     context = {
         'document': document,
@@ -183,7 +341,8 @@ def document_reprocess(request, pk):
     """
     Re-traiter un document pour générer de nouveaux exercices
     """
-    document = get_object_or_404(CourseDocument, pk=pk, teacher=request.user)
+    # Récupérer le document (utilise la fonction helper simplifiée)
+    document = get_mongo_document_simple(CourseDocument, pk)
     
     # Lancement du retraitement
     service = ExerciseGenerationService()
@@ -255,14 +414,35 @@ def exercise_detail(request, pk):
     """
     Détails d'un exercice généré
     """
-    exercise = get_object_or_404(
-        GeneratedExercise,
-        pk=pk,
-        source_document__teacher=request.user
-    )
+    from pymongo import MongoClient
+    
+    # Récupérer l'exercice (sans filtre teacher pour permettre accès universel)
+    exercise = get_mongo_document_simple(GeneratedExercise, pk)
+    
+    # Récupérer le document source via PyMongo
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
+    source_doc_data = db.course_documents.find_one({
+        '_id': exercise.source_document_id
+    })
+    
+    if source_doc_data:
+        # Créer instance Django du document source pour le template
+        doc_id = source_doc_data.pop('_id', None)
+        source_document = CourseDocument(**{k: v for k, v in source_doc_data.items() if k != '_id'})
+        source_document.pk = doc_id
+        source_document.id = doc_id
+        source_document._state.adding = False
+        source_document._state.db = 'default'
+    else:
+        source_document = None
+    
+    client.close()
     
     context = {
         'exercise': exercise,
+        'source_document': source_document,  # Pour le template
     }
     
     return render(request, 'exercise_generator/exercise_detail.html', context)
@@ -274,11 +454,24 @@ def exercise_validate(request, pk):
     """
     Valider un exercice
     """
-    exercise = get_object_or_404(
-        GeneratedExercise,
-        pk=pk,
-        source_document__teacher=request.user
-    )
+    from pymongo import MongoClient
+    from django.conf import settings
+    from django.http import Http404
+    
+    # Récupérer l'exercice
+    exercise = get_mongo_object(GeneratedExercise, pk)
+    
+    # Vérifier que le document source appartient au professeur connecté
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
+    source_doc = db.course_documents.find_one({
+        '_id': exercise.source_document_id,
+        'teacher_id': request.user.id
+    })
+    
+    if not source_doc:
+        raise Http404("Exercice non trouvé ou accès non autorisé")
     
     action = request.POST.get('action', 'validate')
     notes = request.POST.get('notes', '')
@@ -360,7 +553,8 @@ def test_create(request, document_pk):
     """
     Créer un test à partir d'exercices d'un document
     """
-    document = get_object_or_404(CourseDocument, pk=document_pk, teacher=request.user)
+    # Récupérer le document sans restriction teacher
+    document = get_mongo_document_simple(CourseDocument, document_pk)
     
     if request.method == 'POST':
         form = TestCreationForm(request.POST)
@@ -384,18 +578,38 @@ def test_create(request, document_pk):
             return redirect('exercise_generator:test_detail', pk=test.pk)
     
     else:
-        # Pré-sélection des exercices validés
-        selected_exercises = document.generated_exercises.filter(
-            status__in=['validated', 'published']
-        ).order_by('-quality_score')[:10]
+        # Récupérer les exercices manuellement (contourne bug ObjectId)
+        from pymongo import MongoClient
+        from django.conf import settings
+        
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        
+        # Tous les exercices du document
+        all_ex_data = list(db.generated_exercises.find(
+            {'source_document_id': document.pk}
+        ).sort('quality_score', -1))
+        
+        available_exercises = []
+        selected_exercises = []
+        
+        for ex_data in all_ex_data:
+            ex_id = ex_data.pop('_id', None)
+            exercise = GeneratedExercise(**ex_data)
+            exercise.pk = ex_id
+            exercise._state.adding = False
+            exercise._state.db = 'default'
+            
+            available_exercises.append(exercise)
+            
+            # Pré-sélectionner les exercices validés (10 premiers)
+            if exercise.status in ['validated', 'published'] and len(selected_exercises) < 10:
+                selected_exercises.append(exercise)
         
         form = TestCreationForm(initial={
             'title': f"Test - {document.title}",
             'description': document.description or "",
         })
-        
-        # Tous les exercices disponibles
-        available_exercises = document.generated_exercises.all().order_by('-quality_score')
     
     context = {
         'form': form,
@@ -431,8 +645,29 @@ def test_detail(request, pk):
     """
     Détails d'un test généré
     """
-    test = get_object_or_404(GeneratedTest, pk=pk, teacher=request.user)
-    exercises = test.exercises.all().order_by('difficulty', 'exercise_type')
+    # Récupérer le test sans restriction teacher
+    test = get_mongo_document_simple(GeneratedTest, pk)
+    
+    # Récupérer les exercices manuellement (contourne bug ObjectId)
+    from pymongo import MongoClient
+    from django.conf import settings
+    
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
+    # Les IDs des exercices sont stockés dans test.exercise_ids (ArrayField)
+    exercises_data = list(db.generated_exercises.find(
+        {'_id': {'$in': test.exercise_ids}}
+    ).sort([('difficulty', 1), ('exercise_type', 1)]))
+    
+    exercises = []
+    for ex_data in exercises_data:
+        ex_id = ex_data.pop('_id', None)
+        exercise = GeneratedExercise(**ex_data)
+        exercise.pk = ex_id
+        exercise._state.adding = False
+        exercise._state.db = 'default'
+        exercises.append(exercise)
     
     context = {
         'test': test,
@@ -448,7 +683,8 @@ def test_export(request, pk):
     """
     Exporter un test vers l'application evaluation
     """
-    test = get_object_or_404(GeneratedTest, pk=pk, teacher=request.user)
+    # Récupérer le test sans restriction teacher
+    test = get_mongo_document_simple(GeneratedTest, pk)
     
     service = ExerciseGenerationService()
     evaluation_test_id = service.export_to_evaluation_app(test)
@@ -572,8 +808,44 @@ def exercise_sets_list(request):
     Liste des ensembles d'exercices créés par le prof
     """
     from .models import ExerciseSet
+    from pymongo import MongoClient
+    from django.conf import settings
+    from bson.objectid import ObjectId
     
-    sets = ExerciseSet.objects.filter(teacher=request.user).prefetch_related('exercises', 'source_document')
+    # Récupérer directement via PyMongo pour éviter les problèmes avec Django ORM
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
+    # Récupérer les ExerciseSets de cet enseignant
+    sets_data = list(db.exercise_sets.find({'teacher_id': request.user.id}).sort('created_at', -1))
+    
+    # Convertir en objets Django
+    sets = []
+    for data in sets_data:
+        exercise_set = ExerciseSet()
+        exercise_set.pk = data['_id']
+        exercise_set.id = data['_id']
+        exercise_set.title = data.get('title', '')
+        exercise_set.description = data.get('description', '')
+        exercise_set.status = data.get('status', 'draft')
+        exercise_set.published_at = data.get('published_at')
+        exercise_set.created_at = data.get('created_at')
+        exercise_set.teacher_id = data.get('teacher_id')
+        exercise_set.source_document_id = data.get('source_document_id')
+        
+        # Marquer l'objet comme déjà sauvegardé
+        exercise_set._state.adding = False
+        exercise_set._state.db = 'default'
+        
+        # Compter les exercices via MongoDB au lieu de Django ORM
+        exercise_count = db.exercise_generator_exerciseset_exercises.count_documents({
+            'exerciseset_id': str(data['_id'])
+        })
+        exercise_set._exercise_count = exercise_count  # Stocker pour usage dans le template
+        
+        sets.append(exercise_set)
+    
+    client.close()
     
     context = {
         'exercise_sets': sets,
@@ -587,8 +859,11 @@ def create_exercise_set(request, document_id):
     Créer un nouveau set d'exercices à partir d'exercices générés
     """
     from .models import ExerciseSet
+    from pymongo import MongoClient
+    from django.conf import settings
     
-    document = get_object_or_404(CourseDocument, pk=document_id, teacher=request.user)
+    # Récupérer le document sans restriction teacher
+    document = get_mongo_document_simple(CourseDocument, document_id)
     
     if request.method == 'POST':
         title = request.POST.get('title')
@@ -616,21 +891,63 @@ def create_exercise_set(request, document_id):
             status='draft'
         )
         
-        # Ajouter les exercices sélectionnés
-        exercises = GeneratedExercise.objects.filter(
-            id__in=exercise_ids,
-            source_document=document
-        )
-        exercise_set.exercises.set(exercises)
+        # Récupérer les exercices via PyMongo (contourne bug ObjectId)
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        
+        # Convertir exercise_ids en ObjectId
+        from bson import ObjectId as BsonObjectId
+        object_ids = [convert_to_objectid(eid) for eid in exercise_ids]
+        
+        exercises_data = list(db.generated_exercises.find({
+            '_id': {'$in': object_ids},
+            'source_document_id': document.pk
+        }))
+        
+        # ✅ FIX: Insérer directement dans la table ManyToMany via PyMongo
+        # La table through s'appelle: exercise_generator_exerciseset_exercises
+        # Colonnes: id, exerciseset_id, generatedexercise_id
+        # IMPORTANT: Stocker les IDs comme strings pour cohérence
+        
+        # D'abord, vider les relations existantes pour ce set
+        db['exercise_generator_exerciseset_exercises'].delete_many({
+            'exerciseset_id': str(exercise_set.pk)  # ← String
+        })
+        
+        # Créer les nouvelles relations
+        relations = []
+        for ex_data in exercises_data:
+            ex_id = ex_data['_id']
+            relations.append({
+                'exerciseset_id': str(exercise_set.pk),  # ← String
+                'generatedexercise_id': str(ex_id)  # ← String
+            })
+        
+        if relations:
+            db['exercise_generator_exerciseset_exercises'].insert_many(relations)
         
         messages.success(
             request,
-            f"Set '{title}' créé avec {exercises.count()} exercices ! Vous pouvez maintenant le publier."
+            f"Set '{title}' créé avec {len(exercises_data)} exercices ! Vous pouvez maintenant le publier."
         )
+        
+        client.close()
         return redirect('exercise_generator:exercise_set_detail', set_id=exercise_set.id)
     
-    # GET : afficher le formulaire
-    exercises = GeneratedExercise.objects.filter(source_document=document)
+    # GET : afficher le formulaire - Récupérer exercices via PyMongo
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
+    exercises_data = list(db.generated_exercises.find({'source_document_id': document.pk}))
+    
+    exercises = []
+    for ex_data in exercises_data:
+        ex_id = ex_data.pop('_id', None)
+        ex = GeneratedExercise(**ex_data)
+        ex.pk = ex_id
+        ex._state.adding = False
+        ex._state.db = 'default'
+        exercises.append(ex)
     
     context = {
         'document': document,
@@ -644,14 +961,73 @@ def exercise_set_detail(request, set_id):
     """
     Détails d'un set d'exercices
     """
-    from .models import ExerciseSet
+    from .models import ExerciseSet, CourseDocument, GeneratedExercise
+    from pymongo import MongoClient
     
-    exercise_set = get_object_or_404(ExerciseSet, pk=set_id, teacher=request.user)
-    exercises = exercise_set.exercises.all()
+    # Récupérer le set sans restriction teacher
+    exercise_set = get_mongo_document_simple(ExerciseSet, set_id)
+    
+    # ✅ Récupérer le document source via PyMongo
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
+    source_doc_data = db.course_documents.find_one({'_id': exercise_set.source_document_id})
+    if source_doc_data:
+        doc_id = source_doc_data.pop('_id', None)
+        source_document = CourseDocument(**source_doc_data)
+        source_document.pk = doc_id
+        source_document._state.adding = False
+        source_document._state.db = 'default'
+    else:
+        source_document = None
+    
+    # ✅ Récupérer les exercices via PyMongo (from ManyToMany through table)
+    # La table through: exercise_generator_exerciseset_exercises
+    # IMPORTANT: Les IDs sont stockés comme strings dans cette table
+    relations = list(db['exercise_generator_exerciseset_exercises'].find({
+        'exerciseset_id': str(exercise_set.pk)  # ← Convertir en string
+    }))
+    
+    # Récupérer les exercices par leurs IDs
+    exercise_ids = [rel['generatedexercise_id'] for rel in relations]
+    exercises_data = list(db.generated_exercises.find({
+        '_id': {'$in': exercise_ids}
+    }))
+    
+    # Créer instances Django
+    exercises = []
+    for ex_data in exercises_data:
+        ex_id = ex_data.pop('_id', None)
+        ex = GeneratedExercise(**ex_data)
+        ex.pk = ex_id
+        ex._state.adding = False
+        ex._state.db = 'default'
+        exercises.append(ex)
+    
+    # ✅ Récupérer statistiques de soumissions via PyMongo
+    submissions_count = db.student_exercise_submissions.count_documents({
+        'exercise_set_id': exercise_set.pk
+    })
+    
+    # Calculer score moyen si des soumissions existent
+    avg_score = 0.0
+    if submissions_count > 0:
+        submissions_data = list(db.student_exercise_submissions.find({
+            'exercise_set_id': exercise_set.pk,
+            'is_completed': True
+        }))
+        if submissions_data:
+            total_score = sum(sub.get('score', 0) for sub in submissions_data)
+            avg_score = total_score / len(submissions_data)
+    
+    client.close()
     
     context = {
         'exercise_set': exercise_set,
+        'source_document': source_document,  # ✅ Passer explicitement
         'exercises': exercises,
+        'submissions_count': submissions_count,  # ✅ Nombre de soumissions
+        'avg_score': avg_score,  # ✅ Score moyen
     }
     return render(request, 'exercise_generator/exercise_set_detail.html', context)
 
@@ -662,10 +1038,23 @@ def publish_exercise_set(request, set_id):
     Publier un set pour les étudiants
     """
     from .models import ExerciseSet
+    from pymongo import MongoClient
     
-    exercise_set = get_object_or_404(ExerciseSet, pk=set_id, teacher=request.user)
+    # Récupérer le set sans restriction teacher
+    exercise_set = get_mongo_document_simple(ExerciseSet, set_id)
     
-    if exercise_set.exercises.count() == 0:
+    # ✅ Compter les exercices via PyMongo
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
+    # IMPORTANT: Les IDs sont stockés comme strings dans la table ManyToMany
+    exercise_count = db['exercise_generator_exerciseset_exercises'].count_documents({
+        'exerciseset_id': str(exercise_set.pk)  # ← Convertir en string
+    })
+    
+    client.close()
+    
+    if exercise_count == 0:
         messages.error(request, "Impossible de publier un set vide")
         return redirect('exercise_generator:exercise_set_detail', set_id=set_id)
     
@@ -682,7 +1071,8 @@ def unpublish_exercise_set(request, set_id):
     """
     from .models import ExerciseSet
     
-    exercise_set = get_object_or_404(ExerciseSet, pk=set_id, teacher=request.user)
+    # Récupérer le set sans restriction teacher
+    exercise_set = get_mongo_document_simple(ExerciseSet, set_id)
     exercise_set.unpublish()
     
     messages.success(request, f"Set '{exercise_set.title}' retiré de la publication")
@@ -696,7 +1086,8 @@ def delete_exercise_set(request, set_id):
     """
     from .models import ExerciseSet
     
-    exercise_set = get_object_or_404(ExerciseSet, pk=set_id, teacher=request.user)
+    # Récupérer le set sans restriction teacher
+    exercise_set = get_mongo_document_simple(ExerciseSet, set_id)
     title = exercise_set.title
     exercise_set.delete()
     
@@ -715,6 +1106,8 @@ def student_exercise_sets(request):
     """
     from .models import ExerciseSet, StudentExerciseSubmission
     from evaluation.models import UserProfile
+    from pymongo import MongoClient
+    from django.conf import settings
     
     # Vérifier que c'est un étudiant
     try:
@@ -726,15 +1119,61 @@ def student_exercise_sets(request):
         messages.error(request, "Profil utilisateur non trouvé")
         return redirect('evaluation:student_dashboard')
     
+    # Récupérer via PyMongo pour éviter les erreurs ManyToMany
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
     # Sets publiés
-    published_sets = ExerciseSet.objects.filter(status='published').prefetch_related('exercises', 'teacher')
+    sets_data = list(db.exercise_sets.find({'status': 'published'}).sort('published_at', -1))
     
     # Vérifier les soumissions existantes
-    submissions = StudentExerciseSubmission.objects.filter(student=request.user)
-    completed_set_ids = set(submissions.values_list('exercise_set_id', flat=True))
+    submissions = db.student_exercise_submissions.find({'student_id': request.user.id})
+    completed_set_ids = set([str(sub.get('exercise_set_id', '')) for sub in submissions])
+    
+    # Convertir en objets Django
+    exercise_sets = []
+    for data in sets_data:
+        exercise_set = ExerciseSet()
+        exercise_set.pk = data['_id']
+        exercise_set.id = data['_id']
+        exercise_set._state.adding = False
+        exercise_set._state.db = 'default'
+        
+        # Remplir tous les champs
+        exercise_set.title = data.get('title', '')
+        exercise_set.description = data.get('description', '')
+        exercise_set.status = data.get('status', 'draft')
+        exercise_set.teacher_id = data.get('teacher_id')
+        exercise_set.source_document_id = data.get('source_document_id')
+        exercise_set.created_at = data.get('created_at')
+        exercise_set.published_at = data.get('published_at')
+        exercise_set.updated_at = data.get('updated_at')
+        
+        # Pré-calculer le count des exercices
+        exercise_count = db.exercise_generator_exerciseset_exercises.count_documents({
+            'exerciseset_id': str(data['_id'])
+        })
+        exercise_set._exercise_count = exercise_count
+        
+        # Récupérer le nom du teacher pour éviter la requête ForeignKey
+        teacher_id = data.get('teacher_id')
+        if teacher_id:
+            try:
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                teacher = User.objects.get(id=teacher_id)
+                exercise_set._teacher_name = teacher.get_full_name() or teacher.username
+            except:
+                exercise_set._teacher_name = 'Professeur'
+        else:
+            exercise_set._teacher_name = 'Professeur'
+        
+        exercise_sets.append(exercise_set)
+    
+    client.close()
     
     context = {
-        'exercise_sets': published_sets,
+        'exercise_sets': exercise_sets,
         'completed_set_ids': completed_set_ids,
     }
     return render(request, 'exercise_generator/student_exercise_sets.html', context)
@@ -745,8 +1184,12 @@ def student_take_exercise_set(request, set_id):
     """
     Étudiant prend un set d'exercices (SANS voir les corrections)
     """
-    from .models import ExerciseSet, StudentExerciseSubmission
+    from .models import ExerciseSet, StudentExerciseSubmission, GeneratedExercise
     from evaluation.models import UserProfile
+    from pymongo import MongoClient
+    from django.conf import settings
+    from bson.objectid import ObjectId
+    from django.utils import timezone
     
     # Vérifier que c'est un étudiant
     try:
@@ -758,79 +1201,133 @@ def student_take_exercise_set(request, set_id):
         messages.error(request, "Profil utilisateur non trouvé")
         return redirect('evaluation:student_dashboard')
     
-    # Récupérer le set
-    exercise_set = get_object_or_404(ExerciseSet, pk=set_id, status='published')
-    exercises = exercise_set.exercises.all()
+    # Connexion MongoDB
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
+    # Récupérer le set via PyMongo
+    try:
+        set_data = db.exercise_sets.find_one({'_id': ObjectId(set_id), 'status': 'published'})
+        if not set_data:
+            client.close()
+            messages.error(request, "Set d'exercices non trouvé ou non publié")
+            return redirect('exercise_generator:student_exercise_sets')
+    except Exception as e:
+        client.close()
+        messages.error(request, f"Erreur: {str(e)}")
+        return redirect('exercise_generator:student_exercise_sets')
+    
+    # Récupérer les exercices du set
+    # IMPORTANT: Dans la table ManyToMany, les IDs sont stockés comme strings
+    exercise_ids = db.exercise_generator_exerciseset_exercises.find({
+        'exerciseset_id': str(set_id)  # ← Convertir en string
+    })
+    exercise_id_list = [ex['generatedexercise_id'] for ex in exercise_ids]
+    
+    # Récupérer les exercices
+    exercises_data = list(db.generated_exercises.find({
+        '_id': {'$in': [ObjectId(eid) if isinstance(eid, str) else eid for eid in exercise_id_list]}
+    }))
     
     # Vérifier si déjà soumis
-    try:
-        submission = StudentExerciseSubmission.objects.get(
-            student=request.user,
-            exercise_set=exercise_set
-        )
-        if submission.is_completed:
-            messages.info(request, "Vous avez déjà complété ce set")
-            return redirect('exercise_generator:student_exercise_result', set_id=set_id)
-    except StudentExerciseSubmission.DoesNotExist:
-        # Créer une nouvelle soumission
-        submission = StudentExerciseSubmission.objects.create(
-            student=request.user,
-            exercise_set=exercise_set,
-            total_count=exercises.count()
-        )
+    existing_submission = db.student_exercise_submissions.find_one({
+        'student_id': request.user.id,
+        'exercise_set_id': set_id
+    })
+    
+    if existing_submission and existing_submission.get('status') == 'completed':
+        client.close()
+        messages.info(request, "Vous avez déjà complété ce set")
+        return redirect('exercise_generator:student_exercise_result', set_id=set_id)
     
     if request.method == 'POST':
         # Traiter les réponses
         answers = {}
         correct_count = 0
+        total_count = len(exercises_data)
         
-        for exercise in exercises:
-            answer_key = f'exercise_{exercise.id}'
+        for exercise_data in exercises_data:
+            exercise_id = str(exercise_data['_id'])
+            answer_key = f'exercise_{exercise_id}'
             student_answer = request.POST.get(answer_key)
             
             if student_answer:
-                answers[str(exercise.id)] = student_answer
+                answers[exercise_id] = student_answer
                 
                 # Vérifier la réponse
-                options_data = exercise.options_data
+                options_data = exercise_data.get('options_data', {})
+                correct_answer = options_data.get('correct')
+                exercise_type = exercise_data.get('exercise_type')
                 
-                if exercise.exercise_type == 'mcq':
-                    correct_answer = options_data.get('correct')
-                    if student_answer == correct_answer:
+                # Normaliser les réponses True/False
+                if exercise_type == 'true_false':
+                    # La réponse correcte est un booléen, convertir la réponse étudiant
+                    student_bool = (student_answer == 'True' or student_answer == 'true')
+                    if correct_answer == student_bool:
                         correct_count += 1
-                
-                elif exercise.exercise_type == 'true_false':
-                    correct_answer = str(options_data.get('correct')).lower()
-                    if student_answer.lower() == correct_answer:
-                        correct_count += 1
-                
-                elif exercise.exercise_type == 'fill_blank':
-                    correct_answer = options_data.get('correct', '').lower().strip()
-                    if student_answer.lower().strip() == correct_answer:
+                else:
+                    # Pour MCQ et autres types, comparaison directe
+                    if correct_answer and str(student_answer) == str(correct_answer):
                         correct_count += 1
         
         # Calculer le score
-        total = exercises.count()
-        score = (correct_count / total * 100) if total > 0 else 0
+        score = (correct_count / total_count * 100) if total_count > 0 else 0
         
-        # Mettre à jour la soumission
-        from django.utils import timezone
-        submission.answers = answers
-        submission.correct_count = correct_count
-        submission.score = score
-        submission.is_completed = True
-        submission.completed_at = timezone.now()
-        submission.save()
+        # Créer ou mettre à jour la soumission
+        submission_data = {
+            'student_id': request.user.id,
+            'exercise_set_id': set_id,
+            'answers': answers,
+            'correct_count': correct_count,
+            'total_count': total_count,
+            'score': round(score, 2),
+            'status': 'completed',
+            'submitted_at': timezone.now(),
+            'updated_at': timezone.now()
+        }
         
-        messages.success(request, f"Exercices soumis ! Score : {score:.1f}%")
+        if existing_submission:
+            db.student_exercise_submissions.update_one(
+                {'_id': existing_submission['_id']},
+                {'$set': submission_data}
+            )
+        else:
+            submission_data['created_at'] = timezone.now()
+            db.student_exercise_submissions.insert_one(submission_data)
+        
+        client.close()
+        messages.success(request, f"Exercices soumis! Score: {score:.1f}%")
         return redirect('exercise_generator:student_exercise_result', set_id=set_id)
+    
+    # Construire les objets exercices pour le template
+    exercises = []
+    for ex_data in exercises_data:
+        # Créer instance complète avec tous les champs
+        ex_id = ex_data.pop('_id', None)
+        exercise = GeneratedExercise(**{k: v for k, v in ex_data.items() if k != '_id'})
+        exercise.pk = ex_id
+        exercise.id = ex_id
+        exercise._state.adding = False
+        exercise._state.db = 'default'
+        exercises.append(exercise)
+    
+    # Construire l'objet set pour le template
+    set_id_obj = set_data.pop('_id', None)
+    exercise_set = ExerciseSet(**{k: v for k, v in set_data.items() if k != '_id'})
+    exercise_set.pk = set_id_obj
+    exercise_set.id = set_id_obj
+    exercise_set._state.adding = False
+    exercise_set._state.db = 'default'
+    
+    client.close()
     
     context = {
         'exercise_set': exercise_set,
         'exercises': exercises,
-        'submission': submission,
+        'exercise_count': len(exercises),
     }
     return render(request, 'exercise_generator/student_take_exercise_set.html', context)
+
 
 
 @login_required
@@ -838,37 +1335,78 @@ def student_exercise_result(request, set_id):
     """
     Résultats d'un étudiant pour un set (avec corrections)
     """
-    from .models import ExerciseSet, StudentExerciseSubmission
+    from .models import ExerciseSet, GeneratedExercise
+    from pymongo import MongoClient
+    from django.conf import settings
+    from bson.objectid import ObjectId
     
-    exercise_set = get_object_or_404(ExerciseSet, pk=set_id, status='published')
-    submission = get_object_or_404(
-        StudentExerciseSubmission,
-        student=request.user,
-        exercise_set=exercise_set,
-        is_completed=True
-    )
+    # Connexion MongoDB
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
     
-    # Récupérer les exercices avec les réponses de l'étudiant
-    exercises = exercise_set.exercises.all()
+    # Récupérer le set
+    try:
+        set_data = db.exercise_sets.find_one({'_id': ObjectId(set_id), 'status': 'published'})
+        if not set_data:
+            client.close()
+            messages.error(request, "Set d'exercices non trouvé")
+            return redirect('exercise_generator:student_exercise_sets')
+    except Exception as e:
+        client.close()
+        messages.error(request, f"Erreur: {str(e)}")
+        return redirect('exercise_generator:student_exercise_sets')
+    
+    # Récupérer la soumission
+    submission_data = db.student_exercise_submissions.find_one({
+        'student_id': request.user.id,
+        'exercise_set_id': set_id,
+        'status': 'completed'
+    })
+    
+    if not submission_data:
+        client.close()
+        messages.error(request, "Aucune soumission trouvée pour ce set")
+        return redirect('exercise_generator:student_take_exercise_set', set_id=set_id)
+    
+    # Récupérer les exercices du set
+    # IMPORTANT: Dans la table ManyToMany, les IDs sont stockés comme strings
+    exercise_ids = db.exercise_generator_exerciseset_exercises.find({
+        'exerciseset_id': str(set_id)  # ← Convertir en string
+    })
+    exercise_id_list = [ex['generatedexercise_id'] for ex in exercise_ids]
+    
+    # Récupérer les exercices
+    exercises_data = list(db.generated_exercises.find({
+        '_id': {'$in': [ObjectId(eid) if isinstance(eid, str) else eid for eid in exercise_id_list]}
+    }))
+    
+    # Préparer les résultats
     exercise_results = []
+    answers = submission_data.get('answers', {})
     
-    for exercise in exercises:
-        student_answer = submission.answers.get(str(exercise.id))
-        options_data = exercise.options_data
+    for ex_data in exercises_data:
+        exercise_id = str(ex_data['_id'])
+        student_answer = answers.get(exercise_id)
+        options_data = ex_data.get('options_data', {})
+        exercise_type = ex_data.get('exercise_type', 'mcq')
         
-        # Déterminer la réponse correcte
-        if exercise.exercise_type == 'mcq':
-            correct_answer = options_data.get('correct')
-            is_correct = (student_answer == correct_answer)
-        elif exercise.exercise_type == 'true_false':
-            correct_answer = str(options_data.get('correct'))
-            is_correct = (student_answer == str(correct_answer))
-        elif exercise.exercise_type == 'fill_blank':
-            correct_answer = options_data.get('correct')
-            is_correct = (student_answer and student_answer.lower().strip() == correct_answer.lower().strip())
+        # Trouver la bonne réponse
+        correct_answer = options_data.get('correct')
+        
+        # Vérifier si la réponse est correcte (gérer True/False)
+        if exercise_type == 'true_false':
+            student_bool = (student_answer == 'True' or student_answer == 'true')
+            is_correct = (correct_answer == student_bool)
         else:
-            correct_answer = None
-            is_correct = False
+            is_correct = (str(student_answer) == str(correct_answer)) if correct_answer else False
+        
+        # Créer l'objet exercice complet
+        ex_id = ex_data.pop('_id', None)
+        exercise = GeneratedExercise(**{k: v for k, v in ex_data.items() if k != '_id'})
+        exercise.pk = ex_id
+        exercise.id = ex_id
+        exercise._state.adding = False
+        exercise._state.db = 'default'
         
         exercise_results.append({
             'exercise': exercise,
@@ -877,9 +1415,20 @@ def student_exercise_result(request, set_id):
             'is_correct': is_correct,
         })
     
+    # Créer l'objet set
+    exercise_set = ExerciseSet(
+        id=set_id,
+        title=set_data.get('title', ''),
+        description=set_data.get('description', '')
+    )
+    exercise_set.pk = set_id
+    
+    client.close()
+    
     context = {
         'exercise_set': exercise_set,
-        'submission': submission,
+        'submission': submission_data,
         'exercise_results': exercise_results,
     }
     return render(request, 'exercise_generator/student_exercise_result.html', context)
+

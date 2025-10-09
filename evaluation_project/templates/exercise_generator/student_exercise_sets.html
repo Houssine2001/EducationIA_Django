@@ -21,14 +21,14 @@
                             </h2>
                             <p class="text-sm text-gray-600 mb-2">{{ set.description }}</p>
                             <p class="text-xs text-gray-500">
-                                Par {{ set.teacher.get_full_name|default:set.teacher.username }}
+                                Par {{ set.get_teacher_name }}
                             </p>
                             <p class="text-xs text-gray-500">
                                 Publié le {{ set.published_at|date:"d/m/Y" }}
                             </p>
                         </div>
                         <span class="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
-                            {{ set.exercises.count }} exercice{{ set.exercises.count|pluralize }}
+                            {{ set.get_exercise_count }} exercice{{ set.get_exercise_count|pluralize }}
                         </span>
                     </div>
 

@@ -6,9 +6,123 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 import json
 from .fields import CompatibleJSONField
+from bson.objectid import ObjectId
 
 
-class CourseDocument(models.Model):
+class MongoDBCompatibleModel(models.Model):
+    """
+    Classe de base pour tous les modèles compatibles MongoDB
+    Gère correctement les ObjectId pour INSERT et UPDATE
+    """
+    class Meta:
+        abstract = True
+    
+    def save(self, *args, **kwargs):
+        """Override save pour gérer les ObjectId de MongoDB"""
+        from pymongo import MongoClient
+        from django.conf import settings
+        from datetime import datetime
+        
+        # Si c'est une nouvelle instance (pas encore en DB)
+        if self._state.adding:
+            # Sauvegarder directement dans MongoDB avec PyMongo
+            client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+            db = client[settings.MONGO_DB_NAME]
+            collection = db[self._meta.db_table]
+            
+            # Préparer les données
+            data = {}
+            for field in self._meta.fields:
+                if field.name == 'id':
+                    continue
+                
+                # Gérer les FileField/ImageField
+                if isinstance(field, (models.FileField, models.ImageField)):
+                    value = getattr(self, field.name, None)
+                    data[field.name] = value.name if value else None
+                # Gérer les ForeignKey - Convertir ObjectId en string
+                elif isinstance(field, models.ForeignKey):
+                    # Utiliser directement l'attribut _id pour éviter la requête
+                    fk_field_name = f'{field.name}_id'
+                    if hasattr(self, fk_field_name):
+                        fk_value = getattr(self, fk_field_name, None)
+                        if fk_value is not None:
+                            # TOUJOURS convertir en string pour compatibilité Django
+                            if isinstance(fk_value, ObjectId):
+                                data[fk_field_name] = str(fk_value)
+                            else:
+                                data[fk_field_name] = str(fk_value) if fk_value else None
+                else:
+                    value = getattr(self, field.name, None)
+                    data[field.name] = value
+            
+            # Ajouter timestamps si nécessaire
+            if 'created_at' not in data or data.get('created_at') is None:
+                data['created_at'] = datetime.now()
+            if 'updated_at' not in data or data.get('updated_at') is None:
+                data['updated_at'] = datetime.now()
+            
+            # Insérer dans MongoDB
+            result = collection.insert_one(data)
+            self.pk = result.inserted_id
+            self._state.adding = False
+            self._state.db = 'default'
+            client.close()
+            
+        else:
+            # UPDATE : Modifier le document existant dans MongoDB
+            client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+            db = client[settings.MONGO_DB_NAME]
+            collection = db[self._meta.db_table]
+            
+            # Préparer les données pour l'update
+            data = {}
+            for field in self._meta.fields:
+                if field.name == 'id':
+                    continue
+                
+                # Gérer les FileField/ImageField
+                if isinstance(field, (models.FileField, models.ImageField)):
+                    value = getattr(self, field.name, None)
+                    data[field.name] = value.name if value else None
+                # Gérer les ForeignKey - Convertir ObjectId en string
+                elif isinstance(field, models.ForeignKey):
+                    # Utiliser directement l'attribut _id pour éviter la requête
+                    fk_field_name = f'{field.name}_id'
+                    if hasattr(self, fk_field_name):
+                        fk_value = getattr(self, fk_field_name, None)
+                        if fk_value is not None:
+                            # TOUJOURS convertir en string pour compatibilité Django
+                            if isinstance(fk_value, ObjectId):
+                                data[fk_field_name] = str(fk_value)
+                            else:
+                                data[fk_field_name] = str(fk_value) if fk_value else None
+                else:
+                    value = getattr(self, field.name, None)
+                    data[field.name] = value
+            
+            # Mettre à jour updated_at
+            data['updated_at'] = datetime.now()
+            
+            # UPDATE dans MongoDB
+            collection.update_one(
+                {'_id': self.pk},
+                {'$set': data}
+            )
+            client.close()
+
+    
+    def get_int_id(self):
+        """
+        Convertit l'ObjectId MongoDB en entier pour les URLs
+        Utilise les 8 derniers caractères de l'ObjectId en hexadécimal
+        """
+        if isinstance(self.pk, ObjectId):
+            return int(str(self.pk)[-8:], 16)
+        return int(self.pk) if self.pk else None
+
+
+class CourseDocument(MongoDBCompatibleModel):
     """
     Document de cours uploadé par l'enseignant (texte ou PDF)
     """
@@ -73,7 +187,7 @@ class CourseDocument(models.Model):
         return f"{self.title} ({self.subject})"
 
 
-class GeneratedExercise(models.Model):
+class GeneratedExercise(MongoDBCompatibleModel):
     """
     Exercice généré automatiquement par l'IA à partir d'un document de cours
     """
@@ -167,7 +281,7 @@ class GeneratedExercise(models.Model):
         return f"{self.get_exercise_type_display()} - {self.concept} ({self.difficulty})"
 
 
-class GeneratedTest(models.Model):
+class GeneratedTest(MongoDBCompatibleModel):
     """
     Test/évaluation créé à partir d'exercices générés
     Pont entre exercise_generator et evaluation
@@ -220,10 +334,11 @@ class GeneratedTest(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.title} - {self.exercises.count()} exercices"
+        # Éviter self.exercises.count() pour éviter la récursion
+        return f"{self.title}"
 
 
-class ExerciseGenerationConfig(models.Model):
+class ExerciseGenerationConfig(MongoDBCompatibleModel):
     """
     Configuration pour la génération d'exercices (paramètres par enseignant)
     """
@@ -277,7 +392,7 @@ class ExerciseGenerationConfig(models.Model):
         return f"Config de {self.teacher.username}"
 
 
-class ExerciseSet(models.Model):
+class ExerciseSet(MongoDBCompatibleModel):
     """
     Ensemble d'exercices collectés et prêts à être publiés
     Le prof collecte 4 exercices → crée un set → publie pour les étudiants
@@ -319,7 +434,42 @@ class ExerciseSet(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.title} - {self.exercises.count()} exercices ({self.status})"
+        # Éviter self.exercises.count() car ça cause une récursion infinie
+        # avec notre système MongoDB personnalisé
+        return f"{self.title} ({self.status})"
+    
+    def get_exercise_count(self):
+        """Obtenir le nombre d'exercices via MongoDB directement"""
+        # Si un count a déjà été calculé et stocké (par la vue), l'utiliser
+        if hasattr(self, '_exercise_count'):
+            return self._exercise_count
+        
+        # Sinon, calculer via PyMongo
+        from pymongo import MongoClient
+        from django.conf import settings
+        
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        count = db.exercise_generator_exerciseset_exercises.count_documents({
+            'exerciseset_id': str(self.pk)
+        })
+        client.close()
+        return count
+    
+    def get_teacher_name(self):
+        """Obtenir le nom du teacher en évitant la requête ForeignKey"""
+        # Si le nom a déjà été calculé et stocké (par la vue), l'utiliser
+        if hasattr(self, '_teacher_name'):
+            return self._teacher_name
+        
+        # Sinon, essayer de récupérer via ForeignKey (peut échouer avec MongoDB)
+        try:
+            if self.teacher:
+                return self.teacher.get_full_name() or self.teacher.username
+        except:
+            pass
+        
+        return 'Professeur'
     
     def publish(self):
         """Publier le set pour les étudiants"""
@@ -335,7 +485,7 @@ class ExerciseSet(models.Model):
         self.save()
 
 
-class StudentExerciseSubmission(models.Model):
+class StudentExerciseSubmission(MongoDBCompatibleModel):
     """
     Soumission d'un étudiant pour un ExerciseSet
     """
@@ -373,4 +523,10 @@ class StudentExerciseSubmission(models.Model):
         unique_together = [['student', 'exercise_set']]
     
     def __str__(self):
-        return f"{self.student.username} - {self.exercise_set.title} ({self.score}%)"
+        # Éviter les requêtes qui peuvent causer la récursion
+        try:
+            student_name = self.student.username if hasattr(self, 'student') else 'Unknown'
+            set_title = self.exercise_set.title if hasattr(self, 'exercise_set') else 'Unknown'
+            return f"{student_name} - {set_title} ({self.score}%)"
+        except:
+            return f"Submission {self.pk}"

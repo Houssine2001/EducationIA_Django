@@ -137,17 +137,18 @@ class StudentAnalytics:
         
         Args:
             results: QuerySet de Result
-            
         Returns:
             dict: Statistiques de temps d'étude
         """
         from evaluation.models import Submission
         
         # Récupérer toutes les soumissions terminées
+        # FIX: Utiliser filter au lieu d'exclude pour compatibilité Djongo
         submissions = Submission.objects.filter(
             student=self.user,
-            status='completed'
-        ).exclude(submitted_at__isnull=True)
+            status='completed',
+            submitted_at__isnull=False  # Au lieu de exclude(submitted_at__isnull=True)
+        )
         
         total_minutes = 0
         study_sessions = []

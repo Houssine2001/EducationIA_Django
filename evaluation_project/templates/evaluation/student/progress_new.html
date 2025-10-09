@@ -186,6 +186,47 @@
         color: white;
     }
     
+    /* Badges IA/Manuel */
+    .badge-ai {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        animation: pulse-ai 2s infinite;
+    }
+    
+    @keyframes pulse-ai {
+        0%, 100% { box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3); }
+        50% { box-shadow: 0 2px 15px rgba(102, 126, 234, 0.5); }
+    }
+    
+    .badge-manual {
+        background: #6c757d;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .test-row-ai {
+        border-left: 4px solid #667eea !important;
+        background: linear-gradient(90deg, rgba(102, 126, 234, 0.05) 0%, rgba(255, 255, 255, 1) 5%);
+    }
+    
+    .test-row-ai:hover {
+        background: linear-gradient(90deg, rgba(102, 126, 234, 0.1) 0%, rgba(247, 250, 252, 1) 5%);
+    }
+    
     .fade-in {
         animation: fadeIn 0.6s ease-in;
     }
@@ -240,8 +281,14 @@
                 <div class="stat-icon" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
                     <i class="fas fa-clipboard-check"></i>
                 </div>
-                <h3 class="mb-1" style="font-size: 2rem; font-weight: 700;">{{ results|length }}</h3>
+                <h3 class="mb-1" style="font-size: 2rem; font-weight: 700;">{{ total_tests }}</h3>
                 <p class="text-muted mb-0">Tests Complétés</p>
+                <small class="text-muted">
+                    <i class="fas fa-user-tie"></i> {{ manual_tests_count }} manuels
+                    {% if ai_tests_count > 0 %}
+                    • <i class="fas fa-robot"></i> {{ ai_tests_count }} IA
+                    {% endif %}
+                </small>
             </div>
         </div>
         
@@ -487,37 +534,62 @@
                 </thead>
                 <tbody>
                     {% for result in results %}
-                    <tr>
+                    <tr class="{% if result.type == 'ai' %}test-row-ai{% endif %}">
                         <td>
                             <i class="far fa-calendar me-2 text-muted"></i>
-                            {{ result.created_at|date:"d/m/Y" }}
+                            {{ result.date|date:"d/m/Y" }}
                         </td>
                         <td>
-                            <strong>{{ result.test.title|truncatewords:8 }}</strong>
+                            <strong>{{ result.title|truncatewords:8 }}</strong>
+                            {% if result.type == 'ai' %}
+                            <span class="badge-ai ms-2">
+                                <i class="fas fa-robot"></i> IA
+                            </span>
+                            {% else %}
+                            <span class="badge-manual ms-2">
+                                <i class="fas fa-user-tie"></i> Manuel
+                            </span>
+                            {% endif %}
                         </td>
                         <td>
-                            <span class="badge bg-secondary">{{ result.test.subject }}</span>
+                            <span class="badge bg-secondary">{{ result.subject }}</span>
                         </td>
                         <td>
-                            <strong>{{ result.total_score|floatformat:1 }}</strong> / {{ result.test.total_points|floatformat:1 }} pts
+                            {% if result.type == 'manual' %}
+                            <strong>{{ result.result_obj.total_score|floatformat:1 }}</strong> / {{ result.result_obj.test.total_points|floatformat:1 }} pts
+                            {% else %}
+                            <strong>{{ result.total_score|floatformat:1 }}</strong> / {{ result.total_points|floatformat:1 }} pts
+                            {% endif %}
                         </td>
                         <td>
-                            <span class="score-badge {% if result.percentage_score >= 90 %}score-excellent{% elif result.percentage_score >= 70 %}score-good{% elif result.percentage_score >= 50 %}score-average{% else %}score-poor{% endif %}">
-                                {{ result.percentage_score|floatformat:1 }}%
+                            <span class="score-badge {% if result.score >= 90 %}score-excellent{% elif result.score >= 70 %}score-good{% elif result.score >= 50 %}score-average{% else %}score-poor{% endif %}">
+                                {{ result.score|floatformat:1 }}%
                             </span>
                         </td>
                         <td>
+                            {% if result.type == 'manual' %}
+                            <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 1rem; padding: 8px 15px;">
+                                {{ result.result_obj.grade }}
+                            </span>
+                            {% else %}
                             <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 1rem; padding: 8px 15px;">
                                 {{ result.grade }}
                             </span>
+                            {% endif %}
                         </td>
                         <td>
-                            <a href="{% url 'evaluation:view_result' result.id %}" class="btn btn-sm btn-primary">
+                            {% if result.type == 'manual' %}
+                            <a href="{% url 'evaluation:view_result' result.result_obj.id %}" class="btn btn-sm btn-primary">
                                 <i class="fas fa-eye me-1"></i> Détails
                             </a>
-                            <a href="{% url 'evaluation:test_history' result.test.id %}" class="btn btn-sm btn-outline-secondary">
+                            <a href="{% url 'evaluation:test_history' result.test_id %}" class="btn btn-sm btn-outline-secondary">
                                 <i class="fas fa-history me-1"></i> Historique
                             </a>
+                            {% else %}
+                            <a href="{% url 'exercise_generator:student_exercise_result' result.set_id %}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-eye me-1"></i> Détails
+                            </a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

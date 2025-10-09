@@ -185,20 +185,42 @@ class ExerciseGenerationService:
                 else:
                     options_data = {}
                 
-                # Création de l'exercice
-                exercise = GeneratedExercise.objects.create(
-                    source_document=document,
-                    exercise_type=exercise_type,
-                    question_text=exercise_data['question'],
-                    concept=exercise_data.get('concept', 'Concept général'),
-                    topic=document.topic or document.subject,
-                    difficulty=exercise_data.get('difficulty', 'medium'),
-                    options_data=options_data,
-                    explanation=exercise_data.get('explanation', ''),
-                    source_sentence=exercise_data.get('source_sentence', ''),
-                    quality_score=exercise_data.get('quality_score', 0.5),
-                    status='draft'  # Par défaut en brouillon
-                )
+                # Création de l'exercice via PyMongo (contourne bug ObjectId)
+                from pymongo import MongoClient
+                from django.conf import settings
+                from bson import ObjectId as BsonObjectId
+                from datetime import datetime
+                
+                client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+                db = client[settings.MONGO_DB_NAME]
+                
+                exercise_doc = {
+                    'source_document_id': document.pk,  # ObjectId du document
+                    'exercise_type': exercise_type,
+                    'question_text': exercise_data['question'],
+                    'concept': exercise_data.get('concept', 'Concept général'),
+                    'topic': document.topic or document.subject,
+                    'difficulty': exercise_data.get('difficulty', 'medium'),
+                    'options_data': options_data,
+                    'explanation': exercise_data.get('explanation', ''),
+                    'source_sentence': exercise_data.get('source_sentence', ''),
+                    'quality_score': exercise_data.get('quality_score', 0.5),
+                    'status': 'draft',
+                    'validated_by_id': None,
+                    'validation_notes': None,
+                    'created_at': datetime.now(),
+                    'updated_at': datetime.now(),
+                }
+                
+                # Insérer directement dans MongoDB
+                result = db.generated_exercises.insert_one(exercise_doc)
+                
+                # Créer instance Django (retirer _id du dict)
+                exercise_id = exercise_doc.pop('_id', None)  # Retirer _id si MongoDB l'a ajouté
+                exercise = GeneratedExercise(**exercise_doc)
+                exercise.pk = result.inserted_id
+                exercise._state.adding = False
+                exercise._state.db = 'default'
                 
                 saved_exercises.append(exercise)
                 

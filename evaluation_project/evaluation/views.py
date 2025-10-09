@@ -281,6 +281,44 @@ def student_dashboard(request):
     # 5. TESTS DISPONIBLES ET EN COURS
     available_tests = TestService.get_student_available_tests(request.user)
     
+    # 5.1 RÉCUPÉRER AUSSI LES EXERCISESETS IA PUBLIÉS
+    from pymongo import MongoClient
+    from django.conf import settings
+    
+    try:
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        
+        # Récupérer les ExerciseSets publiés (tests IA)
+        ai_exercise_sets_data = list(db.exercise_sets.find({'status': 'published'}).sort('published_at', -1).limit(10))
+        
+        # Récupérer les IDs des sets déjà complétés par l'étudiant
+        completed_submissions = db.student_exercise_submissions.find({
+            'student_id': request.user.id,
+            'status': 'completed'
+        })
+        completed_set_ids = [str(sub.get('exercise_set_id', '')) for sub in completed_submissions]
+        
+        # Créer une liste d'objets pour le template
+        ai_exercise_sets = []
+        for set_data in ai_exercise_sets_data:
+            ai_exercise_sets.append({
+                'id': str(set_data['_id']),
+                'title': set_data.get('title', 'Sans titre'),
+                'description': set_data.get('description', ''),
+                'exercise_count': db.exercise_generator_exerciseset_exercises.count_documents({
+                    'exerciseset_id': str(set_data['_id'])
+                }),
+                'is_completed': str(set_data['_id']) in completed_set_ids,
+                'published_at': set_data.get('published_at'),
+                'teacher_name': 'IA Generator'  # Vous pouvez récupérer le vrai nom du prof si nécessaire
+            })
+        
+        client.close()
+    except Exception as e:
+        print(f"Erreur récupération ExerciseSets: {e}")
+        ai_exercise_sets = []
+    
     # Tests en cours (non terminés)
     in_progress_submissions = Submission.objects.filter(
         student=request.user,
@@ -352,9 +390,10 @@ def student_dashboard(request):
         
         # Tests et résultats
         'available_tests': available_tests[:6],  # Top 6 tests disponibles
+        'ai_exercise_sets': ai_exercise_sets,  # Tests IA (ExerciseSets)
         'in_progress_submissions': in_progress_submissions,
         'recent_results': recent_results,
-        'pending_tests': len(available_tests),
+        'pending_tests': len(available_tests) + len(ai_exercise_sets),  # Total tests + exerciseSets
         
         # Alertes
         'alerts': alerts,
@@ -363,6 +402,65 @@ def student_dashboard(request):
         'has_activity': analytics_data['metadata']['total_tests'] > 0,
         'is_new_student': created or analytics_data['metadata']['total_tests'] == 0,
     }
+    
+    # AJOUTER LES STATISTIQUES DES TESTS IA
+    try:
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        
+        # Récupérer toutes les soumissions IA de l'étudiant
+        ai_submissions = list(db.student_exercise_submissions.find({
+            'student_id': request.user.id,
+            'status': 'completed'
+        }))
+        
+        if len(ai_submissions) > 0:
+            # Calculer les stats IA
+            ai_total_tests = len(ai_submissions)
+            ai_scores = [s.get('score', 0) for s in ai_submissions]
+            ai_average_score = sum(ai_scores) / len(ai_scores) if ai_scores else 0
+            ai_tests_passed = sum(1 for s in ai_submissions if s.get('score', 0) >= 60)
+            
+            # Combiner avec les stats manuelles
+            manual_total_tests = analytics_data['metadata']['total_tests']
+            manual_average_score = analytics_data['scores'].get('average', 0)
+            
+            combined_total_tests = manual_total_tests + ai_total_tests
+            combined_average_score = ((manual_average_score * manual_total_tests) + (ai_average_score * ai_total_tests)) / combined_total_tests if combined_total_tests > 0 else 0
+            combined_tests_passed = analytics_data['metadata'].get('tests_passed', 0) + ai_tests_passed
+            
+            # Ajouter au contexte
+            context['combined_stats'] = {
+                'total_tests': combined_total_tests,
+                'average_score': combined_average_score,
+                'tests_passed': combined_tests_passed,
+                'manual_tests': manual_total_tests,
+                'ai_tests': ai_total_tests,
+                'has_ai_tests': ai_total_tests > 0
+            }
+        else:
+            # Pas de tests IA
+            context['combined_stats'] = {
+                'total_tests': analytics_data['metadata'].get('total_tests', 0),
+                'average_score': analytics_data['scores'].get('average', 0),
+                'tests_passed': analytics_data['metadata'].get('tests_passed', 0),
+                'manual_tests': analytics_data['metadata'].get('total_tests', 0),
+                'ai_tests': 0,
+                'has_ai_tests': False
+            }
+        
+        client.close()
+    except Exception as e:
+        print(f"Erreur calcul stats IA: {e}")
+        # Fallback aux stats manuelles uniquement
+        context['combined_stats'] = {
+            'total_tests': analytics_data['metadata'].get('total_tests', 0),
+            'average_score': analytics_data['scores'].get('average', 0),
+            'tests_passed': analytics_data['metadata'].get('tests_passed', 0),
+            'manual_tests': analytics_data['metadata'].get('total_tests', 0),
+            'ai_tests': 0,
+            'has_ai_tests': False
+        }
     
     return render(request, 'evaluation/student/dashboard.html', context)
 
@@ -567,40 +665,182 @@ def student_progress(request):
     - Analyse détaillée des points faibles par IA
     - Recommandations d'apprentissage
     - Historique complet des résultats
+    INCLUT LES TESTS MANUELS ET LES TESTS IA
     """
     from .analytics import StudentAnalytics
     from .gamification import GamificationService
+    from pymongo import MongoClient
+    from django.conf import settings
+    from bson.objectid import ObjectId
+    from collections import defaultdict
+    from datetime import timedelta
     
     # Récupérer le profil
     profile = get_object_or_404(UserProfile, user=request.user)
     
-    # 1. GÉNÉRATION DES ANALYTICS COMPLÈTES
+    # 1. GÉNÉRATION DES ANALYTICS COMPLÈTES (TESTS MANUELS)
     analytics_service = StudentAnalytics(profile)
     analytics_data = analytics_service.get_complete_statistics()
     
-    # 2. RÉCUPÉRER TOUS LES RÉSULTATS POUR GRAPHIQUES
-    all_results = Result.objects.filter(
+    # 2. RÉCUPÉRER TOUS LES RÉSULTATS MANUELS
+    all_manual_results = Result.objects.filter(
         student=request.user
     ).select_related('test').order_by('-created_at')
     
-    # 3. PERFORMANCES PAR MATIÈRE (pour graphiques)
+    # 2.1 RÉCUPÉRER TOUS LES RÉSULTATS IA
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
+    ai_submissions = list(db.student_exercise_submissions.find({
+        'student_id': request.user.id,
+        'status': 'completed'
+    }).sort('submitted_at', -1))
+    
+    # Récupérer les infos des ExerciseSets pour les soumissions IA
+    ai_results_with_details = []
+    for submission in ai_submissions:
+        set_id = submission.get('exercise_set_id')
+        if set_id:
+            set_data = db.exercise_sets.find_one({'_id': ObjectId(set_id)})
+            if set_data:
+                # Récupérer le vrai subject depuis le CourseDocument
+                subject = 'Général'  # Fallback par défaut
+                source_doc_id = set_data.get('source_document_id')
+                if source_doc_id:
+                    try:
+                        doc_data = db.course_documents.find_one({'_id': ObjectId(source_doc_id)})
+                        if doc_data and doc_data.get('subject'):
+                            subject = doc_data.get('subject').capitalize()
+                    except:
+                        pass
+                
+                ai_results_with_details.append({
+                    'submission': submission,
+                    'set_data': set_data,
+                    'score': submission.get('score', 0),
+                    'submitted_at': submission.get('submitted_at'),
+                    'subject': subject
+                })
+    
+    client.close()
+    client.close()
+    
+    # 3. COMBINER LES RÉSULTATS MANUELS ET IA POUR L'HISTORIQUE
+    # Créer une liste unifiée pour le tableau
+    all_combined_results = []
+    
+    # Ajouter les résultats manuels
+    for result in all_manual_results:
+        all_combined_results.append({
+            'type': 'manual',
+            'date': result.created_at,
+            'title': result.test.title,
+            'subject': result.test.subject or 'Général',
+            'score': result.percentage_score,
+            'result_obj': result,
+            'test_id': result.test.id
+        })
+    
+    # Ajouter les résultats IA
+    for ai_result in ai_results_with_details:
+        # Assurer que la date est timezone-aware
+        submitted_at = ai_result['submitted_at']
+        if submitted_at and timezone.is_naive(submitted_at):
+            submitted_at = timezone.make_aware(submitted_at)
+        elif not submitted_at:
+            submitted_at = timezone.now()
+        
+        # Calculer le score en points (comme les tests manuels)
+        submission = ai_result['submission']
+        total_count = submission.get('total_count', 0)
+        correct_count = submission.get('correct_count', 0)
+        score_percentage = ai_result['score']
+        
+        # Score sur 100 points
+        total_score = (score_percentage / 100) * total_count if total_count > 0 else 0
+        
+        # Calculer la note (grade) comme dans TestResult.assign_grade()
+        if score_percentage >= 90:
+            grade = 'A+'
+        elif score_percentage >= 85:
+            grade = 'A'
+        elif score_percentage >= 80:
+            grade = 'B+'
+        elif score_percentage >= 75:
+            grade = 'B'
+        elif score_percentage >= 70:
+            grade = 'C+'
+        elif score_percentage >= 65:
+            grade = 'C'
+        elif score_percentage >= 60:
+            grade = 'D'
+        else:
+            grade = 'F'
+        
+        all_combined_results.append({
+            'type': 'ai',
+            'date': submitted_at,
+            'title': ai_result['set_data'].get('title', 'Test IA'),
+            'subject': ai_result['subject'],
+            'score': score_percentage,
+            'total_score': round(total_score, 1),  # Score obtenu en points
+            'total_points': total_count,  # Total de questions
+            'correct_count': correct_count,
+            'grade': grade,  # Note lettre
+            'set_id': str(ai_result['set_data']['_id']),
+            'submission': ai_result['submission']
+        })
+    
+    # Trier par date décroissante
+    all_combined_results.sort(key=lambda x: x['date'], reverse=True)
+    
+    # 4. PERFORMANCES PAR MATIÈRE (COMBINÉES)
     performance_by_subject = {}
+    
+    # Ajouter performances manuelles
     for subject, data in analytics_data['subjects'].items():
         performance_by_subject[subject] = {
             'avg_score': data['average'],
             'count': data['count'],
             'trend': data['trend'],
             'last_score': data['last_score'],
-            'tests': data['tests']
+            'tests': data['tests'],
+            'scores': []  # Pour recalculer
         }
+        # Récupérer les scores individuels
+        for test_data in data['tests']:
+            performance_by_subject[subject]['scores'].append(test_data['score'])
     
-    # 4. ANALYSER LES FAIBLESSES AVEC IA
+    # Ajouter performances IA
+    for ai_result in ai_results_with_details:
+        subject = ai_result['subject']
+        if subject not in performance_by_subject:
+            performance_by_subject[subject] = {
+                'avg_score': 0,
+                'count': 0,
+                'trend': 'stable',
+                'last_score': 0,
+                'tests': [],
+                'scores': []
+            }
+        
+        performance_by_subject[subject]['scores'].append(ai_result['score'])
+        performance_by_subject[subject]['count'] += 1
+    
+    # Recalculer les moyennes
+    for subject in performance_by_subject:
+        scores = performance_by_subject[subject]['scores']
+        if scores:
+            performance_by_subject[subject]['avg_score'] = sum(scores) / len(scores)
+            performance_by_subject[subject]['last_score'] = scores[-1] if scores else 0
+    
+    # 5. ANALYSER LES FAIBLESSES AVEC IA
     weaknesses_analysis = None
-    if all_results.count() >= 2:
+    if all_manual_results.count() >= 2:
         try:
             ai_services = get_ai_services()
             # Prendre les 10 derniers APRÈS le tri
-            recent_results = all_results.order_by('-created_at')[:10]
+            recent_results = all_manual_results.order_by('-created_at')[:10]
             weaknesses_analysis = ai_services['weakness_analyzer'].identify_weaknesses(
                 profile, list(recent_results)  # Convertir en liste pour éviter les problèmes de slice
             )
@@ -613,18 +853,46 @@ def student_progress(request):
                 'recommendations': profile.ai_recommendations or []
             }
     
-    # 5. GAMIFICATION
+    # 6. GAMIFICATION
     gamification_service = GamificationService(profile)
     level_info = gamification_service.get_level_info()
     student_rank = gamification_service.get_student_rank(period='all_time')
     
-    # 6. PRÉPARER LES DONNÉES POUR LES GRAPHIQUES
+    # 7. PRÉPARER LES DONNÉES POUR LES GRAPHIQUES (COMBINÉS)
     # Données de progression temporelle (pour Chart.js)
+    progression_data_combined = []
+    
+    # Ajouter tests manuels
+    for p in analytics_data['progression']['progression_data']:
+        progression_data_combined.append({
+            'date': p['date'],
+            'score': p['score'],
+            'test_name': p['test_name'],
+            'type': 'manual'
+        })
+    
+    # Ajouter tests IA
+    for ai_result in ai_results_with_details:
+        progression_data_combined.append({
+            'date': ai_result['submitted_at'].strftime('%d/%m') if ai_result['submitted_at'] else '',
+            'score': ai_result['score'],
+            'test_name': ai_result['set_data'].get('title', 'Test IA'),
+            'type': 'ai'
+        })
+    
+    # Trier par date
+    progression_data_combined.sort(key=lambda x: x['date'])
+    
+    # Calculer moyenne mobile
+    for i, item in enumerate(progression_data_combined):
+        window = progression_data_combined[max(0, i-2):i+1]
+        item['moving_average'] = sum(d['score'] for d in window) / len(window)
+    
     progression_chart_data = {
-        'labels': [p['date'] for p in analytics_data['progression']['progression_data']],
-        'scores': [p['score'] for p in analytics_data['progression']['progression_data']],
-        'moving_average': [p['moving_average'] for p in analytics_data['progression']['progression_data']],
-        'test_names': [p['test_name'] for p in analytics_data['progression']['progression_data']]
+        'labels': [p['date'] for p in progression_data_combined],
+        'scores': [p['score'] for p in progression_data_combined],
+        'moving_average': [p['moving_average'] for p in progression_data_combined],
+        'test_names': [p['test_name'] for p in progression_data_combined]
     }
     
     # Données par matière (pour Chart.js)
@@ -654,69 +922,50 @@ def student_progress(request):
         'hours': [round(weekly_study_time[week] / 60, 2) for week in sorted(weekly_study_time.keys())]
     }
     
-    # 8. PRÉPARER DONNÉES STRUCTURÉES POUR FAIBLESSES/FORCES
-    # Utiliser les données du profil mises à jour par analyze_student_strengths
-    # au lieu de recalculer (plus précis et cohérent)
+    # 8. PRÉPARER DONNÉES STRUCTURÉES POUR FAIBLESSES/FORCES (COMBINÉS)
+    # Analyser les performances combinées (manuels + IA)
     
-    # Convertir profile.strengths (liste de strings) en format dict pour le template
     strong_areas = {}
-    if profile.strengths:
-        for i, strength in enumerate(profile.strengths, 1):
-            # Format: "Excellence en Mathématiques (moyenne 91.2%)" 
-            # ou "Excellente performance globale (76.3%)"
-            strong_areas[f"Force {i}"] = {
-                'total': 1,
-                'correct': 1,
-                'score': 100,  # Afficher comme point fort
-                'description': strength
-            }
-    
-    # Convertir profile.weaknesses (liste de strings) en format dict pour le template
     weak_areas = {}
-    if profile.weaknesses:
-        for i, weakness in enumerate(profile.weaknesses, 1):
-            # Format: "À améliorer en Chimie (moyenne 56.5%)"
-            # ou "Irrégularité en Histoire (écart de 37%)"
-            weak_areas[f"Lacune {i}"] = {
-                'total': 1,
+    
+    # Analyser par matière en utilisant performance_by_subject (déjà combiné)
+    for subject, data in performance_by_subject.items():
+        if data['avg_score'] >= 70:
+            # Point fort
+            strong_areas[subject] = {
+                'total': data['count'],
+                'correct': data['count'],
+                'score': data['avg_score'],
+                'description': f"Excellente performance en {subject} (moyenne {data['avg_score']:.1f}%)"
+            }
+        else:
+            # Point faible
+            weak_areas[subject] = {
+                'total': data['count'],
                 'correct': 0,
-                'score': 40,  # Afficher comme point faible
-                'description': weakness
+                'score': data['avg_score'],
+                'description': f"À améliorer en {subject} (moyenne {data['avg_score']:.1f}%)"
             }
     
-    # Fallback: si profile.strengths/weaknesses sont vides, analyser les résultats
-    if not strong_areas and not weak_areas and all_results.count() > 0:
-        for result in all_results[:20]:  # Analyser les 20 derniers tests
-            test = result.test
-            # Calculer le score en %
-            percentage = (result.total_score / test.total_points * 100) if test.total_points > 0 else 0
-            
-            # Clé: matière du test
-            key = test.subject or "Général"
-            
-            if key not in weak_areas:
-                weak_areas[key] = {'total': 0, 'correct': 0, 'score': 0}
-                strong_areas[key] = {'total': 0, 'correct': 0, 'score': 0}
-            
-            # Compter les questions
-            weak_areas[key]['total'] += 1
-            strong_areas[key]['total'] += 1
-            
-            if percentage >= 70:
-                strong_areas[key]['correct'] += 1
-            else:
-                weak_areas[key]['correct'] += 1
+    # Si toujours vide, utiliser profile.strengths/weaknesses
+    if not strong_areas and not weak_areas:
+        if profile.strengths:
+            for i, strength in enumerate(profile.strengths, 1):
+                strong_areas[f"Force {i}"] = {
+                    'total': 1,
+                    'correct': 1,
+                    'score': 100,
+                    'description': strength
+                }
         
-        # Calculer les scores
-        for key in weak_areas:
-            if weak_areas[key]['total'] > 0:
-                weak_areas[key]['score'] = (weak_areas[key]['correct'] / weak_areas[key]['total']) * 100
-            if strong_areas[key]['total'] > 0:
-                strong_areas[key]['score'] = (strong_areas[key]['correct'] / strong_areas[key]['total']) * 100
-        
-        # Filtrer: faiblesses = score < 70%, forces = score >= 70%
-        weak_areas = {k: v for k, v in weak_areas.items() if v['score'] < 70 and v['total'] > 0}
-        strong_areas = {k: v for k, v in strong_areas.items() if v['score'] >= 70 and v['total'] > 0}
+        if profile.weaknesses:
+            for i, weakness in enumerate(profile.weaknesses, 1):
+                weak_areas[f"Lacune {i}"] = {
+                    'total': 1,
+                    'correct': 0,
+                    'score': 40,
+                    'description': weakness
+                }
     
     # 9. GÉNÉRER RECOMMANDATIONS SI VIDES
     if not profile.ai_recommendations or len(profile.ai_recommendations) == 0:
@@ -749,28 +998,54 @@ def student_progress(request):
         profile.ai_recommendations = recommendations
         profile.save()
     
-    # 10. CONSTRUCTION DU CONTEXTE
+    # 10. CONSTRUCTION DU CONTEXTE AVEC DONNÉES COMBINÉES
+    
+    # Calculer les statistiques combinées
+    total_tests_combined = all_manual_results.count() + len(ai_submissions)
+    
+    # Calculer score moyen combiné
+    manual_total = all_manual_results.count()
+    manual_avg = analytics_data['scores'].get('average', 0)
+    ai_total = len(ai_submissions)
+    ai_avg = sum(s.get('score', 0) for s in ai_submissions) / ai_total if ai_total > 0 else 0
+    
+    if total_tests_combined > 0:
+        combined_average_score = ((manual_avg * manual_total) + (ai_avg * ai_total)) / total_tests_combined
+    else:
+        combined_average_score = 0
+    
+    # Calculer tendance combinée
+    if len(progression_data_combined) >= 3:
+        recent_scores = [p['score'] for p in progression_data_combined[-3:]]
+        old_scores = [p['score'] for p in progression_data_combined[:3]]
+        if old_scores and recent_scores:
+            improvement = (sum(recent_scores) / len(recent_scores)) - (sum(old_scores) / len(old_scores))
+        else:
+            improvement = analytics_data['progression']['improvement']
+    else:
+        improvement = analytics_data['progression']['improvement']
+    
     context = {
         # Profil et analytics
         'profile': profile,
         'analytics': {
             'overview': {
-                'average_score': analytics_data['scores'].get('average', 0),
-                'total_tests': analytics_data['metadata']['total_tests'],
+                'average_score': combined_average_score,  # Score combiné
+                'total_tests': total_tests_combined,      # Tests combinés
             },
             'study_time': {
                 'total_hours': analytics_data['study_time']['total_hours'],
             },
             'progression': {
-                'trend': analytics_data['progression']['trend'],
-                'improvement': analytics_data['progression']['improvement'],
+                'trend': 'improving' if improvement > 0 else 'declining' if improvement < 0 else 'stable',
+                'improvement': improvement,
             },
-            'weak_areas': weak_areas,  # Utiliser weak_areas au lieu de final_weak_areas
-            'strong_areas': strong_areas,  # Utiliser strong_areas au lieu de final_strong_areas
+            'weak_areas': weak_areas,
+            'strong_areas': strong_areas,
         },
-        'results': all_results,
+        'results': all_combined_results,  # Liste combinée pour le tableau
         
-        # Performances par matière
+        # Performances par matière (déjà combinées)
         'performance_by_subject': performance_by_subject,
         
         # Analyse IA des faiblesses
@@ -781,20 +1056,22 @@ def student_progress(request):
         'student_rank': student_rank,
         'badges': profile.badges or [],
         
-        # Données pour graphiques (Chart.js)
+        # Données pour graphiques (Chart.js) - COMBINÉES
         'progression_chart_data': progression_chart_data,
         'subjects_chart_data': subjects_chart_data,
         'study_time_chart_data': study_time_chart_data,
         
-        # Statistiques rapides
-        'total_tests': analytics_data['metadata']['total_tests'],
-        'average_score': analytics_data['scores'].get('average', 0),
+        # Statistiques rapides - COMBINÉES
+        'total_tests': total_tests_combined,
+        'average_score': combined_average_score,
         'total_study_hours': analytics_data['study_time']['total_hours'],
-        'improvement_trend': analytics_data['progression']['trend'],
-        'improvement_percentage': analytics_data['progression']['improvement'],
+        'improvement_trend': 'improving' if improvement > 0 else 'declining' if improvement < 0 else 'stable',
+        'improvement_percentage': improvement,
+        'manual_tests_count': manual_total,
+        'ai_tests_count': ai_total,
         
         # Flags
-        'has_data': analytics_data['metadata']['total_tests'] > 0,
+        'has_data': total_tests_combined > 0,
         'has_multiple_subjects': len(performance_by_subject) > 1,
     }
     
@@ -1033,21 +1310,32 @@ def my_tests(request):
     """
     Interface moderne pour afficher tous les tests de l'étudiant.
     Affiche un tableau avec statistiques et graphiques.
+    Inclut les tests manuels ET les tests générés par IA.
     """
     from .models import Test, Result, Submission
     from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
     from collections import defaultdict
     import json
+    from pymongo import MongoClient
+    from django.conf import settings
+    from bson.objectid import ObjectId
     
-    # Récupérer tous les tests publiés
-    all_tests = Test.objects.filter(status='published').order_by('-created_at')
+    # Récupérer tous les tests manuels publiés
+    all_manual_tests = Test.objects.filter(status='published').order_by('-created_at')
+    
+    # Récupérer les tests IA via PyMongo
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
+    ai_exercise_sets = list(db.exercise_sets.find({'status': 'published'}).sort('created_at', -1))
     
     # Préparer les données pour chaque test
     tests_data = []
     all_scores_evolution = []
     subject_scores = defaultdict(list)
     
-    for test in all_tests:
+    # 1. TRAITER LES TESTS MANUELS
+    for test in all_manual_tests:
         # Récupérer les résultats de l'étudiant pour ce test
         results = Result.objects.filter(
             submission__student=request.user,
@@ -1081,8 +1369,68 @@ def my_tests(request):
             'attempts': attempts,
             'best_score': best_score,
             'last_score': last_score,
-            'last_result_id': last_result_id
+            'last_result_id': last_result_id,
+            'source': 'manual',  # Identifier comme test manuel
+            'test_type': 'Manual'
         })
+    
+    # 2. TRAITER LES TESTS IA
+    for set_data in ai_exercise_sets:
+        set_id = str(set_data['_id'])
+        
+        # Récupérer le vrai subject depuis le CourseDocument
+        subject_key = 'Général'  # Fallback par défaut
+        source_doc_id = set_data.get('source_document_id')
+        if source_doc_id:
+            try:
+                doc_data = db.course_documents.find_one({'_id': ObjectId(source_doc_id)})
+                if doc_data and doc_data.get('subject'):
+                    subject_key = doc_data.get('subject').capitalize()
+            except:
+                pass
+        
+        # Récupérer les soumissions de l'étudiant pour ce set
+        submissions = list(db.student_exercise_submissions.find({
+            'student_id': request.user.id,
+            'exercise_set_id': set_id,
+            'status': 'completed'
+        }).sort('submitted_at', -1))
+        
+        attempts = len(submissions)
+        best_score = None
+        last_score = None
+        
+        if attempts > 0:
+            best_score = max(s.get('score', 0) for s in submissions)
+            last_submission = submissions[0]
+            last_score = last_submission.get('score', 0)
+            
+            # Ajouter aux données d'évolution
+            for submission in submissions:
+                submitted_at = submission.get('submitted_at')
+                if submitted_at:
+                    all_scores_evolution.append({
+                        'date': submitted_at.strftime('%d/%m'),
+                        'score': submission.get('score', 0)
+                    })
+            
+            # Ajouter aux scores par matière (utiliser le vrai subject du CourseDocument)
+            subject_scores[subject_key].append(best_score)
+        
+        # Créer un objet compatible pour le template
+        tests_data.append({
+            'ai_set_data': set_data,  # Données brutes MongoDB
+            'ai_set_id': set_id,
+            'attempts': attempts,
+            'best_score': best_score,
+            'last_score': last_score,
+            'source': 'ai',  # Identifier comme test IA
+            'test_type': 'IA'
+        })
+    
+    client.close()
+    
+    client.close()
     
     # Pagination (10 tests par page)
     paginator = Paginator(tests_data, 10)
@@ -1095,24 +1443,46 @@ def my_tests(request):
     except EmptyPage:
         tests_page = paginator.page(paginator.num_pages)
     
-    # Calculer les statistiques globales
-    all_results = Result.objects.filter(
+    # Calculer les statistiques globales (tests manuels + IA)
+    # Tests manuels
+    manual_results = Result.objects.filter(
         submission__student=request.user,
         submission__status='graded'
     )
     
-    total_tests = all_results.count()
-    average_score = all_results.aggregate(Avg('percentage_score'))['percentage_score__avg'] or 0
-    tests_passed = sum(1 for r in all_results if r.percentage_score >= r.submission.test.passing_score)
+    manual_tests_count = manual_results.count()
+    manual_average = manual_results.aggregate(Avg('percentage_score'))['percentage_score__avg'] or 0
+    manual_passed = sum(1 for r in manual_results if r.percentage_score >= r.submission.test.passing_score)
+    manual_time = sum(r.submission.test.duration for r in manual_results) / 60  # En heures
     
-    # Calculer le temps total (estimé)
-    total_time = sum(r.submission.test.duration for r in all_results) / 60  # En heures
+    # Tests IA
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
+    ai_submissions = list(db.student_exercise_submissions.find({
+        'student_id': request.user.id,
+        'status': 'completed'
+    }))
+    
+    ai_tests_count = len(ai_submissions)
+    ai_average = sum(s.get('score', 0) for s in ai_submissions) / ai_tests_count if ai_tests_count > 0 else 0
+    ai_passed = sum(1 for s in ai_submissions if s.get('score', 0) >= 60)  # Seuil 60%
+    
+    client.close()
+    
+    # Statistiques combinées
+    total_tests = manual_tests_count + ai_tests_count
+    average_score = ((manual_average * manual_tests_count) + (ai_average * ai_tests_count)) / total_tests if total_tests > 0 else 0
+    tests_passed = manual_passed + ai_passed
+    total_time = manual_time  # On ne compte que le temps des tests manuels (duration définie)
     
     stats = {
         'total_tests': total_tests,
         'average_score': average_score,
         'tests_passed': tests_passed,
-        'total_time': total_time
+        'total_time': total_time,
+        'manual_tests': manual_tests_count,
+        'ai_tests': ai_tests_count
     }
     
     # Préparer les données pour les graphiques
@@ -1251,8 +1621,10 @@ def students_list(request):
     User = get_user_model()
     
     # Récupérer tous les étudiants (non-staff users avec profil)
+    # FIX: Éviter user__is_staff=False car Djongo ne gère pas bien WHERE NOT
+    # On filtre côté Python après récupération
     students_profiles = UserProfile.objects.filter(
-        user__is_staff=False
+        role='student'  # Utiliser le champ role au lieu de user__is_staff
     ).select_related('user')
     
     students_data = []

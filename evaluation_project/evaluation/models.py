@@ -71,7 +71,7 @@ class UserProfile(models.Model):
     is_active = models.BooleanField(default=True)
     
     class Meta:
-        db_table = 'user_profiles'
+        db_table = 'evaluation_userprofile'  # Nom MongoDB correct
         verbose_name = 'Profil Utilisateur'
         verbose_name_plural = 'Profils Utilisateurs'
         ordering = ['-created_at']
@@ -106,11 +106,24 @@ class Test(models.Model):
         ('archived', 'Archivé'),
     ]
     
+    SOURCE_TYPE_CHOICES = [
+        ('manual', 'Test Manuel (Professeur)'),
+        ('ai_generated', 'Test Généré par IA'),
+    ]
+    
     # Informations de base
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
     subject = models.CharField(max_length=100)  # Matière: Math, Français, etc.
     topic = models.CharField(max_length=200, blank=True, null=True)  # Sujet spécifique
+    
+    # Type de source du test (manuel vs IA)
+    source_type = models.CharField(
+        max_length=20, 
+        choices=SOURCE_TYPE_CHOICES, 
+        default='manual',
+        help_text="Origine du test"
+    )
     
     # Créateur du test
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_tests')
@@ -152,13 +165,28 @@ class Test(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        db_table = 'tests'
+        db_table = 'evaluation_test'  # Nom MongoDB correct
         verbose_name = 'Test'
         verbose_name_plural = 'Tests'
         ordering = ['-created_at']
     
     def __str__(self):
         return f"{self.title} ({self.subject})"
+    
+    def get_source_badge(self):
+        """Retourne le badge HTML pour le type de test"""
+        if self.source_type == 'ai_generated':
+            return '<span class="badge badge-primary"><i class="fas fa-robot"></i> IA Généré</span>'
+        else:
+            return '<span class="badge badge-secondary"><i class="fas fa-user-tie"></i> Manuel</span>'
+    
+    def is_ai_generated(self):
+        """Vérifie si le test est généré par IA"""
+        return self.source_type == 'ai_generated'
+    
+    def is_manual(self):
+        """Vérifie si le test est manuel"""
+        return self.source_type == 'manual'
     
     def update_statistics(self):
         """Mise à jour des statistiques du test"""
@@ -226,7 +254,7 @@ class Question(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        db_table = 'questions'
+        db_table = 'evaluation_question'  # Nom MongoDB correct
         verbose_name = 'Question'
         verbose_name_plural = 'Questions'
         ordering = ['test', 'order']
@@ -300,7 +328,7 @@ class Submission(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        db_table = 'submissions'
+        db_table = 'evaluation_submission'  # Nom MongoDB correct
         verbose_name = 'Soumission'
         verbose_name_plural = 'Soumissions'
         ordering = ['-created_at']
@@ -379,7 +407,7 @@ class Result(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        db_table = 'results'
+        db_table = 'evaluation_result'  # Nom MongoDB correct
         verbose_name = 'Résultat'
         verbose_name_plural = 'Résultats'
         ordering = ['-created_at']

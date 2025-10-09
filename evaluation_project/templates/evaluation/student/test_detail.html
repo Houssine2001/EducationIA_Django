@@ -9,7 +9,18 @@
         <div class="card-body">
             <div class="row">
                 <div class="col-md-8">
-                    <h1 class="display-6 fw-bold mb-3">{{ test.title }}</h1>
+                    <div class="d-flex align-items-center mb-3">
+                        <h1 class="display-6 fw-bold mb-0 me-3">{{ test.title }}</h1>
+                        {% if test.source_type == 'ai_generated' %}
+                        <span class="badge bg-gradient-purple text-white px-3 py-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <i class="fas fa-robot me-1"></i> Généré par IA
+                        </span>
+                        {% else %}
+                        <span class="badge bg-secondary px-3 py-2">
+                            <i class="fas fa-user-tie me-1"></i> Test Manuel
+                        </span>
+                        {% endif %}
+                    </div>
                     
                     <div class="mb-3">
                         <span class="badge bg-info me-2">

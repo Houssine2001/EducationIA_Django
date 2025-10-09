@@ -94,22 +94,22 @@
 
                 {% elif result.exercise.exercise_type == 'true_false' %}
                     <div class="space-y-2 mb-4">
-                        <div class="p-3 rounded-lg {% if result.correct_answer == 'True' %}bg-green-50 border border-green-200{% else %}bg-gray-50 border border-gray-200{% endif %}">
+                        <div class="p-3 rounded-lg {% if result.correct_answer == True %}bg-green-50 border border-green-200{% elif result.student_answer == 'True' %}bg-red-50 border border-red-200{% else %}bg-gray-50 border border-gray-200{% endif %}">
                             <span class="font-semibold text-green-600">✓ VRAI</span>
-                            {% if result.correct_answer == 'True' %}
+                            {% if result.correct_answer == True %}
                                 <span class="ml-2 text-green-600 font-semibold">← Bonne réponse</span>
                             {% endif %}
-                            {% if result.student_answer == 'True' and result.correct_answer != 'True' %}
-                                <span class="ml-2 text-red-600 font-semibold">← Votre réponse</span>
+                            {% if result.student_answer == 'True' and result.correct_answer != True %}
+                                <span class="ml-2 text-red-600 font-semibold">← Votre réponse (incorrecte)</span>
                             {% endif %}
                         </div>
-                        <div class="p-3 rounded-lg {% if result.correct_answer == 'False' %}bg-green-50 border border-green-200{% else %}bg-gray-50 border border-gray-200{% endif %}">
+                        <div class="p-3 rounded-lg {% if result.correct_answer == False %}bg-green-50 border border-green-200{% elif result.student_answer == 'False' %}bg-red-50 border border-red-200{% else %}bg-gray-50 border border-gray-200{% endif %}">
                             <span class="font-semibold text-red-600">✗ FAUX</span>
-                            {% if result.correct_answer == 'False' %}
+                            {% if result.correct_answer == False %}
                                 <span class="ml-2 text-green-600 font-semibold">← Bonne réponse</span>
                             {% endif %}
-                            {% if result.student_answer == 'False' and result.correct_answer != 'False' %}
-                                <span class="ml-2 text-red-600 font-semibold">← Votre réponse</span>
+                            {% if result.student_answer == 'False' and result.correct_answer != False %}
+                                <span class="ml-2 text-red-600 font-semibold">← Votre réponse (incorrecte)</span>
                             {% endif %}
                         </div>
                     </div>

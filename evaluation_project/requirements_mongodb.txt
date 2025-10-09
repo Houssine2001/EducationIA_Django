@@ -1,0 +1,60 @@
+# ===================================
+# Évaluation & Suivi IA - Requirements
+# MONGODB VERSION
+# Date: 9 octobre 2025
+# ===================================
+
+# ========== DJANGO FRAMEWORK ==========
+Django==4.1.13  # Version compatible avec Djongo
+asgiref==3.7.2
+sqlparse==0.4.4
+
+# ========== MONGODB INTEGRATION ==========
+djongo==1.3.6  # Connecteur MongoDB pour Django
+pymongo==3.12.3  # Driver MongoDB Python (version compatible avec Djongo)
+dnspython==2.3.0  # Résolution DNS pour MongoDB Atlas
+
+# ========== PYTHON UTILITIES ==========
+six==1.16.0
+pytz==2023.3
+tzdata==2023.3
+typing_extensions==4.7.1
+
+# ========== HTTP REQUESTS (HUGGING FACE API) ==========
+requests==2.31.0
+certifi==2023.7.22
+charset-normalizer==3.2.0
+idna==3.4
+urllib3==2.0.4
+
+# ========== GÉNÉRATEUR D'EXERCICES IA ==========
+# Extraction de texte depuis PDF
+PyPDF2==3.0.1
+
+# ========== VARIABLES D'ENVIRONNEMENT ==========
+python-decouple==3.8  # Pour .env
+
+# ========== OPTIONNEL (IA Locale Avancée) ==========
+# Décommenter pour exécuter modèles IA localement (consomme beaucoup de RAM)
+# transformers==4.30.0
+# torch==2.0.1
+# spacy==3.7.0  # NLP avancé
+# sentence-transformers==2.2.2  # Embeddings
+
+# ========== OPTIONNEL (API REST) ==========
+# djangorestframework==3.14.0
+# django-cors-headers==4.0.0
+
+# ========== OPTIONNEL (Tests) ==========
+# pytest==7.3.1
+# pytest-django==4.5.2
+
+# ===================================
+# INSTALLATION
+# ===================================
+# pip install -r requirements_mongodb.txt
+#
+# ATTENTION:
+# - Djongo 1.3.6 nécessite Django < 4.2
+# - PyMongo 3.12.3 est la dernière version compatible avec Djongo
+# - Pour Django 4.2+, utiliser MongoDB Motor ou PyMongo directement

@@ -56,10 +56,10 @@
                 {% endif %}
             </span>
         </div>
-        <h3 class="text-3xl font-bold text-gray-800">{{ analytics.scores.average|floatformat:1 }}%</h3>
+        <h3 class="text-3xl font-bold text-gray-800">{{ combined_stats.average_score|floatformat:1 }}%</h3>
         <p class="text-sm text-gray-600 mt-2">Score moyen global</p>
         <div class="mt-4 bg-gray-200 rounded-full h-2">
-            <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500" style="width: {{ analytics.scores.average }}%"></div>
+            <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500" style="width: {{ combined_stats.average_score }}%"></div>
         </div>
     </div>
 
@@ -73,11 +73,13 @@
                 Total
             </span>
         </div>
-        <h3 class="text-3xl font-bold text-gray-800">{{ analytics.metadata.total_tests }}</h3>
+        <h3 class="text-3xl font-bold text-gray-800">{{ combined_stats.total_tests }}</h3>
         <p class="text-sm text-gray-600 mt-2">Tests complétés</p>
         <p class="text-xs text-gray-500 mt-2">
-            <i class="fas fa-clock mr-1"></i>
-            {{ analytics.study_time.total_hours|floatformat:1 }}h d'étude
+            <i class="fas fa-user-tie mr-1"></i> {{ combined_stats.manual_tests }} manuels
+            {% if combined_stats.has_ai_tests %}
+            • <i class="fas fa-robot mr-1"></i> {{ combined_stats.ai_tests }} IA
+            {% endif %}
         </p>
     </div>
 
@@ -346,17 +348,64 @@
                 Tests Disponibles
             </h2>
             <span class="bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-1 rounded-full">
-                {{ available_tests|length }} nouveau{{ available_tests|length|pluralize:"x" }}
+                {{ available_tests|length|add:ai_exercise_sets|length }} nouveau{{ available_tests|length|add:ai_exercise_sets|length|pluralize:"x" }}
             </span>
         </div>
         
-        {% if available_tests %}
+        {% if available_tests or ai_exercise_sets %}
         <div class="space-y-3 max-h-96 overflow-y-auto">
+            <!-- Tests IA (ExerciseSets) en premier -->
+            {% for ai_set in ai_exercise_sets %}
+            <div class="border border-purple-200 rounded-lg p-4 hover:border-purple-300 hover:shadow-md transition-all bg-gradient-to-r from-purple-50 to-white">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center space-x-2 mb-2">
+                            <h3 class="font-semibold text-gray-800">{{ ai_set.title }}</h3>
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                <i class="fas fa-robot mr-1"></i> IA Généré
+                            </span>
+                            {% if ai_set.is_completed %}
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <i class="fas fa-check-circle mr-1"></i> Complété
+                            </span>
+                            {% endif %}
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1 line-clamp-2">{{ ai_set.description|truncatewords:15 }}</p>
+                        <div class="flex items-center space-x-4 mt-3 text-xs text-gray-500">
+                            <span><i class="fas fa-question-circle mr-1"></i>{{ ai_set.exercise_count }} exercice{{ ai_set.exercise_count|pluralize }}</span>
+                            <span><i class="fas fa-user-tie mr-1"></i>{{ ai_set.teacher_name }}</span>
+                        </div>
+                    </div>
+                    {% if ai_set.is_completed %}
+                    <a href="{% url 'exercise_generator:student_exercise_result' ai_set.id %}" class="ml-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors btn-hover-lift">
+                        Voir Résultats
+                    </a>
+                    {% else %}
+                    <a href="{% url 'exercise_generator:student_take_exercise_set' ai_set.id %}" class="ml-4 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors btn-hover-lift">
+                        Commencer
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            
+            <!-- Tests Manuels (Test classiques) -->
             {% for test in available_tests|slice:":5" %}
             <div class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all">
                 <div class="flex items-start justify-between">
                     <div class="flex-1">
-                        <h3 class="font-semibold text-gray-800">{{ test.title }}</h3>
+                        <div class="flex items-center space-x-2 mb-2">
+                            <h3 class="font-semibold text-gray-800">{{ test.title }}</h3>
+                            {% if test.source_type == 'ai_generated' %}
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                <i class="fas fa-robot mr-1"></i> IA Généré
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                <i class="fas fa-user-tie mr-1"></i> Manuel
+                            </span>
+                            {% endif %}
+                        </div>
                         <p class="text-sm text-gray-600 mt-1 line-clamp-2">{{ test.description|truncatewords:15 }}</p>
                         <div class="flex items-center space-x-4 mt-3 text-xs text-gray-500">
                             <span><i class="fas fa-book mr-1"></i>{{ test.subject }}</span>

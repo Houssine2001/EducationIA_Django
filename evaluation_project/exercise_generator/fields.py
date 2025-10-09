@@ -4,6 +4,77 @@ Custom JSONField compatible with older SQLite versions
 import json
 from django.db import models
 from django.core.exceptions import ValidationError
+from bson.objectid import ObjectId
+
+
+class ObjectIdField(models.CharField):
+    """
+    Field pour stocker les ObjectId MongoDB comme des strings
+    """
+    description = "MongoDB ObjectId stored as string"
+
+    def __init__(self, *args, **kwargs):
+        kwargs['max_length'] = 24
+        super().__init__(*args, **kwargs)
+
+    def from_db_value(self, value, expression, connection):
+        if value is None:
+            return None
+        if isinstance(value, ObjectId):
+            return value
+        return ObjectId(value)
+
+    def to_python(self, value):
+        if value is None:
+            return None
+        if isinstance(value, ObjectId):
+            return value
+        return ObjectId(value)
+
+    def get_prep_value(self, value):
+        if value is None:
+            return None
+        if isinstance(value, ObjectId):
+            return str(value)
+        return str(value)
+
+
+class MongoForeignKey(models.ForeignKey):
+    """
+    ForeignKey compatible avec MongoDB qui gère les ObjectId
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    
+    def get_prep_value(self, value):
+        """Convertir ObjectId en string pour la base de données"""
+        if value is None:
+            return None
+        if isinstance(value, ObjectId):
+            return str(value)
+        if isinstance(value, str):
+            return value
+        # Si c'est un objet model, obtenir sa clé primaire
+        if hasattr(value, 'pk'):
+            pk = value.pk
+            if isinstance(pk, ObjectId):
+                return str(pk)
+            return pk
+        return value
+    
+    def to_python(self, value):
+        """Convertir la valeur en ObjectId si nécessaire"""
+        if value is None:
+            return None
+        if isinstance(value, ObjectId):
+            return value
+        # Pour les strings qui ressemblent à des ObjectId
+        if isinstance(value, str) and len(value) == 24:
+            try:
+                return ObjectId(value)
+            except:
+                pass
+        return value
 
 
 class CompatibleJSONField(models.TextField):

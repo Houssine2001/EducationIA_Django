@@ -36,7 +36,7 @@
 
                     <div class="mb-4 pb-4 border-b border-gray-200">
                         <p class="text-xs text-gray-500 mb-1">
-                            📄 {{ set.source_document.title }}
+                            📄 Document: {{ set.source_document_id|truncatechars:12 }}
                         </p>
                         <p class="text-xs text-gray-500">
                             Créé le {{ set.created_at|date:"d/m/Y à H:i" }}
@@ -45,11 +45,11 @@
 
                     <div class="grid grid-cols-2 gap-3 mb-4">
                         <div class="bg-blue-50 p-3 rounded-lg text-center">
-                            <p class="text-2xl font-bold text-blue-600">{{ set.exercises.count }}</p>
+                            <p class="text-2xl font-bold text-blue-600">{{ set.get_exercise_count }}</p>
                             <p class="text-xs text-gray-600">Exercices</p>
                         </div>
                         <div class="bg-green-50 p-3 rounded-lg text-center">
-                            <p class="text-2xl font-bold text-green-600">{{ set.submissions.count }}</p>
+                            <p class="text-2xl font-bold text-green-600">0</p>
                             <p class="text-xs text-gray-600">Soumissions</p>
                         </div>
                     </div>
