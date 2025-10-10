@@ -147,12 +147,12 @@
                                 </td>
                                 <td class="align-middle text-center">
                                     <span class="badge bg-light text-dark">
-                                        {{ test.questions.count }}
+                                        {{ test.question_count|default:0 }}
                                     </span>
                                 </td>
                                 <td class="align-middle text-center">
                                     <span class="badge bg-light text-dark">
-                                        {{ test.submission_count }}
+                                        {{ test.submission_count|default:0 }}
                                     </span>
                                 </td>
                                 <td class="align-middle text-center">

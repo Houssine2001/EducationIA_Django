@@ -37,6 +37,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # Apps personnalisées
+    'evaluation',
+    'exercise_generator',
 ]
 
 MIDDLEWARE = [
@@ -72,10 +75,20 @@ WSGI_APPLICATION = 'EducationIA.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Configuration MongoDB
+MONGO_DB_NAME = 'django_education'
+MONGO_HOST = 'localhost'
+MONGO_PORT = 27017
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'djongo',
+        'NAME': MONGO_DB_NAME,
+        'ENFORCE_SCHEMA': False,
+        'CLIENT': {
+            'host': MONGO_HOST,
+            'port': MONGO_PORT,
+        },
     }
 }
 

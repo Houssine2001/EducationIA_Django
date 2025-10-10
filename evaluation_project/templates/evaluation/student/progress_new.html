@@ -351,6 +351,448 @@
         </div>
     </div>
 
+    <!-- NOUVELLE SECTION: Analyse Détaillée par Concepts -->
+    {% if concept_insights %}
+    <div class="chart-card mb-4">
+        <h4 class="mb-4">
+            <i class="fas fa-microscope text-info me-2"></i>
+            Analyse Détaillée par Concepts
+            <small class="text-muted" style="font-size: 0.85rem; font-weight: 400;">
+                (Basée sur vos réponses aux tests)
+            </small>
+        </h4>
+        
+        {% for subject, insights in concept_insights.items %}
+        <div class="subject-concept-section mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3" style="border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">
+                <h5 style="color: #2d3748; font-weight: 600; margin: 0;">
+                    <i class="fas fa-book me-2"></i>
+                    {{ subject }}
+                </h5>
+                <div>
+                    <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 0.9rem;">
+                        {{ insights.overall_success_rate }}% de réussite
+                    </span>
+                    <span class="badge bg-secondary ms-2">
+                        {{ insights.total_questions }} questions
+                    </span>
+                </div>
+            </div>
+            
+            <div class="row">
+                <!-- Points Forts du Concept -->
+                <div class="col-md-6 mb-3">
+                    <div class="concept-strengths-box" style="background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%); border-left: 4px solid #38a169; padding: 20px; border-radius: 8px;">
+                        <h6 style="color: #22543d; font-weight: 600; margin-bottom: 15px;">
+                            <i class="fas fa-check-circle me-2"></i>
+                            Points Forts (Concepts Maîtrisés)
+                        </h6>
+                        
+                        {% if insights.strengths %}
+                            <ul style="list-style: none; padding-left: 0;">
+                                {% for strength in insights.strengths %}
+                                <li class="mb-2" style="padding: 8px; background: white; border-radius: 6px; border: 1px solid #9ae6b4;">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div style="flex: 1;">
+                                            <strong style="color: #276749;">{{ strength.concept }}</strong>
+                                            <div class="small mt-1" style="color: #2f855a;">
+                                                {% if strength.description %}
+                                                    {{ strength.description|safe }}
+                                                {% else %}
+                                                    {{ strength.correct }}/{{ strength.total }} réponses correctes
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="text-end" style="margin-left: 10px;">
+                                            <div class="badge bg-success" style="font-size: 0.85rem;">
+                                                {{ strength.success_rate }}%
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="small text-muted mb-0">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Pas encore de concepts maîtrisés. Continuez à pratiquer !
+                            </p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Points Faibles du Concept -->
+                <div class="col-md-6 mb-3">
+                    <div class="concept-weaknesses-box" style="background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%); border-left: 4px solid #e53e3e; padding: 20px; border-radius: 8px;">
+                        <h6 style="color: #742a2a; font-weight: 600; margin-bottom: 15px;">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            Points Faibles (À Améliorer)
+                        </h6>
+                        
+                        {% if insights.weaknesses %}
+                            <ul style="list-style: none; padding-left: 0;">
+                                {% for weakness in insights.weaknesses %}
+                                <li class="mb-2" style="padding: 8px; background: white; border-radius: 6px; border: 1px solid #fc8181;">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div style="flex: 1;">
+                                            <strong style="color: #9b2c2c;">{{ weakness.concept }}</strong>
+                                            <div class="small mt-1" style="color: #c53030;">
+                                                {% if weakness.description %}
+                                                    {{ weakness.description|safe }}
+                                                {% else %}
+                                                    {{ weakness.correct }}/{{ weakness.total }} réponses correctes
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="text-end" style="margin-left: 10px;">
+                                            <div class="badge bg-danger" style="font-size: 0.85rem;">
+                                                {{ weakness.success_rate }}%
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="small text-success mb-0">
+                                <i class="fas fa-check-circle me-1"></i>
+                                Aucune faiblesse majeure détectée !
+                            </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recommandations Spécifiques -->
+            {% if insights.recommendations %}
+            <div class="concept-recommendations mt-3" style="background: linear-gradient(135deg, #fffaf0 0%, #feebc8 100%); border-left: 4px solid #ed8936; padding: 15px; border-radius: 8px;">
+                <h6 style="color: #7c2d12; font-weight: 600; margin-bottom: 10px;">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    Recommandations pour {{ subject }}
+                </h6>
+                <ul class="mb-0" style="padding-left: 20px;">
+                    {% for recommendation in insights.recommendations %}
+                    <li class="small mb-1" style="color: #744210;">
+                        {{ recommendation|safe }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- NOUVELLE SECTION: Analyse SÉPARÉE Tests Manuels et IA -->
+    <div class="row mb-4">
+        <!-- Tests Manuels -->
+        <div class="col-lg-6 mb-4">
+            {% if manual_concept_insights %}
+            <div class="chart-card" style="border-left: 4px solid #3182ce;">
+                <h4 class="mb-4" style="color: #2c5282;">
+                    <i class="fas fa-clipboard-check me-2"></i>
+                    📝 Tests Manuels - Analyse Détaillée
+                    <span class="badge bg-primary ms-2">{{ manual_tests_count }} test{{ manual_tests_count|pluralize }}</span>
+                </h4>
+                
+                {% for subject, insights in manual_concept_insights.items %}
+                <div class="mb-4 p-3" style="background: #f7fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0" style="color: #2d3748; font-weight: 600;">
+                            <i class="fas fa-book-open me-2"></i>{{ subject }}
+                        </h5>
+                        <span class="badge" style="background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);">
+                            {{ insights.overall_success_rate }}%
+                        </span>
+                    </div>
+                    
+                    <!-- ANALYSE IA DÉTAILLÉE PAR TEST -->
+                    {% if manual_ai_analysis %}
+                        {% for test_key, ai_analysis in manual_ai_analysis.items %}
+                        <div class="ai-test-analysis mb-3 p-3" style="background: white; border-radius: 6px; border: 1px solid #bee3f8;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0" style="color: #2c5282;">
+                                    <i class="fas fa-flask me-1"></i>
+                                    {{ test_key }}
+                                </h6>
+                                <span class="badge bg-info">Score: {{ ai_analysis.score|floatformat:0 }}%</span>
+                            </div>
+                            
+                            {% if ai_analysis.detailed_feedback %}
+                            <div class="alert alert-light mb-2" style="border-left: 3px solid #4299e1; font-size: 0.85rem;">
+                                <i class="fas fa-comment-dots text-info me-1"></i>
+                                {{ ai_analysis.detailed_feedback }}
+                            </div>
+                            {% endif %}
+                            
+                            <div class="row">
+                                <div class="col-12 mb-2">
+                                    <div class="small" style="color: #2f855a; font-weight: 600;">
+                                        <i class="fas fa-check-circle me-1"></i>Points forts:
+                                    </div>
+                                    {% if ai_analysis.strengths %}
+                                        <ul class="small mb-1" style="padding-left: 20px; color: #2f855a;">
+                                            {% for strength in ai_analysis.strengths|slice:":3" %}
+                                            <li>{{ strength }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        <p class="small text-muted mb-1">Aucun point fort identifié.</p>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-12 mb-2">
+                                    <div class="small" style="color: #c53030; font-weight: 600;">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>Points faibles:
+                                    </div>
+                                    {% if ai_analysis.weaknesses %}
+                                        <ul class="small mb-1" style="padding-left: 20px; color: #c53030;">
+                                            {% for weakness in ai_analysis.weaknesses|slice:":3" %}
+                                            <li>{{ weakness }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        <p class="small text-success mb-1">Aucune faiblesse majeure détectée !</p>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-12">
+                                    <div class="small" style="color: #d97706; font-weight: 600;">
+                                        <i class="fas fa-lightbulb me-1"></i>Recommandations:
+                                    </div>
+                                    {% if ai_analysis.recommendations %}
+                                        <ul class="small mb-0" style="padding-left: 20px; color: #92400e;">
+                                            {% for rec in ai_analysis.recommendations|slice:":2" %}
+                                            <li>{{ rec }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <!-- Fallback à l'analyse statistique -->
+                        <div class="row">
+                            <div class="col-12 mb-2">
+                                <div class="small text-muted">
+                                    <i class="fas fa-check-circle text-success me-1"></i>
+                                    <strong>Points forts:</strong>
+                                </div>
+                                {% if insights.strengths %}
+                                    <ul class="small mb-2" style="padding-left: 20px;">
+                                        {% for strength in insights.strengths|slice:":3" %}
+                                        <li style="color: #2f855a;">{{ strength.concept }} ({{ strength.success_rate }}%)</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <p class="small text-muted mb-2">Continuez à pratiquer pour identifier vos points forts.</p>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-12 mb-2">
+                                <div class="small text-muted">
+                                    <i class="fas fa-exclamation-circle text-warning me-1"></i>
+                                    <strong>Points faibles:</strong>
+                                </div>
+                                {% if insights.weaknesses %}
+                                    <ul class="small mb-2" style="padding-left: 20px;">
+                                        {% for weakness in insights.weaknesses|slice:":3" %}
+                                        <li style="color: #c53030;">{{ weakness.concept }} ({{ weakness.success_rate }}%)</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <p class="small text-success mb-2">Aucune faiblesse majeure détectée !</p>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-12">
+                                <div class="small text-muted">
+                                    <i class="fas fa-lightbulb text-warning me-1"></i>
+                                    <strong>Recommandations:</strong>
+                                </div>
+                                {% if insights.recommendations %}
+                                    <ul class="small mb-0" style="padding-left: 20px;">
+                                        {% for rec in insights.recommendations|slice:":2" %}
+                                        <li style="color: #744210;">{{ rec|safe|truncatewords:15 }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="chart-card" style="border-left: 4px solid #cbd5e0;">
+                <h4 class="mb-3" style="color: #718096;">
+                    <i class="fas fa-clipboard-check me-2"></i>
+                    📝 Tests Manuels
+                </h4>
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Aucun test manuel complété. Passez des tests pour voir votre analyse !
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Tests IA -->
+        <div class="col-lg-6 mb-4">
+            {% if ai_concept_insights %}
+            <div class="chart-card" style="border-left: 4px solid #805ad5;">
+                <h4 class="mb-4" style="color: #553c9a;">
+                    <i class="fas fa-robot me-2"></i>
+                    🤖 Tests Générés par IA - Analyse Détaillée
+                    <span class="badge bg-purple ms-2" style="background: #805ad5;">{{ ai_tests_count }} test{{ ai_tests_count|pluralize }}</span>
+                </h4>
+                
+                {% for subject, insights in ai_concept_insights.items %}
+                <div class="mb-4 p-3" style="background: #faf5ff; border-radius: 8px; border: 1px solid #e9d8fd;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0" style="color: #553c9a; font-weight: 600;">
+                            <i class="fas fa-microchip me-2"></i>{{ subject }}
+                        </h5>
+                        <span class="badge" style="background: linear-gradient(135deg, #9f7aea 0%, #805ad5 100%);">
+                            {{ insights.overall_success_rate }}%
+                        </span>
+                    </div>
+                    
+                    <!-- ANALYSE IA DÉTAILLÉE PAR TEST -->
+                    {% if ai_tests_ai_analysis %}
+                        {% for test_key, ai_analysis in ai_tests_ai_analysis.items %}
+                        <div class="ai-test-analysis mb-3 p-3" style="background: white; border-radius: 6px; border: 1px solid #d6bcfa;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0" style="color: #553c9a;">
+                                    <i class="fas fa-brain me-1"></i>
+                                    {{ test_key }}
+                                </h6>
+                                <span class="badge" style="background: #805ad5;">Score: {{ ai_analysis.score|floatformat:0 }}%</span>
+                            </div>
+                            
+                            {% if ai_analysis.detailed_feedback %}
+                            <div class="alert alert-light mb-2" style="border-left: 3px solid #805ad5; font-size: 0.85rem;">
+                                <i class="fas fa-comment-dots text-purple me-1"></i>
+                                {{ ai_analysis.detailed_feedback }}
+                            </div>
+                            {% endif %}
+                            
+                            <div class="row">
+                                <div class="col-12 mb-2">
+                                    <div class="small" style="color: #2f855a; font-weight: 600;">
+                                        <i class="fas fa-check-circle me-1"></i>Points forts:
+                                    </div>
+                                    {% if ai_analysis.strengths %}
+                                        <ul class="small mb-1" style="padding-left: 20px; color: #2f855a;">
+                                            {% for strength in ai_analysis.strengths|slice:":3" %}
+                                            <li>{{ strength }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        <p class="small text-muted mb-1">Aucun point fort identifié.</p>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-12 mb-2">
+                                    <div class="small" style="color: #c53030; font-weight: 600;">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>Points faibles:
+                                    </div>
+                                    {% if ai_analysis.weaknesses %}
+                                        <ul class="small mb-1" style="padding-left: 20px; color: #c53030;">
+                                            {% for weakness in ai_analysis.weaknesses|slice:":3" %}
+                                            <li>{{ weakness }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        <p class="small text-success mb-1">Aucune faiblesse majeure détectée !</p>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-12">
+                                    <div class="small" style="color: #d97706; font-weight: 600;">
+                                        <i class="fas fa-lightbulb me-1"></i>Recommandations:
+                                    </div>
+                                    {% if ai_analysis.recommendations %}
+                                        <ul class="small mb-0" style="padding-left: 20px; color: #92400e;">
+                                            {% for rec in ai_analysis.recommendations|slice:":2" %}
+                                            <li>{{ rec }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <!-- Fallback à l'analyse statistique -->
+                        <div class="row">
+                            <div class="col-12 mb-2">
+                                <div class="small text-muted">
+                                    <i class="fas fa-check-circle text-success me-1"></i>
+                                    <strong>Points forts:</strong>
+                                </div>
+                                {% if insights.strengths %}
+                                    <ul class="small mb-2" style="padding-left: 20px;">
+                                        {% for strength in insights.strengths|slice:":3" %}
+                                        <li style="color: #2f855a;">{{ strength.concept }} ({{ strength.success_rate }}%)</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <p class="small text-muted mb-2">Continuez à pratiquer pour identifier vos points forts.</p>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-12 mb-2">
+                                <div class="small text-muted">
+                                    <i class="fas fa-exclamation-circle text-warning me-1"></i>
+                                    <strong>Points faibles:</strong>
+                                </div>
+                                {% if insights.weaknesses %}
+                                    <ul class="small mb-2" style="padding-left: 20px;">
+                                        {% for weakness in insights.weaknesses|slice:":3" %}
+                                        <li style="color: #c53030;">{{ weakness.concept }} ({{ weakness.success_rate }}%)</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <p class="small text-success mb-2">Aucune faiblesse majeure détectée !</p>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-12">
+                                <div class="small text-muted">
+                                    <i class="fas fa-lightbulb text-warning me-1"></i>
+                                    <strong>Recommandations:</strong>
+                                </div>
+                                {% if insights.recommendations %}
+                                    <ul class="small mb-0" style="padding-left: 20px;">
+                                        {% for rec in insights.recommendations|slice:":2" %}
+                                        <li style="color: #744210;">{{ rec|safe|truncatewords:15 }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="chart-card" style="border-left: 4px solid #cbd5e0;">
+                <h4 class="mb-3" style="color: #718096;">
+                    <i class="fas fa-robot me-2"></i>
+                    🤖 Tests Générés par IA
+                </h4>
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Aucun test IA complété. Essayez les tests générés par IA pour une analyse personnalisée !
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
     <!-- Analyse IA -->
     <div class="row mb-4">
         <div class="col-md-6 mb-4">

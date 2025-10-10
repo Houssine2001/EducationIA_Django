@@ -13,6 +13,7 @@ import json
 from .models import Test, Question, Submission, Result, UserProfile
 from .services import TestService, AutoGrading, ResultService
 from ai_modules.ai_services import get_ai_services
+from .ai_concept_analyzer import AIConceptAnalyzer
 
 
 # ============================================
@@ -28,15 +29,42 @@ def teacher_dashboard(request):
         messages.error(request, "Accès réservé aux enseignants")
         return redirect('evaluation:student_dashboard')
     
-    # Récupérer les tests créés par l'enseignant
-    tests = Test.objects.filter(created_by=request.user).order_by('-created_at')
+    from pymongo import MongoClient
+    from django.conf import settings
+    
+    # Connexion MongoDB
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
+    # Récupérer les tests créés par l'enseignant via PyMongo
+    tests_data = list(db.tests.find({'created_by_id': request.user.id}).sort('created_at', -1))
+    
+    # Créer les instances Django manuellement
+    tests = []
+    for test_data in tests_data:
+        test_id = test_data.pop('_id', None)
+        test = Test(**{k: v for k, v in test_data.items() if k != '_id'})
+        test.pk = test_id
+        test.id = test_id
+        test._state.adding = False
+        test._state.db = 'default'
+        
+        # Compter les questions pour ce test
+        test.question_count = db.questions.count_documents({'test_id': test_id})
+        
+        # Compter les soumissions pour ce test
+        test.submission_count = db.submissions.count_documents({'test_id': test_id})
+        
+        tests.append(test)
     
     # Statistiques globales
     stats = {
-        'total_tests': tests.count(),
-        'published_tests': tests.filter(status='published').count(),
-        'total_submissions': Submission.objects.filter(test__created_by=request.user).count(),
+        'total_tests': len(tests),
+        'published_tests': len([t for t in tests if t.status == 'published']),
+        'total_submissions': db.submissions.count_documents({'test__created_by_id': request.user.id}),
     }
+    
+    client.close()
     
     context = {
         'tests': tests,
@@ -93,7 +121,38 @@ def edit_test(request, test_id):
     """
     Modifier un test existant
     """
-    test = get_object_or_404(Test, id=test_id, created_by=request.user)
+    from bson.objectid import ObjectId
+    from pymongo import MongoClient
+    from django.conf import settings
+    
+    # Récupérer le test via PyMongo pour gérer ObjectId
+    try:
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        
+        test_data = db.tests.find_one({
+            '_id': ObjectId(test_id),
+            'created_by_id': request.user.id
+        })
+        
+        if not test_data:
+            client.close()
+            messages.error(request, "Test non trouvé")
+            return redirect('evaluation:teacher_dashboard')
+        
+        # Créer instance Django du test
+        test_id_obj = test_data.pop('_id', None)
+        test = Test(**{k: v for k, v in test_data.items() if k != '_id'})
+        test.pk = test_id_obj
+        test.id = test_id_obj
+        test._state.adding = False
+        test._state.db = 'default'
+        
+    except Exception as e:
+        if 'client' in locals():
+            client.close()
+        messages.error(request, f"Erreur: {str(e)}")
+        return redirect('evaluation:teacher_dashboard')
     
     if request.method == 'POST':
         # Mettre à jour le test
@@ -131,11 +190,14 @@ def edit_test(request, test_id):
         
         test.save()
         
+        client.close()
         messages.success(request, f"Test mis à jour avec succès ! Statut: {test.get_status_display()}")
         return redirect('evaluation:teacher_dashboard')
     
     # Récupérer les questions du test
     questions = test.questions.all().order_by('order')
+    
+    client.close()
     
     context = {
         'test': test,
@@ -151,7 +213,38 @@ def add_question(request, test_id):
     """
     Ajouter une question à un test
     """
-    test = get_object_or_404(Test, id=test_id, created_by=request.user)
+    from bson.objectid import ObjectId
+    from pymongo import MongoClient
+    from django.conf import settings
+    
+    # Récupérer le test via PyMongo
+    try:
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        
+        test_data = db.tests.find_one({
+            '_id': ObjectId(test_id),
+            'created_by_id': request.user.id
+        })
+        
+        if not test_data:
+            client.close()
+            messages.error(request, "Test non trouvé")
+            return redirect('evaluation:teacher_dashboard')
+        
+        # Créer instance Django du test
+        test_id_obj = test_data.pop('_id', None)
+        test = Test(**{k: v for k, v in test_data.items() if k != '_id'})
+        test.pk = test_id_obj
+        test.id = test_id_obj
+        test._state.adding = False
+        test._state.db = 'default'
+        
+    except Exception as e:
+        if 'client' in locals():
+            client.close()
+        messages.error(request, f"Erreur: {str(e)}")
+        return redirect('evaluation:teacher_dashboard')
     
     if request.method == 'POST':
         question_data = {
@@ -193,8 +286,11 @@ def add_question(request, test_id):
         # Créer la question
         question = TestService.add_question_to_test(test, question_data)
         
+        client.close()
         messages.success(request, "Question ajoutée avec succès !")
         return redirect('evaluation:edit_test', test_id=test.id)
+    
+    client.close()
     
     context = {
         'test': test,
@@ -208,7 +304,38 @@ def test_statistics(request, test_id):
     """
     Voir les statistiques d'un test
     """
-    test = get_object_or_404(Test, id=test_id, created_by=request.user)
+    from bson.objectid import ObjectId
+    from pymongo import MongoClient
+    from django.conf import settings
+    
+    # Récupérer le test via PyMongo
+    try:
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        
+        test_data = db.tests.find_one({
+            '_id': ObjectId(test_id),
+            'created_by_id': request.user.id
+        })
+        
+        if not test_data:
+            client.close()
+            messages.error(request, "Test non trouvé")
+            return redirect('evaluation:teacher_dashboard')
+        
+        # Créer instance Django du test
+        test_id_obj = test_data.pop('_id', None)
+        test = Test(**{k: v for k, v in test_data.items() if k != '_id'})
+        test.pk = test_id_obj
+        test.id = test_id_obj
+        test._state.adding = False
+        test._state.db = 'default'
+        
+    except Exception as e:
+        if 'client' in locals():
+            client.close()
+        messages.error(request, f"Erreur: {str(e)}")
+        return redirect('evaluation:teacher_dashboard')
     
     # Récupérer les statistiques
     stats = TestService.get_test_statistics(test)
@@ -218,6 +345,8 @@ def test_statistics(request, test_id):
         test=test, 
         status='graded'
     ).select_related('student').order_by('-submitted_at')
+    
+    client.close()
     
     context = {
         'test': test,
@@ -438,6 +567,64 @@ def student_dashboard(request):
                 'ai_tests': ai_total_tests,
                 'has_ai_tests': ai_total_tests > 0
             }
+            
+            # NOUVELLE PARTIE: Ajouter les tests IA aux performances par matière
+            from bson.objectid import ObjectId
+            from collections import defaultdict
+            
+            # Grouper les submissions IA par matière
+            ai_performance_by_subject = defaultdict(list)
+            
+            for submission in ai_submissions:
+                set_id = submission.get('exercise_set_id')
+                if set_id:
+                    set_data = db.exercise_sets.find_one({'_id': ObjectId(set_id)})
+                    if set_data:
+                        # Récupérer le sujet depuis le CourseDocument
+                        subject = 'Général'
+                        source_doc_id = set_data.get('source_document_id')
+                        if source_doc_id:
+                            try:
+                                doc_data = db.course_documents.find_one({'_id': ObjectId(source_doc_id)})
+                                if doc_data and doc_data.get('subject'):
+                                    subject = doc_data.get('subject').capitalize()
+                            except:
+                                pass
+                        
+                        ai_performance_by_subject[subject].append(submission.get('score', 0))
+            
+            # Fusionner avec les performances manuelles
+            combined_subjects = dict(analytics_data['subjects'])  # Copier les données manuelles
+            
+            for subject, scores in ai_performance_by_subject.items():
+                if subject in combined_subjects:
+                    # Fusionner avec les scores existants
+                    existing_avg = combined_subjects[subject]['average']
+                    existing_count = combined_subjects[subject]['count']
+                    
+                    ai_avg = sum(scores) / len(scores)
+                    ai_count = len(scores)
+                    
+                    # Recalculer la moyenne combinée
+                    combined_avg = ((existing_avg * existing_count) + (ai_avg * ai_count)) / (existing_count + ai_count)
+                    
+                    combined_subjects[subject]['average'] = combined_avg
+                    combined_subjects[subject]['count'] += ai_count
+                    combined_subjects[subject]['last_score'] = scores[-1]  # Dernier score IA
+                else:
+                    # Nouvelle matière (seulement des tests IA)
+                    combined_subjects[subject] = {
+                        'average': sum(scores) / len(scores),
+                        'count': len(scores),
+                        'last_score': scores[-1],
+                        'trend': 'stable',
+                        'tests': []
+                    }
+            
+            # Remplacer les performances par matière dans le contexte
+            context['analytics']['subjects'] = combined_subjects
+            context['subjects_performance'] = combined_subjects
+            
         else:
             # Pas de tests IA
             context['combined_stats'] = {
@@ -470,7 +657,38 @@ def test_detail(request, test_id):
     """
     Détails d'un test (avant de le commencer)
     """
-    test = get_object_or_404(Test, id=test_id, status='published')
+    from bson.objectid import ObjectId
+    from pymongo import MongoClient
+    from django.conf import settings
+    
+    # Récupérer le test via PyMongo
+    try:
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        
+        test_data = db.tests.find_one({
+            '_id': ObjectId(test_id),
+            'status': 'published'
+        })
+        
+        if not test_data:
+            client.close()
+            messages.error(request, "Test non trouvé ou non publié")
+            return redirect('evaluation:student_dashboard')
+        
+        # Créer instance Django du test
+        test_id_obj = test_data.pop('_id', None)
+        test = Test(**{k: v for k, v in test_data.items() if k != '_id'})
+        test.pk = test_id_obj
+        test.id = test_id_obj
+        test._state.adding = False
+        test._state.db = 'default'
+        
+    except Exception as e:
+        if 'client' in locals():
+            client.close()
+        messages.error(request, f"Erreur: {str(e)}")
+        return redirect('evaluation:student_dashboard')
     
     # Vérifier si l'étudiant a déjà une soumission en cours
     existing_submission = Submission.objects.filter(
@@ -495,6 +713,8 @@ def test_detail(request, test_id):
     for question in test.questions.all():
         question_types[question.get_question_type_display()] += 1
     
+    client.close()
+    
     context = {
         'test': test,
         'existing_submission': existing_submission,
@@ -511,7 +731,40 @@ def start_test(request, test_id):
     """
     Démarrer un test
     """
-    test = get_object_or_404(Test, id=test_id, status='published')
+    from bson.objectid import ObjectId
+    from pymongo import MongoClient
+    from django.conf import settings
+    
+    # Récupérer le test via PyMongo
+    try:
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        
+        test_data = db.tests.find_one({
+            '_id': ObjectId(test_id),
+            'status': 'published'
+        })
+        
+        if not test_data:
+            client.close()
+            messages.error(request, "Test non trouvé ou non publié")
+            return redirect('evaluation:student_dashboard')
+        
+        # Créer instance Django du test
+        test_id_obj = test_data.pop('_id', None)
+        test = Test(**{k: v for k, v in test_data.items() if k != '_id'})
+        test.pk = test_id_obj
+        test.id = test_id_obj
+        test._state.adding = False
+        test._state.db = 'default'
+        
+        client.close()
+        
+    except Exception as e:
+        if 'client' in locals():
+            client.close()
+        messages.error(request, f"Erreur: {str(e)}")
+        return redirect('evaluation:student_dashboard')
     
     # Vérifier s'il y a déjà une soumission en cours
     existing_submission = Submission.objects.filter(
@@ -535,12 +788,41 @@ def take_test(request, submission_id):
     """
     Interface de passage du test
     """
-    submission = get_object_or_404(
-        Submission, 
-        id=submission_id, 
-        student=request.user,
-        status='in_progress'
-    )
+    from bson.objectid import ObjectId
+    from pymongo import MongoClient
+    from django.conf import settings
+    
+    # Récupérer la soumission via PyMongo
+    try:
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        
+        submission_data = db.submissions.find_one({
+            '_id': ObjectId(submission_id),
+            'student_id': request.user.id,
+            'status': 'in_progress'
+        })
+        
+        if not submission_data:
+            client.close()
+            messages.error(request, "Soumission non trouvée")
+            return redirect('evaluation:student_dashboard')
+        
+        # Créer instance Django de la soumission
+        submission_id_obj = submission_data.pop('_id', None)
+        submission = Submission(**{k: v for k, v in submission_data.items() if k != '_id'})
+        submission.pk = submission_id_obj
+        submission.id = submission_id_obj
+        submission._state.adding = False
+        submission._state.db = 'default'
+        
+        client.close()
+        
+    except Exception as e:
+        if 'client' in locals():
+            client.close()
+        messages.error(request, f"Erreur: {str(e)}")
+        return redirect('evaluation:student_dashboard')
     
     test = submission.test
     questions = test.questions.all().order_by('order')
@@ -566,12 +848,41 @@ def submit_test(request, submission_id):
     """
     Soumettre un test complété
     """
-    submission = get_object_or_404(
-        Submission,
-        id=submission_id,
-        student=request.user,
-        status='in_progress'
-    )
+    from bson.objectid import ObjectId
+    from pymongo import MongoClient
+    from django.conf import settings
+    
+    # Récupérer la soumission via PyMongo
+    try:
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        
+        submission_data = db.submissions.find_one({
+            '_id': ObjectId(submission_id),
+            'student_id': request.user.id,
+            'status': 'in_progress'
+        })
+        
+        if not submission_data:
+            client.close()
+            messages.error(request, "Soumission non trouvée")
+            return redirect('evaluation:student_dashboard')
+        
+        # Créer instance Django de la soumission
+        submission_id_obj = submission_data.pop('_id', None)
+        submission = Submission(**{k: v for k, v in submission_data.items() if k != '_id'})
+        submission.pk = submission_id_obj
+        submission.id = submission_id_obj
+        submission._state.adding = False
+        submission._state.db = 'default'
+        
+        client.close()
+        
+    except Exception as e:
+        if 'client' in locals():
+            client.close()
+        messages.error(request, f"Erreur: {str(e)}")
+        return redirect('evaluation:student_dashboard')
     
     # Récupérer les réponses depuis le POST
     answers = {}
@@ -623,7 +934,40 @@ def view_result(request, result_id):
     """
     Voir les résultats d'un test
     """
-    result = get_object_or_404(Result, id=result_id, student=request.user)
+    from bson.objectid import ObjectId
+    from pymongo import MongoClient
+    from django.conf import settings
+    
+    # Récupérer le résultat via PyMongo
+    try:
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        
+        result_data = db.results.find_one({
+            '_id': ObjectId(result_id),
+            'student_id': request.user.id
+        })
+        
+        if not result_data:
+            client.close()
+            messages.error(request, "Résultat non trouvé")
+            return redirect('evaluation:student_dashboard')
+        
+        # Créer instance Django du résultat
+        result_id_obj = result_data.pop('_id', None)
+        result = Result(**{k: v for k, v in result_data.items() if k != '_id'})
+        result.pk = result_id_obj
+        result.id = result_id_obj
+        result._state.adding = False
+        result._state.db = 'default'
+        
+        client.close()
+        
+    except Exception as e:
+        if 'client' in locals():
+            client.close()
+        messages.error(request, f"Erreur: {str(e)}")
+        return redirect('evaluation:student_dashboard')
     submission = result.submission
     test = result.test
     
@@ -722,8 +1066,8 @@ def student_progress(request):
                     'subject': subject
                 })
     
-    client.close()
-    client.close()
+    # NE PAS FERMER LE CLIENT ICI - il sera utilisé plus tard pour l'analyse par concepts
+    # client.close() sera appelé à la fin de la fonction
     
     # 3. COMBINER LES RÉSULTATS MANUELS ET IA POUR L'HISTORIQUE
     # Créer une liste unifiée pour le tableau
@@ -834,7 +1178,7 @@ def student_progress(request):
             performance_by_subject[subject]['avg_score'] = sum(scores) / len(scores)
             performance_by_subject[subject]['last_score'] = scores[-1] if scores else 0
     
-    # 5. ANALYSER LES FAIBLESSES AVEC IA
+    # 5. ANALYSER LES FAIBLESSES AVEC IA (OLD - kept for compatibility)
     weaknesses_analysis = None
     if all_manual_results.count() >= 2:
         try:
@@ -852,6 +1196,109 @@ def student_progress(request):
                 'strengths': analytics_data['strengths'],
                 'recommendations': profile.ai_recommendations or []
             }
+    
+    # 5.1 NOUVELLE ANALYSE PAR CONCEPTS (DÉTAILLÉE)
+    from .concept_analysis import ConceptAnalysisService
+    
+    concept_analyzer = ConceptAnalysisService(request.user, db_connection=db)
+    
+    # Analyser séparément les tests manuels et IA
+    print(f"🔍 DEBUG: all_manual_results count = {all_manual_results.count()}")
+    manual_concept_insights = concept_analyzer.analyze_test_results(all_manual_results)
+    print(f"🔍 DEBUG: manual_concept_insights = {manual_concept_insights}")
+    print(f"🔍 DEBUG: manual_concept_insights keys = {manual_concept_insights.keys() if manual_concept_insights else 'EMPTY'}")
+    
+    ai_concept_insights = concept_analyzer.analyze_ai_test_results(ai_submissions)
+    print(f"🔍 DEBUG: ai_concept_insights = {ai_concept_insights}")
+    
+    # Également garder l'analyse combinée
+    concept_insights = concept_analyzer.get_combined_analysis(
+        all_manual_results,  # Tests manuels
+        ai_submissions  # Tests IA
+    )
+    
+    # 5.2 ANALYSE IA AVANCÉE AVEC MODÈLE PUISSANT (Mistral-7B-Instruct-v0.2)
+    ai_analyzer = AIConceptAnalyzer()
+    
+    # Préparer les données pour l'analyse IA des tests manuels
+    manual_tests_for_ai = []
+    for result in all_manual_results[:10]:  # Top 10 tests récents
+        try:
+            test = result.test
+            submission = result.submission
+            questions_data = []
+            
+            if submission and submission.answers:
+                answers_data = submission.answers if isinstance(submission.answers, dict) else {}
+                
+                for question_id, answer_info in answers_data.items():
+                    try:
+                        question = Question.objects.get(id=int(question_id))
+                        is_correct = answer_info.get('is_correct', False)
+                        
+                        questions_data.append({
+                            'concept': question.concept or question.topic or test.subject or 'Général',
+                            'difficulty': question.difficulty_level or 'medium',
+                            'is_correct': is_correct,
+                            'question_type': question.question_type or 'mcq'
+                        })
+                    except (Question.DoesNotExist, ValueError):
+                        continue
+                
+                if questions_data:  # Only add if we have valid questions
+                    manual_tests_for_ai.append({
+                        'test_name': test.title,
+                        'subject': test.subject or 'Sans matière',
+                        'score': result.percentage_score or 0,
+                        'questions_data': questions_data
+                    })
+        except Exception as e:
+            print(f"Erreur préparation test manuel pour IA: {e}")
+            continue
+    
+    # Préparer les données pour l'analyse IA des tests IA
+    ai_tests_for_ai = []
+    for ai_result in ai_results_with_details[:10]:  # Top 10 tests récents
+        try:
+            questions_data = []
+            for q in ai_result.get('questions_details', []):
+                questions_data.append({
+                    'concept': q.get('topic', 'Général'),
+                    'difficulty': q.get('difficulty', 'medium'),
+                    'is_correct': q.get('is_correct', False),
+                    'question_type': 'multiple_choice'  # Par défaut pour les tests IA
+                })
+            
+            if questions_data:  # Seulement si on a des questions
+                ai_tests_for_ai.append({
+                    'test_name': ai_result.get('exercise_set_name', 'Test IA'),
+                    'subject': ai_result.get('subject', 'IA'),
+                    'score': ai_result.get('score', 0),
+                    'questions_data': questions_data
+                })
+        except Exception as e:
+            print(f"Erreur préparation test IA pour analyse: {e}")
+            continue
+    
+    # Effectuer l'analyse IA par batch (plus efficace)
+    manual_ai_analysis = {}
+    ai_tests_ai_analysis = {}
+    
+    try:
+        if manual_tests_for_ai:
+            manual_ai_analysis = ai_analyzer.batch_analyze_tests(manual_tests_for_ai)
+            print(f"✅ Analyse IA de {len(manual_ai_analysis)} tests manuels réussie")
+    except Exception as e:
+        print(f"❌ Erreur analyse IA tests manuels: {e}")
+        manual_ai_analysis = {}
+    
+    try:
+        if ai_tests_for_ai:
+            ai_tests_ai_analysis = ai_analyzer.batch_analyze_tests(ai_tests_for_ai)
+            print(f"✅ Analyse IA de {len(ai_tests_ai_analysis)} tests IA réussie")
+    except Exception as e:
+        print(f"❌ Erreur analyse IA tests IA: {e}")
+        ai_tests_ai_analysis = {}
     
     # 6. GAMIFICATION
     gamification_service = GamificationService(profile)
@@ -1048,6 +1495,17 @@ def student_progress(request):
         # Performances par matière (déjà combinées)
         'performance_by_subject': performance_by_subject,
         
+        # NOUVELLE ANALYSE PAR CONCEPTS (SÉPARÉE)
+        'manual_concept_insights': manual_concept_insights,  # Tests manuels seulement
+        'ai_concept_insights': ai_concept_insights,  # Tests IA seulement
+        'concept_insights': concept_insights,  # Analysis combinée (pour compatibilité)
+        
+        # ANALYSE IA AVANCÉE (Mistral-7B-Instruct-v0.2)
+        'manual_ai_analysis': manual_ai_analysis,  # Analyse IA détaillée des tests manuels
+        'ai_tests_ai_analysis': ai_tests_ai_analysis,  # Analyse IA détaillée des tests IA
+        'manual_tests_count': len(manual_tests_for_ai),
+        'ai_tests_count': len(ai_tests_for_ai),
+        
         # Analyse IA des faiblesses
         'weaknesses_analysis': weaknesses_analysis,
         
@@ -1075,13 +1533,49 @@ def student_progress(request):
         'has_multiple_subjects': len(performance_by_subject) > 1,
     }
     
+    # Fermer la connexion MongoDB maintenant que tout est terminé
+    client.close()
+    
     return render(request, 'evaluation/student/progress_new.html', context)
 
 
 @login_required
 def view_result(request, result_id):
     """Afficher le résultat d'un test avec analyse IA"""
-    result = get_object_or_404(Result, id=result_id, student=request.user)
+    from bson.objectid import ObjectId
+    from pymongo import MongoClient
+    from django.conf import settings
+    
+    # Récupérer le résultat via PyMongo
+    try:
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        
+        result_data = db.results.find_one({
+            '_id': ObjectId(result_id),
+            'student_id': request.user.id
+        })
+        
+        if not result_data:
+            client.close()
+            messages.error(request, "Résultat non trouvé")
+            return redirect('evaluation:student_dashboard')
+        
+        # Créer instance Django du résultat
+        result_id_obj = result_data.pop('_id', None)
+        result = Result(**{k: v for k, v in result_data.items() if k != '_id'})
+        result.pk = result_id_obj
+        result.id = result_id_obj
+        result._state.adding = False
+        result._state.db = 'default'
+        
+        client.close()
+        
+    except Exception as e:
+        if 'client' in locals():
+            client.close()
+        messages.error(request, f"Erreur: {str(e)}")
+        return redirect('evaluation:student_dashboard')
     
     context = {
         'result': result,
@@ -1094,7 +1588,37 @@ def view_result(request, result_id):
 @login_required
 def test_history(request, test_id):
     """Afficher l'historique complet d'un test"""
-    test = get_object_or_404(Test, id=test_id)
+    from bson.objectid import ObjectId
+    from pymongo import MongoClient
+    from django.conf import settings
+    
+    # Récupérer le test via PyMongo
+    try:
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        
+        test_data = db.tests.find_one({'_id': ObjectId(test_id)})
+        
+        if not test_data:
+            client.close()
+            messages.error(request, "Test non trouvé")
+            return redirect('evaluation:student_dashboard')
+        
+        # Créer instance Django du test
+        test_id_obj = test_data.pop('_id', None)
+        test = Test(**{k: v for k, v in test_data.items() if k != '_id'})
+        test.pk = test_id_obj
+        test.id = test_id_obj
+        test._state.adding = False
+        test._state.db = 'default'
+        
+        client.close()
+        
+    except Exception as e:
+        if 'client' in locals():
+            client.close()
+        messages.error(request, f"Erreur: {str(e)}")
+        return redirect('evaluation:student_dashboard')
     
     # Récupérer tous les résultats pour ce test
     results = Result.objects.filter(
@@ -1200,7 +1724,35 @@ def get_test_stats_ajax(request, test_id):
     """
     Récupérer les statistiques d'un test en JSON
     """
-    test = get_object_or_404(Test, id=test_id)
+    from bson.objectid import ObjectId
+    from pymongo import MongoClient
+    from django.conf import settings
+    
+    # Récupérer le test via PyMongo
+    try:
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        
+        test_data = db.tests.find_one({'_id': ObjectId(test_id)})
+        
+        if not test_data:
+            client.close()
+            return JsonResponse({'error': 'Test non trouvé'}, status=404)
+        
+        # Créer instance Django du test
+        test_id_obj = test_data.pop('_id', None)
+        test = Test(**{k: v for k, v in test_data.items() if k != '_id'})
+        test.pk = test_id_obj
+        test.id = test_id_obj
+        test._state.adding = False
+        test._state.db = 'default'
+        
+        client.close()
+        
+    except Exception as e:
+        if 'client' in locals():
+            client.close()
+        return JsonResponse({'error': str(e)}, status=400)
     
     # Vérifier les permissions
     if not request.user.is_staff and test.created_by != request.user:
@@ -1217,7 +1769,37 @@ def test_history(request, test_id):
     Affiche l'historique complet de toutes les tentatives d'un test
     avec analyse détaillée de l'évolution
     """
-    test = get_object_or_404(Test, id=test_id)
+    from bson.objectid import ObjectId
+    from pymongo import MongoClient
+    from django.conf import settings
+    
+    # Récupérer le test via PyMongo
+    try:
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        
+        test_data = db.tests.find_one({'_id': ObjectId(test_id)})
+        
+        if not test_data:
+            client.close()
+            messages.error(request, "Test non trouvé")
+            return redirect('evaluation:student_dashboard')
+        
+        # Créer instance Django du test
+        test_id_obj = test_data.pop('_id', None)
+        test = Test(**{k: v for k, v in test_data.items() if k != '_id'})
+        test.pk = test_id_obj
+        test.id = test_id_obj
+        test._state.adding = False
+        test._state.db = 'default'
+        
+        client.close()
+        
+    except Exception as e:
+        if 'client' in locals():
+            client.close()
+        messages.error(request, f"Erreur: {str(e)}")
+        return redirect('evaluation:student_dashboard')
     
     # Récupérer toutes les soumissions de l'étudiant pour ce test
     submissions = Submission.objects.filter(
