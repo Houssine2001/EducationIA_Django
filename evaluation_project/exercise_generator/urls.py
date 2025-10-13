@@ -28,8 +28,7 @@ urlpatterns = [
     path('tests/<str:pk>/', views.test_detail, name='test_detail'),
     path('tests/<str:pk>/export/', views.test_export, name='test_export'),
     
-    # Configuration
-    path('config/', views.config_view, name='config'),
+
     
     # Génération rapide
     path('quick-generate/', views.quick_generate, name='quick_generate'),

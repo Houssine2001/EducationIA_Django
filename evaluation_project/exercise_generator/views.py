@@ -236,11 +236,24 @@ def dashboard(request):
     # Statistiques via PyMongo
     total_documents = db.course_documents.count_documents({'teacher_id': request.user.id})
     total_exercises = db.generated_exercises.count_documents({'source_document_id': {'$in': teacher_document_ids}})
-    total_tests = db.generated_tests.count_documents({'teacher_id': request.user.id})
+    
+    # 🔧 CORRECTION: Tests = Exercices publiés + Exercise Sets publiés
+    published_exercises = db.generated_exercises.count_documents({
+        'source_document_id': {'$in': teacher_document_ids},
+        'status': 'published'
+    })
+    published_exercise_sets = db.exercise_sets.count_documents({
+        'teacher_id': {'$in': [request.user.id, str(request.user.id)]},
+        'status': 'published'
+    })
+    total_tests = published_exercises + published_exercise_sets
+    
+    # 🔧 CORRECTION: Exercices validés (seulement ceux avec status='validated')
     validated_exercises = db.generated_exercises.count_documents({
         'source_document_id': {'$in': teacher_document_ids},
         'status': 'validated'
     })
+    
     pending_exercises = db.generated_exercises.count_documents({
         'source_document_id': {'$in': teacher_document_ids},
         'status': 'draft'
@@ -535,9 +548,11 @@ def exercise_detail(request, pk):
     client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
     db = client[settings.MONGO_DB_NAME]
     
-    source_doc_data = db.course_documents.find_one({
-        '_id': exercise.source_document_id
-    })
+    source_doc_data = None
+    if exercise.source_document_id:  # Vérifier que source_document_id n'est pas None/vide
+        source_doc_data = db.course_documents.find_one({
+            '_id': exercise.source_document_id
+        })
     
     if source_doc_data:
         # Créer instance Django du document source pour le template
@@ -569,6 +584,7 @@ def exercise_validate(request, pk):
     from pymongo import MongoClient
     from django.conf import settings
     from django.http import Http404
+    from datetime import datetime
     
     # Récupérer l'exercice
     exercise = get_mongo_object(GeneratedExercise, pk)
@@ -589,32 +605,55 @@ def exercise_validate(request, pk):
     notes = request.POST.get('notes', '')
     
     if action == 'validate':
-        exercise.status = 'validated'
-        message = "Exercice validé avec succès."
-    elif action == 'publish':
-        exercise.status = 'published'
-        message = "Exercice publié avec succès."
+        # Utiliser PyMongo pour la mise à jour directe
+        update_result = db.generated_exercises.update_one(
+            {'_id': exercise.pk},
+            {
+                '$set': {
+                    'status': 'validated',
+                    'validated_by_id': request.user.id,
+                    'validation_notes': notes,
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+        
+        if update_result.modified_count > 0:
+            message = "Exercice validé avec succès."
+        else:
+            message = "Erreur lors de la validation."
+        
+        messages.success(request, message)
+        client.close()
+        # Redirection vers la liste des exercices après validation
+        return redirect('exercise_generator:exercise_list')
+            
     elif action == 'reject':
-        exercise.status = 'rejected'
-        message = "Exercice rejeté."
+        # Supprimer l'exercice au lieu de le marquer comme rejeté
+        # Utiliser PyMongo pour s'assurer de la suppression
+        exercise_doc = db.generated_exercises.find_one({'_id': exercise.pk})
+        if exercise_doc:
+            # Supprimer de MongoDB
+            db.generated_exercises.delete_one({'_id': exercise.pk})
+            
+            # Supprimer aussi les relations ManyToMany si elles existent
+            db.exercise_generator_exerciseset_exercises.delete_many({
+                'generatedexercise_id': str(exercise.pk)
+            })
+            
+            message = "Exercice supprimé avec succès."
+        else:
+            message = "Exercice déjà supprimé."
+        
+        messages.success(request, message)
+        client.close()
+        # Redirection vers la liste des exercices car l'exercice n'existe plus
+        return redirect('exercise_generator:exercise_list')
+        
     else:
         messages.error(request, "Action non reconnue.")
+        client.close()
         return redirect('exercise_generator:exercise_detail', pk=pk)
-    
-    exercise.validated_by = request.user
-    exercise.validation_notes = notes
-    exercise.save()
-    
-    messages.success(request, message)
-    
-    # Redirection
-    next_url = request.POST.get('next', 'exercise_generator:exercise_detail')
-    if next_url == 'exercise_generator:exercise_detail':
-        return redirect('exercise_generator:exercise_detail', pk=pk)
-    else:
-        return redirect(next_url)
-
-
 @login_required
 @require_http_methods(["POST"])
 def exercise_bulk_action(request):
@@ -817,35 +856,7 @@ def test_export(request, pk):
 # ============================================
 
 @login_required
-def config_view(request):
-    """
-    Configuration de la génération d'exercices
-    """
-    try:
-        config = ExerciseGenerationConfig.objects.get(teacher=request.user)
-    except ExerciseGenerationConfig.DoesNotExist:
-        config = None
-    
-    if request.method == 'POST':
-        form = GenerationConfigForm(request.POST, instance=config)
-        
-        if form.is_valid():
-            config = form.save(commit=False)
-            config.teacher = request.user
-            config.save()
-            
-            messages.success(request, "Configuration enregistrée avec succès !")
-            return redirect('exercise_generator:config')
-    
-    else:
-        form = GenerationConfigForm(instance=config)
-    
-    context = {
-        'form': form,
-        'config': config,
-    }
-    
-    return render(request, 'exercise_generator/config.html', context)
+
 
 
 # ============================================

@@ -28,6 +28,7 @@
         <!-- En-tête -->
         <div class="flex items-center justify-between mb-8">
             <div>
+                {% if source_document %}
                 <a href="{% url 'exercise_generator:document_detail' source_document.pk %}" 
                    class="inline-flex items-center text-sm text-gray-600 hover:text-indigo-600 mb-4 transition-colors">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -35,6 +36,15 @@
                     </svg>
                     Retour au document
                 </a>
+                {% else %}
+                <a href="{% url 'exercise_generator:exercise_list' %}" 
+                   class="inline-flex items-center text-sm text-gray-600 hover:text-indigo-600 mb-4 transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Retour aux exercices
+                </a>
+                {% endif %}
                 <h1 class="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                     Détails de l'Exercice
                 </h1>
@@ -316,20 +326,13 @@
                             Valider
                         </button>
                         
-                        <button type="submit" name="action" value="publish" 
-                                class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-xl hover:from-blue-600 hover:to-blue-700 transform hover:scale-105 transition-all shadow-lg">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-                            </svg>
-                            Publier
-                        </button>
-                        
                         <button type="submit" name="action" value="reject" 
-                                class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:from-red-600 hover:to-red-700 transform hover:scale-105 transition-all shadow-lg">
+                                class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-xl hover:from-red-600 hover:to-red-700 transform hover:scale-105 transition-all shadow-lg"
+                                onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet exercice ? Cette action est irréversible.')">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                             </svg>
-                            Rejeter
+                            Supprimer
                         </button>
                     </div>
                 </form>
