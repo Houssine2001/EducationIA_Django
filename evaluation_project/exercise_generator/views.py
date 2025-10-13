@@ -984,6 +984,12 @@ def exercise_sets_list(request):
         })
         exercise_set._exercise_count = exercise_count  # Stocker pour usage dans le template
         
+        # ✅ Compter les soumissions pour ce set
+        submissions_count = db.student_exercise_submissions.count_documents({
+            'exercise_set_id': str(data['_id'])
+        })
+        exercise_set._submissions_count = submissions_count  # Stocker pour usage dans le template
+        
         sets.append(exercise_set)
     
     client.close()
@@ -1131,8 +1137,21 @@ def exercise_set_detail(request, set_id):
     
     # Récupérer les exercices par leurs IDs
     exercise_ids = [rel['generatedexercise_id'] for rel in relations]
+    
+    # Convertir les IDs string en ObjectId pour la requête MongoDB
+    from bson.objectid import ObjectId
+    object_ids = []
+    for eid in exercise_ids:
+        try:
+            if isinstance(eid, str):
+                object_ids.append(ObjectId(eid))
+            else:
+                object_ids.append(eid)
+        except:
+            continue
+    
     exercises_data = list(db.generated_exercises.find({
-        '_id': {'$in': exercise_ids}
+        '_id': {'$in': object_ids}
     }))
     
     # Créer instances Django
@@ -1146,16 +1165,17 @@ def exercise_set_detail(request, set_id):
         exercises.append(ex)
     
     # ✅ Récupérer statistiques de soumissions via PyMongo
+    # IMPORTANT: les exercise_set_id dans les soumissions sont stockés comme strings
     submissions_count = db.student_exercise_submissions.count_documents({
-        'exercise_set_id': exercise_set.pk
+        'exercise_set_id': str(exercise_set.pk)
     })
     
     # Calculer score moyen si des soumissions existent
     avg_score = 0.0
     if submissions_count > 0:
         submissions_data = list(db.student_exercise_submissions.find({
-            'exercise_set_id': exercise_set.pk,
-            'is_completed': True
+            'exercise_set_id': str(exercise_set.pk),
+            'status': 'completed'  # Changer 'is_completed' en 'status'
         }))
         if submissions_data:
             total_score = sum(sub.get('score', 0) for sub in submissions_data)

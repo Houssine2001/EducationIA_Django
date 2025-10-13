@@ -456,6 +456,24 @@ class ExerciseSet(MongoDBCompatibleModel):
         client.close()
         return count
     
+    def get_submissions_count(self):
+        """Obtenir le nombre de soumissions via MongoDB directement"""
+        # Si un count a déjà été calculé et stocké (par la vue), l'utiliser
+        if hasattr(self, '_submissions_count'):
+            return self._submissions_count
+        
+        # Sinon, calculer via PyMongo
+        from pymongo import MongoClient
+        from django.conf import settings
+        
+        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        db = client[settings.MONGO_DB_NAME]
+        count = db.student_exercise_submissions.count_documents({
+            'exercise_set_id': str(self.pk)
+        })
+        client.close()
+        return count
+    
     def get_teacher_name(self):
         """Obtenir le nom du teacher en évitant la requête ForeignKey"""
         # Si le nom a déjà été calculé et stocké (par la vue), l'utiliser
