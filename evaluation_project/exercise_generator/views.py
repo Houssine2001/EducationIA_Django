@@ -169,32 +169,108 @@ def dashboard(request):
     """
     Tableau de bord principal pour la génération d'exercices
     """
-    # Statistiques pour l'enseignant
-    documents = CourseDocument.objects.filter(teacher=request.user)
-    exercises = GeneratedExercise.objects.filter(source_document__teacher=request.user)
-    tests = GeneratedTest.objects.filter(teacher=request.user)
+    from pymongo import MongoClient
+    from django.conf import settings
     
-    # Documents récents
-    recent_documents = documents.order_by('-created_at')[:5]
+    # Connexion MongoDB directe pour éviter les bugs Djongo
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
     
-    # Exercices récents
-    recent_exercises = exercises.order_by('-created_at')[:10]
+    # Documents récents via PyMongo
+    # Note: created_at est souvent None, utiliser updated_at comme fallback
+    recent_documents_data = list(db.course_documents.find({
+        'teacher_id': request.user.id
+    }).sort([('updated_at', -1), ('_id', -1)]).limit(5))
     
-    # Statistiques
+    # Convertir en objets Django
+    recent_documents = []
+    for doc_data in recent_documents_data:
+        doc_id = doc_data.pop('_id', None)
+        document = CourseDocument(**{k: v for k, v in doc_data.items() if k != '_id'})
+        document.pk = doc_id
+        document.id = doc_id
+        document._state.adding = False
+        document._state.db = 'default'
+        recent_documents.append(document)
+    
+    # 🔧 NORMALISATION AUTOMATIQUE DES TEACHER_ID
+    # Importer le système de normalisation
+    import sys
+    import os
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(current_dir)
+    sys.path.append(parent_dir)
+    
+    try:
+        from teacher_id_normalizer import TeacherIdNormalizer
+        normalizer = TeacherIdNormalizer()
+        normalizer.check_and_fix_if_needed()  # Auto-fix si nécessaire
+        normalizer.close()
+    except Exception as e:
+        print(f"⚠️ Normalisation automatique échouée: {e}")
+    
+    # Récupérer les IDs des documents de l'enseignant pour filtrer les exercices
+    teacher_document_ids = [doc['_id'] for doc in db.course_documents.find({'teacher_id': request.user.id})]
+    
+    # Exercices récents via PyMongo
+    recent_exercises_data = list(db.generated_exercises.find({
+        'source_document_id': {'$in': teacher_document_ids}
+    }).sort('created_at', -1).limit(10))
+    
+    # DEBUG: Afficher les exercices trouvés
+    print(f"🔍 Exercices trouvés: {len(recent_exercises_data)}")
+    if recent_exercises_data:
+        print(f"🔍 Premier exercice source_doc_id: {recent_exercises_data[0].get('source_document_id')}")
+    
+    # Convertir en objets Django
+    recent_exercises = []
+    for ex_data in recent_exercises_data:
+        ex_id = ex_data.pop('_id', None)
+        exercise = GeneratedExercise(**{k: v for k, v in ex_data.items() if k != '_id'})
+        exercise.pk = ex_id
+        exercise.id = ex_id
+        exercise._state.adding = False
+        exercise._state.db = 'default'
+        recent_exercises.append(exercise)
+    
+    # Statistiques via PyMongo
+    total_documents = db.course_documents.count_documents({'teacher_id': request.user.id})
+    total_exercises = db.generated_exercises.count_documents({'source_document_id': {'$in': teacher_document_ids}})
+    total_tests = db.generated_tests.count_documents({'teacher_id': request.user.id})
+    validated_exercises = db.generated_exercises.count_documents({
+        'source_document_id': {'$in': teacher_document_ids},
+        'status': 'validated'
+    })
+    pending_exercises = db.generated_exercises.count_documents({
+        'source_document_id': {'$in': teacher_document_ids},
+        'status': 'draft'
+    })
+    
     stats = {
-        'total_documents': documents.count(),
-        'total_exercises': exercises.count(),
-        'total_tests': tests.count(),
-        'validated_exercises': exercises.filter(status='validated').count(),
-        'pending_exercises': exercises.filter(status='draft').count(),
+        'total_documents': total_documents,
+        'total_exercises': total_exercises,
+        'total_tests': total_tests,
+        'validated_exercises': validated_exercises,
+        'pending_exercises': pending_exercises,
     }
     
-    # Distribution par type d'exercice
+    # Distribution par type d'exercice via PyMongo
     exercise_type_distribution = {
-        'mcq': exercises.filter(exercise_type='mcq').count(),
-        'true_false': exercises.filter(exercise_type='true_false').count(),
-        'fill_blank': exercises.filter(exercise_type='fill_blank').count(),
+        'mcq': db.generated_exercises.count_documents({
+            'source_document_id': {'$in': teacher_document_ids},
+            'exercise_type': 'mcq'
+        }),
+        'true_false': db.generated_exercises.count_documents({
+            'source_document_id': {'$in': teacher_document_ids},
+            'exercise_type': 'true_false'
+        }),
+        'fill_blank': db.generated_exercises.count_documents({
+            'source_document_id': {'$in': teacher_document_ids},
+            'exercise_type': 'fill_blank'
+        }),
     }
+    
+    client.close()
     
     context = {
         'stats': stats,
@@ -368,10 +444,9 @@ def exercise_list(request):
     """
     Liste de tous les exercices générés
     """
-    # Récupérer TOUS les exercices de l'utilisateur (y compris ceux de quick generate)
-    exercises = GeneratedExercise.objects.filter(
-        source_document__teacher=request.user
-    ).select_related('source_document').order_by('-created_at')
+    from pymongo import MongoClient
+    from django.conf import settings
+    from django.core.paginator import Paginator
     
     # Filtres
     exercise_type = request.GET.get('type', '')
@@ -379,17 +454,54 @@ def exercise_list(request):
     status = request.GET.get('status', '')
     concept = request.GET.get('concept', '')
     
+    # Connexion MongoDB directe
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
+    # Récupérer les IDs des documents de l'enseignant
+    teacher_document_ids = [doc['_id'] for doc in db.course_documents.find({'teacher_id': request.user.id})]
+    
+    # Construire le filtre MongoDB
+    mongo_filter = {'source_document_id': {'$in': teacher_document_ids}}
+    
     if exercise_type:
-        exercises = exercises.filter(exercise_type=exercise_type)
-    
+        mongo_filter['exercise_type'] = exercise_type
     if difficulty:
-        exercises = exercises.filter(difficulty=difficulty)
-    
+        mongo_filter['difficulty'] = difficulty
     if status:
-        exercises = exercises.filter(status=status)
-    
+        mongo_filter['status'] = status
     if concept:
-        exercises = exercises.filter(concept__icontains=concept)
+        mongo_filter['concept'] = {'$regex': concept, '$options': 'i'}
+    
+    # Récupérer les exercices
+    exercises_data = list(db.generated_exercises.find(mongo_filter).sort('created_at', -1))
+    
+    # Convertir en objets Django
+    exercises = []
+    for ex_data in exercises_data:
+        ex_id = ex_data.pop('_id', None)
+        exercise = GeneratedExercise(**{k: v for k, v in ex_data.items() if k != '_id'})
+        exercise.pk = ex_id
+        exercise.id = ex_id
+        exercise._state.adding = False
+        exercise._state.db = 'default'
+        
+        # Charger le document source
+        source_doc_id = ex_data.get('source_document_id')
+        if source_doc_id:
+            doc_data = db.course_documents.find_one({'_id': source_doc_id})
+            if doc_data:
+                doc_data_clean = {k: v for k, v in doc_data.items() if k != '_id'}
+                source_document = CourseDocument(**doc_data_clean)
+                source_document.pk = doc_data['_id']
+                source_document.id = doc_data['_id']
+                source_document._state.adding = False
+                source_document._state.db = 'default'
+                exercise.source_document = source_document
+        
+        exercises.append(exercise)
+    
+    client.close()
     
     # Pagination
     paginator = Paginator(exercises, 20)
@@ -816,8 +928,26 @@ def exercise_sets_list(request):
     client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
     db = client[settings.MONGO_DB_NAME]
     
-    # Récupérer les ExerciseSets de cet enseignant
-    sets_data = list(db.exercise_sets.find({'teacher_id': request.user.id}).sort('created_at', -1))
+    # 🔧 NORMALISATION AUTOMATIQUE DES TEACHER_ID
+    # Importer le système de normalisation
+    import sys
+    import os
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(current_dir)
+    sys.path.append(parent_dir)
+    
+    try:
+        from teacher_id_normalizer import TeacherIdNormalizer
+        normalizer = TeacherIdNormalizer()
+        normalizer.check_and_fix_if_needed()  # Auto-fix si nécessaire
+        normalizer.close()
+    except Exception as e:
+        print(f"⚠️ Normalisation automatique échouée: {e}")
+    
+    # Récupérer les ExerciseSets de cet enseignant (recherche avec int ET string)
+    sets_data = list(db.exercise_sets.find({
+        'teacher_id': {'$in': [request.user.id, str(request.user.id)]}
+    }).sort('created_at', -1))
     
     # Convertir en objets Django
     sets = []
