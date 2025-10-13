@@ -1573,3 +1573,147 @@ def student_exercise_result(request, set_id):
     }
     return render(request, 'exercise_generator/student_exercise_result.html', context)
 
+
+# ============================================
+# ÉDITION D'EXERCICES
+# ============================================
+
+@login_required
+def exercise_edit(request, pk):
+    """
+    Éditer un exercice généré pour corriger les erreurs
+    """
+    from pymongo import MongoClient
+    from django.conf import settings
+    from django.http import Http404
+    from datetime import datetime
+    import json
+    
+    # Récupérer l'exercice
+    exercise = get_mongo_document_simple(GeneratedExercise, pk)
+    
+    # Vérifier que le document source appartient au professeur connecté
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
+    
+    source_doc = db.course_documents.find_one({
+        '_id': exercise.source_document_id,
+        'teacher_id': {'$in': [request.user.id, str(request.user.id)]}
+    })
+    
+    if not source_doc:
+        client.close()
+        raise Http404("Exercice non trouvé ou accès non autorisé")
+    
+    if request.method == 'POST':
+        # Récupérer les données du formulaire
+        question_text = request.POST.get('question_text', '').strip()
+        concept = request.POST.get('concept', '').strip()
+        topic = request.POST.get('topic', '').strip()
+        explanation = request.POST.get('explanation', '').strip()
+        difficulty = request.POST.get('difficulty', 'medium')
+        
+        # Traitement spécifique selon le type d'exercice
+        if exercise.exercise_type == 'mcq':
+            # QCM - récupérer les options
+            options = []
+            correct_answer = request.POST.get('correct_answer', '')
+            
+            for i in range(1, 5):  # 4 options maximum
+                option_text = request.POST.get(f'option_{i}', '').strip()
+                if option_text:
+                    options.append(option_text)
+            
+            if len(options) < 2:
+                messages.error(request, "Il faut au moins 2 options pour un QCM.")
+                client.close()
+                return redirect('exercise_generator:exercise_edit', pk=pk)
+            
+            if not correct_answer or correct_answer not in options:
+                messages.error(request, "Veuillez sélectionner une réponse correcte valide.")
+                client.close()
+                return redirect('exercise_generator:exercise_edit', pk=pk)
+            
+            options_data = {
+                'options': options,
+                'correct': correct_answer
+            }
+            
+        elif exercise.exercise_type == 'true_false':
+            # Vrai/Faux
+            correct_answer = request.POST.get('correct_answer')
+            if correct_answer not in ['true', 'false']:
+                messages.error(request, "Veuillez sélectionner Vrai ou Faux.")
+                client.close()
+                return redirect('exercise_generator:exercise_edit', pk=pk)
+            
+            options_data = {
+                'correct': correct_answer == 'true'
+            }
+            
+        elif exercise.exercise_type == 'fill_blank':
+            # Texte à trous
+            blank_text = request.POST.get('blank_text', '').strip()
+            correct_answer = request.POST.get('correct_answer', '').strip()
+            
+            if not blank_text or not correct_answer:
+                messages.error(request, "Le texte à trous et la réponse sont obligatoires.")
+                client.close()
+                return redirect('exercise_generator:exercise_edit', pk=pk)
+            
+            if '___' not in blank_text:
+                messages.error(request, "Le texte doit contenir au moins un espace vide (___)")
+                client.close()
+                return redirect('exercise_generator:exercise_edit', pk=pk)
+            
+            options_data = {
+                'text': blank_text,
+                'correct': correct_answer
+            }
+        
+        else:
+            # Type non supporté
+            messages.error(request, "Type d'exercice non supporté pour l'édition.")
+            client.close()
+            return redirect('exercise_generator:exercise_detail', pk=pk)
+        
+        # Validation des champs obligatoires
+        if not question_text or not concept:
+            messages.error(request, "La question et le concept sont obligatoires.")
+            client.close()
+            return redirect('exercise_generator:exercise_edit', pk=pk)
+        
+        # Mise à jour dans MongoDB
+        update_result = db.generated_exercises.update_one(
+            {'_id': exercise.pk},
+            {
+                '$set': {
+                    'question_text': question_text,
+                    'concept': concept,
+                    'topic': topic,
+                    'explanation': explanation,
+                    'difficulty': difficulty,
+                    'options_data': options_data,
+                    'updated_at': datetime.utcnow(),
+                    'status': 'draft'  # Remettre en draft après modification
+                }
+            }
+        )
+        
+        if update_result.modified_count > 0:
+            messages.success(request, "Exercice modifié avec succès ! Il est maintenant en brouillon.")
+        else:
+            messages.error(request, "Erreur lors de la modification.")
+        
+        client.close()
+        return redirect('exercise_generator:exercise_detail', pk=pk)
+    
+    # GET - Afficher le formulaire d'édition
+    client.close()
+    
+    context = {
+        'exercise': exercise,
+    }
+    
+    return render(request, 'exercise_generator/exercise_edit.html', context)
+

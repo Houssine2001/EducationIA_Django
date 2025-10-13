@@ -1,0 +1,295 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Éditer - {{ exercise.concept }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        transition: all 0.3s ease;
+    }
+    .form-section:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    }
+    .dynamic-content {
+        display: none;
+    }
+    .dynamic-content.active {
+        display: block;
+        animation: fadeInUp 0.3s ease;
+    }
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- En-tête -->
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <a href="{% url 'exercise_generator:exercise_detail' exercise.pk %}" 
+                   class="inline-flex items-center text-sm text-gray-600 hover:text-indigo-600 mb-4 transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Retour aux détails
+                </a>
+                <h1 class="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    <i class="fas fa-edit mr-3"></i>Éditer l'Exercice
+                </h1>
+            </div>
+        </div>
+
+        <!-- Type d'exercice -->
+        <div class="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border-l-4 border-indigo-500">
+            <div class="flex items-center">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
+                    {% if exercise.exercise_type == 'mcq' %}
+                        <i class="fas fa-list-ul mr-2"></i> QCM
+                    {% elif exercise.exercise_type == 'true_false' %}
+                        <i class="fas fa-check-circle mr-2"></i> Vrai/Faux
+                    {% elif exercise.exercise_type == 'fill_blank' %}
+                        <i class="fas fa-pen mr-2"></i> Texte à trous
+                    {% else %}
+                        <i class="fas fa-question mr-2"></i> {{ exercise.exercise_type }}
+                    {% endif %}
+                </span>
+                <span class="ml-3 text-gray-600">Modification d'un exercice généré par l'IA</span>
+            </div>
+        </div>
+
+        <!-- Formulaire d'édition -->
+        <form method="post" class="space-y-8">
+            {% csrf_token %}
+            
+            <!-- Section 1: Informations générales -->
+            <div class="form-section bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                    <i class="fas fa-info-circle text-blue-600 mr-3"></i>
+                    Informations générales
+                </h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Question -->
+                    <div class="lg:col-span-2">
+                        <label for="question_text" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Question principale *
+                        </label>
+                        <textarea name="question_text" id="question_text" rows="4" required
+                                  class="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none"
+                                  placeholder="Saisissez la question...">{{ exercise.question_text }}</textarea>
+                    </div>
+                    
+                    <!-- Concept -->
+                    <div>
+                        <label for="concept" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Concept testé *
+                        </label>
+                        <input type="text" name="concept" id="concept" required
+                               value="{{ exercise.concept }}"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                               placeholder="Ex: JavaScript, React, Python...">
+                    </div>
+                    
+                    <!-- Topic -->
+                    <div>
+                        <label for="topic" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Thème (optionnel)
+                        </label>
+                        <input type="text" name="topic" id="topic"
+                               value="{{ exercise.topic|default:'' }}"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                               placeholder="Ex: composants, variables...">
+                    </div>
+                    
+                    <!-- Difficulté -->
+                    <div>
+                        <label for="difficulty" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Difficulté
+                        </label>
+                        <select name="difficulty" id="difficulty"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all">
+                            <option value="easy" {% if exercise.difficulty == 'easy' %}selected{% endif %}>Facile</option>
+                            <option value="medium" {% if exercise.difficulty == 'medium' %}selected{% endif %}>Moyen</option>
+                            <option value="hard" {% if exercise.difficulty == 'hard' %}selected{% endif %}>Difficile</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Explication -->
+                    <div class="lg:col-span-2">
+                        <label for="explanation" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Explication de la réponse
+                        </label>
+                        <textarea name="explanation" id="explanation" rows="3"
+                                  class="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none"
+                                  placeholder="Expliquez pourquoi cette réponse est correcte...">{{ exercise.explanation|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: Options spécifiques selon le type -->
+            {% if exercise.exercise_type == 'mcq' %}
+            <!-- QCM -->
+            <div class="form-section bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                    <i class="fas fa-list-ul text-green-600 mr-3"></i>
+                    Options du QCM
+                </h2>
+                
+                <div class="space-y-4">
+                    {% if exercise.options_data.options %}
+                        {% for option in exercise.options_data.options %}
+                        <div class="flex items-center space-x-4">
+                            <input type="radio" name="correct_answer" value="{{ option }}" 
+                                   {% if option == exercise.options_data.correct %}checked{% endif %}
+                                   class="h-5 w-5 text-indigo-600 focus:ring-indigo-500">
+                            <input type="text" name="option_{{ forloop.counter }}" 
+                                   value="{{ option }}"
+                                   class="flex-1 px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                                   placeholder="Option {{ forloop.counter }}">
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <!-- Format dictionnaire (A, B, C, D) -->
+                        {% for key, value in exercise.options_data.items %}
+                            {% if key != 'correct' %}
+                            <div class="flex items-center space-x-4">
+                                <input type="radio" name="correct_answer" value="{{ value }}" 
+                                       {% if value == exercise.options_data.correct %}checked{% endif %}
+                                       class="h-5 w-5 text-indigo-600 focus:ring-indigo-500">
+                                <div class="flex items-center space-x-2 flex-1">
+                                    <span class="text-sm font-semibold text-gray-500 w-8">{{ key }}:</span>
+                                    <input type="text" name="option_{{ forloop.counter }}" 
+                                           value="{{ value }}"
+                                           class="flex-1 px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                                           placeholder="Option {{ key }}">
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <!-- Options supplémentaires si moins de 4 -->
+                    {% if exercise.options_data.options|length < 4 and exercise.options_data.options %}
+                        {% for i in "1234"|slice:exercise.options_data.options|length %}
+                        <div class="flex items-center space-x-4">
+                            <input type="radio" name="correct_answer" value="" 
+                                   class="h-5 w-5 text-indigo-600 focus:ring-indigo-500">
+                            <input type="text" name="option_{{ exercise.options_data.options|length|add:forloop.counter }}" 
+                                   class="flex-1 px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                                   placeholder="Option {{ exercise.options_data.options|length|add:forloop.counter }} (optionnelle)">
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                
+                <p class="mt-4 text-sm text-gray-600">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Sélectionnez la bonne réponse en cochant le bouton radio correspondant.
+                </p>
+            </div>
+            
+            {% elif exercise.exercise_type == 'true_false' %}
+            <!-- Vrai/Faux -->
+            <div class="form-section bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                    <i class="fas fa-check-circle text-purple-600 mr-3"></i>
+                    Réponse Vrai/Faux
+                </h2>
+                
+                <div class="flex space-x-6">
+                    <label class="flex items-center">
+                        <input type="radio" name="correct_answer" value="true" 
+                               {% if exercise.options_data.correct %}checked{% endif %}
+                               class="h-5 w-5 text-green-600 focus:ring-green-500 mr-3">
+                        <span class="text-lg font-medium text-green-700">Vrai</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="radio" name="correct_answer" value="false" 
+                               {% if not exercise.options_data.correct %}checked{% endif %}
+                               class="h-5 w-5 text-red-600 focus:ring-red-500 mr-3">
+                        <span class="text-lg font-medium text-red-700">Faux</span>
+                    </label>
+                </div>
+            </div>
+            
+            {% elif exercise.exercise_type == 'fill_blank' %}
+            <!-- Texte à trous -->
+            <div class="form-section bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                    <i class="fas fa-pen text-orange-600 mr-3"></i>
+                    Texte à trous
+                </h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label for="blank_text" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Texte avec espaces vides (utilisez ___ pour les trous) *
+                        </label>
+                        <textarea name="blank_text" id="blank_text" rows="4" required
+                                  class="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none"
+                                  placeholder="Ex: React est une ___ JavaScript développée par ___">{{ exercise.options_data.text }}</textarea>
+                    </div>
+                    
+                    <div>
+                        <label for="correct_answer" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Réponse correcte *
+                        </label>
+                        <input type="text" name="correct_answer" id="correct_answer" required
+                               value="{{ exercise.options_data.correct }}"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                               placeholder="Réponse attendue">
+                    </div>
+                </div>
+                
+                <p class="mt-4 text-sm text-gray-600">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Utilisez "___ " (trois tirets) pour marquer les espaces à remplir.
+                </p>
+            </div>
+            {% endif %}
+
+            <!-- Boutons d'action -->
+            <div class="flex justify-between items-center pt-8">
+                <a href="{% url 'exercise_generator:exercise_detail' exercise.pk %}"
+                   class="inline-flex items-center px-6 py-3 bg-gray-500 text-white font-semibold rounded-xl hover:bg-gray-600 transform hover:scale-105 transition-all shadow-lg">
+                    <i class="fas fa-times mr-2"></i>
+                    Annuler
+                </a>
+                
+                <button type="submit"
+                        class="inline-flex items-center px-8 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-600 hover:to-purple-700 transform hover:scale-105 transition-all shadow-lg">
+                    <i class="fas fa-save mr-2"></i>
+                    Enregistrer les modifications
+                </button>
+            </div>
+        </form>
+        
+        <!-- Note importante -->
+        <div class="mt-8 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-lg">
+            <div class="flex items-start">
+                <i class="fas fa-exclamation-triangle text-amber-400 mt-1 mr-3"></i>
+                <div>
+                    <h3 class="text-sm font-semibold text-amber-800">Important</h3>
+                    <p class="text-sm text-amber-700 mt-1">
+                        Après modification, l'exercice sera remis en statut "brouillon" et devra être validé à nouveau.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -19,6 +19,7 @@ urlpatterns = [
     # Exercices
     path('exercises/', views.exercise_list, name='exercise_list'),
     path('exercises/<str:pk>/', views.exercise_detail, name='exercise_detail'),
+    path('exercises/<str:pk>/edit/', views.exercise_edit, name='exercise_edit'),
     path('exercises/<str:pk>/validate/', views.exercise_validate, name='exercise_validate'),
     path('exercises/bulk-action/', views.exercise_bulk_action, name='exercise_bulk_action'),
     
