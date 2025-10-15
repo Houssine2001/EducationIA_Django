@@ -24,6 +24,8 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),  # URLs d'authentification Django
     path('', include('evaluation.urls')),  # URLs de l'application evaluation
     path('generator/', include('exercise_generator.urls')),  # URLs du générateur d'exercices IA
+    path('analytics/', include('analytics_dashboard.urls')),  # VOTRE MODULE
+
 ]
 
 # Servir les fichiers media en développement

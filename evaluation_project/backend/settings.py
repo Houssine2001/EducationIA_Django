@@ -31,8 +31,9 @@ CSRF_USE_SESSIONS = False
 CSRF_COOKIE_NAME = 'csrftoken'
 CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
 
-# Session Configuration
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+# Session Configuration - CORRECTION POUR DJONGO
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'  # Changé de 'db' à 'cache'
+SESSION_CACHE_ALIAS = 'default'
 SESSION_COOKIE_SECURE = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
@@ -52,6 +53,7 @@ INSTALLED_APPS = [
     # Applications personnalisées
     'evaluation.apps.EvaluationConfig',  # Fix pour Djongo
     'exercise_generator',  # Générateur d'exercices IA
+    'analytics_dashboard',
 ]
 
 MIDDLEWARE = [

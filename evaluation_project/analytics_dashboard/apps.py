@@ -1,0 +1,14 @@
+from django.apps import AppConfig
+
+
+class AnalyticsDashboardConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'analytics_dashboard'
+    verbose_name = 'Analytics Dashboard'
+    
+    def ready(self):
+        """Configuration lors du démarrage de l'application"""
+        try:
+            import analytics_dashboard.signals
+        except ImportError:
+            pass

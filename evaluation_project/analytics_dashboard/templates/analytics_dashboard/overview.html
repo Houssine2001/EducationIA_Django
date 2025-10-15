@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title|default:"Analytics Dashboard" }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .card {
+            background: white;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 0.25rem;
+            border: none;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 0.5rem;
+        }
+        .alert {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+            border-left: 4px solid;
+        }
+        .alert-info {
+            background: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
+        .alert-success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        nav {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        nav a {
+            margin-right: 1rem;
+            color: #007bff;
+            text-decoration: none;
+        }
+        nav a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Analytics Dashboard IA</h1>
+            <p>Analyse intelligente des performances étudiantes</p>
+        </div>
+        
+        <nav>
+            <a href="/analytics/">🏠 Dashboard</a>
+            <a href="/analytics/students/">👥 Étudiants</a>
+            <a href="/analytics/reports/">📊 Rapports</a>
+            <a href="/analytics/predictions/">🔮 Prédictions IA</a>
+            {% if user.is_staff %}
+                <a href="/admin/">⚙️ Admin</a>
+            {% endif %}
+            <a href="/accounts/logout/" style="float: right;">🚪 Déconnexion</a>
+        </nav>
+
+        <div class="card">
+            <h2>{{ page_title|default:"Dashboard Analytique" }}</h2>
+            
+            {% if user_type == 'admin' %}
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">{{ total_students|default:0 }}</div>
+                        <div class="stat-label">Étudiants Total</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{{ total_analytics|default:0 }}</div>
+                        <div class="stat-label">Analytics Disponibles</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{{ risk_stats|length|default:0 }}</div>
+                        <div class="stat-label">Niveaux de Risque</div>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if student_analytics %}
+                <div class="alert alert-info">
+                    <strong>Vos Analytics:</strong><br>
+                    📈 Taux de réussite: {{ student_analytics.success_rate|floatformat:1 }}%<br>
+                    📊 Score moyen: {{ student_analytics.average_score|floatformat:1 }}<br>
+                    ⚠️ Niveau de risque: {{ student_analytics.get_risk_level_display }}<br>
+                    💪 Engagement: {{ student_analytics.engagement_score|floatformat:2 }}
+                </div>
+            {% endif %}
+
+            <div class="alert alert-success">
+                ✅ <strong>Module Analytics Dashboard fonctionnel!</strong><br>
+                Le système d'analytics IA est maintenant opérationnel.
+            </div>
+
+            <div style="margin-top: 2rem;">
+                <h3>Actions disponibles:</h3>
+                <a href="/analytics/students/" class="btn">📋 Voir tous les étudiants</a>
+                <a href="/analytics/reports/generate/" class="btn">📄 Générer un rapport</a>
+                <a href="/analytics/predictions/" class="btn">🔮 Voir les prédictions</a>
+                {% if user.is_staff %}
+                    <button onclick="refreshAnalytics()" class="btn">🔄 Actualiser Analytics</button>
+                    <button onclick="updatePredictions()" class="btn">🤖 Mettre à jour IA</button>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if risk_stats %}
+        <div class="card">
+            <h3>📊 Répartition des Risques</h3>
+            <div class="stats-grid">
+                {% for risk in risk_stats %}
+                <div class="stat-card">
+                    <div class="stat-number">{{ risk.count }}</div>
+                    <div class="stat-label">{{ risk.risk_level }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function refreshAnalytics() {
+            fetch('/analytics/api/refresh-analytics/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                if (data.status === 'success') {
+                    location.reload();
+                }
+            })
+            .catch(error => alert('Erreur: ' + error));
+        }
+
+        function updatePredictions() {
+            fetch('/analytics/api/update-predictions/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                if (data.status === 'success') {
+                    location.reload();
+                }
+            })
+            .catch(error => alert('Erreur: ' + error));
+        }
+    </script>
+</body>
+</html>
