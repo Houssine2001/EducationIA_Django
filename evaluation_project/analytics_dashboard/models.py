@@ -2,6 +2,7 @@ from djongo import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from bson import ObjectId
+import json
 
 
 class StudentAnalytics(models.Model):
@@ -19,159 +20,142 @@ class StudentAnalytics(models.Model):
     average_score = models.FloatField(default=0.0)
     success_rate = models.FloatField(default=0.0)
     
-    # Tendances d'apprentissage
-    learning_velocity = models.FloatField(default=0.0, help_text="Vitesse d'apprentissage")
-    consistency_score = models.FloatField(default=0.0, help_text="Score de régularité")
-    difficulty_adaptation = models.FloatField(default=0.0, help_text="Adaptation à la difficulté")
-    
-    # Prédictions IA
-    risk_level = models.CharField(max_length=20, choices=[
-        ('LOW', 'Faible Risque'),
-        ('MEDIUM', 'Risque Moyen'),
-        ('HIGH', 'Risque Élevé'),
-        ('CRITICAL', 'Risque Critique')
-    ], default='LOW')
-    
-    predicted_success_probability = models.FloatField(default=0.0)
-    failure_risk_score = models.FloatField(default=0.0)
-    
-    # Analyse comportementale
-    engagement_score = models.FloatField(default=0.0)
-    participation_rate = models.FloatField(default=0.0)
-    time_spent_weekly = models.IntegerField(default=0, help_text="Temps en minutes")
-    
     # Métadonnées
-    last_activity = models.DateTimeField(default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        db_table = 'student_analytics'
-        verbose_name = 'Analytics Étudiant'
-        verbose_name_plural = 'Analytics Étudiants'
-    
-    def __str__(self):
-        return f"Analytics - {self.student_name}"
-    
-    def get_risk_level_display(self):
-        """Retourne le libellé du niveau de risque"""
-        risk_choices = {
-            'LOW': 'Faible Risque',
-            'MEDIUM': 'Risque Moyen',
-            'HIGH': 'Risque Élevé',
-            'CRITICAL': 'Risque Critique'
-        }
-        return risk_choices.get(self.risk_level, self.risk_level)
 
 
 class PerformanceTrend(models.Model):
-    """Modèle pour les tendances de performance dans le temps"""
+    """Tendances de performance dans le temps"""
     _id = models.ObjectIdField(primary_key=True, default=ObjectId)
-    
-    student_analytics = models.ForeignKey(StudentAnalytics, on_delete=models.CASCADE, related_name='trends')
-    date = models.DateField()
+    student = models.ForeignKey(User, on_delete=models.CASCADE)
+    date = models.DateTimeField(auto_now_add=True)
     score = models.FloatField()
-    exercises_completed = models.IntegerField()
-    time_spent_minutes = models.IntegerField()
-    difficulty_level = models.CharField(max_length=20, default='MEDIUM')
-    
-    # Métriques comportementales
-    attempts_per_exercise = models.FloatField(default=1.0)
-    help_requests = models.IntegerField(default=0)
-    completion_time_avg = models.FloatField(default=0.0)
-    
-    class Meta:
-        db_table = 'performance_trends'
-        ordering = ['-date']
-        verbose_name = 'Tendance de Performance'
-        verbose_name_plural = 'Tendances de Performance'
+    subject = models.CharField(max_length=100)
 
 
 class ClassroomAnalytics(models.Model):
-    """Analytics au niveau de la classe"""
+    """Analytics par classe"""
     _id = models.ObjectIdField(primary_key=True, default=ObjectId)
-    
-    classroom_name = models.CharField(max_length=100)
-    teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name='classroom_analytics')
-    
-    # Métriques collectives
-    total_students = models.IntegerField(default=0)
-    active_students = models.IntegerField(default=0)
-    average_class_score = models.FloatField(default=0.0)
-    class_success_rate = models.FloatField(default=0.0)
-    
-    # Répartition des risques
-    low_risk_count = models.IntegerField(default=0)
-    medium_risk_count = models.IntegerField(default=0)
-    high_risk_count = models.IntegerField(default=0)
-    critical_risk_count = models.IntegerField(default=0)
-    
-    # Tendances
-    improvement_trend = models.CharField(max_length=20, choices=[
-        ('POSITIVE', 'Tendance Positive'),
-        ('STABLE', 'Stable'),
-        ('NEGATIVE', 'Tendance Négative')
-    ], default='STABLE')
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        db_table = 'classroom_analytics'
-        verbose_name = 'Analytics Classe'
-        verbose_name_plural = 'Analytics Classes'
-    
-    def __str__(self):
-        return f"Classe {self.classroom_name} - {self.teacher.get_full_name()}"
+    class_name = models.CharField(max_length=100)
+    teacher = models.ForeignKey(User, on_delete=models.CASCADE)
+    students_count = models.IntegerField(default=0)
+    average_performance = models.FloatField(default=0.0)
 
 
 class PredictionModel(models.Model):
-    """Modèle pour stocker les prédictions IA"""
+    """Modèle de prédiction IA"""
     _id = models.ObjectIdField(primary_key=True, default=ObjectId)
-    
-    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='predictions')
-    prediction_type = models.CharField(max_length=50, default='RISK_ASSESSMENT')
-    confidence_score = models.FloatField(default=0.0)
-    predicted_outcome = models.CharField(max_length=50)
-    prediction_data = models.JSONField(default=dict)
-    is_active = models.BooleanField(default=True)
+    student = models.ForeignKey(User, on_delete=models.CASCADE)
+    prediction_type = models.CharField(max_length=50)
+    prediction_value = models.FloatField()
+    confidence = models.FloatField()
     created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        db_table = 'prediction_models'
-        verbose_name = 'Modèle de Prédiction'
-        verbose_name_plural = 'Modèles de Prédiction'
-        ordering = ['-created_at']
-    
-    def __str__(self):
-        return f"Prédiction {self.prediction_type} - {self.student.username}"
 
 
 class AnalyticsReport(models.Model):
-    """Modèle pour les rapports d'analytics"""
+    """Rapports d'analytics"""
+    _id = models.ObjectIdField(primary_key=True, default=ObjectId)
+    title = models.CharField(max_length=200)
+    generated_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    data = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class SubjectAnalytics(models.Model):
+    """Analytics par matière avec prédictions IA réelles"""
     _id = models.ObjectIdField(primary_key=True, default=ObjectId)
     
-    title = models.CharField(max_length=200)
-    report_type = models.CharField(max_length=50, choices=[
-        ('STUDENT', 'Rapport Étudiant'),
-        ('CLASSROOM', 'Rapport Classe'),
-        ('GLOBAL', 'Rapport Global')
-    ])
-    generated_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='generated_reports')
-    data = models.JSONField(default=dict)
-    status = models.CharField(max_length=20, choices=[
-        ('PENDING', 'En Attente'),
-        ('PROCESSING', 'En Cours'),
-        ('COMPLETED', 'Terminé'),
-        ('FAILED', 'Échec')
-    ], default='PENDING')
+    # Informations de base
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='subject_analytics')
+    subject_name = models.CharField(max_length=100)
+    subject_code = models.CharField(max_length=10, default='')
+    
+    # Métriques de visite
+    total_visits = models.IntegerField(default=0)
+    total_time_spent = models.IntegerField(default=0)  # en minutes
+    last_visit = models.DateTimeField(null=True, blank=True)
+    visit_frequency = models.FloatField(default=0.0)  # visites par semaine
+    
+    # Métriques de test
+    tests_taken = models.IntegerField(default=0)
+    tests_passed = models.IntegerField(default=0)
+    average_test_score = models.FloatField(default=0.0)
+    best_score = models.FloatField(default=0.0)
+    worst_score = models.FloatField(default=0.0)
+    last_test_date = models.DateTimeField(null=True, blank=True)
+    first_test_date = models.DateTimeField(null=True, blank=True)
+    
+    # Prédictions IA (calculées dynamiquement)
+    predicted_success_probability = models.FloatField(default=0.5)
+    risk_level = models.CharField(max_length=20, default='MEDIUM')
+    prediction_confidence = models.FloatField(default=0.0)
+    improvement_trend = models.CharField(max_length=20, default='UNKNOWN')
+    
+    # Données de recommandation (stockées en JSON)
+    prediction_factors = models.JSONField(default=dict)
+    recommended_actions = models.JSONField(default=list)
+    
+    # Métadonnées
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
-    class Meta:
-        db_table = 'analytics_reports'
-        ordering = ['-created_at']
-        verbose_name = 'Rapport Analytics'
-        verbose_name_plural = 'Rapports Analytics'
+    def get_engagement_level(self):
+        """Calcule le niveau d'engagement"""
+        if self.total_visits >= 15:
+            return 'ÉLEVÉ'
+        elif self.total_visits >= 8:
+            return 'MOYEN'
+        elif self.total_visits >= 3:
+            return 'FAIBLE'
+        else:
+            return 'AUCUN'
     
-    def __str__(self):
-        return f"{self.title} - {self.get_status_display()}"
+    def calculate_success_rate(self):
+        """Calcule le taux de réussite"""
+        if self.tests_taken > 0:
+            return (self.tests_passed / self.tests_taken) * 100
+        return 0.0
+    
+    def get_risk_level_display(self):
+        """Affichage du niveau de risque"""
+        levels = {
+            'LOW': 'Faible',
+            'MEDIUM': 'Moyen',
+            'HIGH': 'Élevé',
+            'CRITICAL': 'Critique'
+        }
+        return levels.get(self.risk_level, 'Moyen')
+
+
+class SubjectVisit(models.Model):
+    """Enregistrement des visites par matière"""
+    _id = models.ObjectIdField(primary_key=True, default=ObjectId)
+    subject_analytics = models.ForeignKey(SubjectAnalytics, on_delete=models.CASCADE, related_name='visits')
+    visit_date = models.DateTimeField(auto_now_add=True)
+    duration_minutes = models.IntegerField(default=30)
+    pages_viewed = models.IntegerField(default=1)
+    interaction_score = models.FloatField(default=0.5)
+
+
+class SubjectTestResult(models.Model):
+    """Résultats des tests par matière"""
+    _id = models.ObjectIdField(primary_key=True, default=ObjectId)
+    subject_analytics = models.ForeignKey(SubjectAnalytics, on_delete=models.CASCADE, related_name='test_results')
+    test_name = models.CharField(max_length=200)
+    test_date = models.DateTimeField(auto_now_add=True)
+    score = models.FloatField()
+    max_score = models.FloatField(default=100.0)
+    passed = models.BooleanField(default=False)
+    time_spent = models.IntegerField(default=0)  # en minutes
+    attempts = models.IntegerField(default=1)
+    quiz_data = models.JSONField(default=dict)  # Questions et réponses du quiz
+
+
+class SubjectQuiz(models.Model):
+    """Banque de questions par matière"""
+    _id = models.ObjectIdField(primary_key=True, default=ObjectId)
+    subject_name = models.CharField(max_length=100)
+    difficulty_level = models.CharField(max_length=20, default='MEDIUM')  # EASY, MEDIUM, HARD
+    questions = models.JSONField(default=list)
+    created_at = models.DateTimeField(auto_now_add=True)

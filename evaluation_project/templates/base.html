@@ -259,6 +259,24 @@
                         
                         <!-- Divider -->
                         <div class="border-t border-gray-700 my-4"></div>
+                                     <!-- Analytics Section -->
+                        {% if user.is_authenticated %}
+                            <!-- Analytics Section pour tous les utilisateurs -->
+                            <div class="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 rounded-lg p-1 my-2">
+                                <a href="{% url 'analytics_dashboard:subject_overview' %}" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700/50 transition-all-300 group">
+                                    <i class="fas fa-chart-bar text-blue-400 group-hover:scale-110 transition-transform"></i>
+                                    <span class="font-medium">📊 Analytics Subjects</span>
+                                </a>
+                            </div>
+                            
+                            <a href="{% url 'analytics_dashboard:overview' %}" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition-all-300 group">
+                                <i class="fas fa-chart-line text-cyan-400 group-hover:scale-110 transition-transform"></i>
+                                <span class="font-medium">Analytics Overview</span>
+                            </a>
+                        {% endif %}
+                        <!-- Divider -->
+                        <div class="border-t border-gray-700 my-4"></div>
+                
                         
                         <!-- Profil & Settings -->
                         <a href="#" class="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition-all-300 group">
@@ -280,7 +298,7 @@
                         </form>
                     {% endif %}
                 </nav>
-                
+                         
                 <!-- AI Badge -->
                 <div class="mt-8 p-4 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg">
                     <div class="flex items-center space-x-2 mb-2">

@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mes Matières - EduIA</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header moderne */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        /* Navigation moderne */
+        .nav-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 15px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .nav-link {
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Stats modernes */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.9rem;
+        }
+
+        /* Grid des matières moderne */
+        .subjects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .subject-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .subject-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .subject-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+        }
+
+        .subject-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .subject-name {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .subject-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        /* Badges de risque modernes */
+        .risk-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .risk-LOW { 
+            background: linear-gradient(135deg, #00b894, #00cec9);
+            color: white;
+        }
+        .risk-MEDIUM { 
+            background: linear-gradient(135deg, #fdcb6e, #e17055);
+            color: white;
+        }
+        .risk-HIGH { 
+            background: linear-gradient(135deg, #e17055, #d63031);
+            color: white;
+        }
+        .risk-CRITICAL { 
+            background: linear-gradient(135deg, #d63031, #a29bfe);
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Métriques modernes */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .metric-item {
+            text-align: center;
+            padding: 1rem;
+            background: rgba(102, 126, 234, 0.05);
+            border-radius: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .metric-item:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.02);
+        }
+
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #667eea;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-label {
+            font-size: 0.85rem;
+            color: #666;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Prédiction IA moderne */
+        .ai-prediction {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .ai-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+
+        .prediction-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .progress-container {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 25px;
+            height: 12px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 25px;
+            transition: width 0.8s ease;
+            position: relative;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .confidence-score {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.5rem;
+        }
+
+        /* Engagement moderne */
+        .engagement-section {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            background: rgba(102, 126, 234, 0.05);
+            border-radius: 15px;
+            margin: 1rem 0;
+        }
+
+        .engagement-label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .engagement-value {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .engagement-ÉLEVÉ { background: linear-gradient(135deg, #00b894, #00cec9); color: white; }
+        .engagement-MOYEN { background: linear-gradient(135deg, #fdcb6e, #e17055); color: white; }
+        .engagement-FAIBLE { background: linear-gradient(135deg, #e17055, #d63031); color: white; }
+        .engagement-AUCUN { background: linear-gradient(135deg, #636e72, #2d3436); color: white; }
+
+        /* Boutons modernes */
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1rem;
+            border: none;
+            border-radius: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .btn-visit {
+            background: linear-gradient(135deg, #00b894, #00cec9);
+            color: white;
+        }
+
+        .btn-quiz {
+            background: linear-gradient(135deg, #fdcb6e, #e17055);
+            color: white;
+        }
+
+        .btn-details {
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Recommandations IA */
+        .ai-recommendations {
+            background: linear-gradient(135deg, rgba(230, 126, 34, 0.1), rgba(231, 76, 60, 0.1));
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            border-left: 4px solid #e67e22;
+        }
+
+        .rec-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 700;
+            color: #e67e22;
+            margin-bottom: 1rem;
+        }
+
+        .rec-message {
+            color: #d63031;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        /* Modal Quiz moderne */
+        .quiz-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        .quiz-content {
+            background: white;
+            margin: 3% auto;
+            padding: 2rem;
+            border-radius: 24px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .quiz-title {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #333;
+        }
+
+        .quiz-close {
+            background: linear-gradient(135deg, #d63031, #e17055);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .quiz-timer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 20px;
+            font-weight: 700;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            z-index: 1001;
+        }
+
+        .quiz-question {
+            background: rgba(102, 126, 234, 0.05);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #667eea;
+        }
+
+        .quiz-question h4 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            line-height: 1.4;
+        }
+
+        .quiz-options {
+            list-style: none;
+            padding: 0;
+        }
+
+        .quiz-options li {
+            margin-bottom: 0.75rem;
+        }
+
+        .quiz-options label {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            background: white;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .quiz-options label:hover {
+            background: rgba(102, 126, 234, 0.05);
+            border-color: #667eea;
+        }
+
+        .quiz-options input[type="radio"] {
+            margin-right: 0.75rem;
+            transform: scale(1.2);
+        }
+
+        .quiz-submit {
+            background: linear-gradient(135deg, #00b894, #00cec9);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        /* Notifications modernes */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 15px;
+            color: white;
+            font-weight: 600;
+            z-index: 10000;
+            max-width: 400px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(20px);
+        }
+
+        .notification.success {
+            background: linear-gradient(135deg, #00b894, #00cec9);
+        }
+
+        .notification.error {
+            background: linear-gradient(135deg, #d63031, #e17055);
+        }
+
+        .notification.warning {
+            background: linear-gradient(135deg, #fdcb6e, #e17055);
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .subjects-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .nav-links {
+                flex-direction: column;
+            }
+
+            .quiz-content {
+                margin: 10% auto;
+                width: 95%;
+            }
+        }
+
+        /* Animations d'entrée */
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .slide-up {
+            animation: slideUp 0.8s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header moderne -->
+        <div class="header fade-in">
+            <h1><i class="fas fa-brain"></i> EduIA - Mes Matières</h1>
+            <p>Intelligence Artificielle pour votre réussite académique</p>
+        </div>
+        
+        <!-- Navigation moderne -->
+        <div class="nav-container fade-in">
+            <div class="nav-links">
+                <a href="/analytics/" class="nav-link">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+                <a href="/analytics/subjects/" class="nav-link">
+                    <i class="fas fa-book"></i> Mes Matières
+                </a>
+                <a href="/analytics/study-plan/" class="nav-link">
+                    <i class="fas fa-calendar-alt"></i> Plan d'Étude
+                </a>
+                <a href="/analytics/students/" class="nav-link">
+                    <i class="fas fa-users"></i> Étudiants
+                </a>
+            </div>
+        </div>
+
+        <!-- Statistiques globales -->
+        <div class="stats-grid fade-in">
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.total_subjects|default:0 }}</div>
+                <div class="stat-label">Matières Total</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.critical_count|default:0 }}</div>
+                <div class="stat-label">Risque Critique</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.high_risk_count|default:0 }}</div>
+                <div class="stat-label">Risque Élevé</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.success_rate|default:0|floatformat:1 }}%</div>
+                <div class="stat-label">Taux de Réussite</div>
+            </div>
+        </div>
+
+        <!-- Grid des matières -->
+        <div class="subjects-grid">
+            {% for subject in subjects_overview %}
+            <div class="subject-card slide-up" id="subject-{{ subject.subject_name|slugify }}" style="animation-delay: {{ forloop.counter0|add:0.1 }}s">
+                <div class="subject-header">
+                    <div class="subject-name">
+                        <div class="subject-icon">
+                            {% if subject.subject_name == 'Mathématiques' %}
+                                <i class="fas fa-calculator"></i>
+                            {% elif subject.subject_name == 'Physique' %}
+                                <i class="fas fa-atom"></i>
+                            {% elif subject.subject_name == 'Chimie' %}
+                                <i class="fas fa-flask"></i>
+                            {% elif subject.subject_name == 'Biologie' %}
+                                <i class="fas fa-dna"></i>
+                            {% elif subject.subject_name == 'Français' %}
+                                <i class="fas fa-feather-alt"></i>
+                            {% elif subject.subject_name == 'Anglais' %}
+                                <i class="fas fa-globe"></i>
+                            {% elif subject.subject_name == 'Histoire' %}
+                                <i class="fas fa-landmark"></i>
+                            {% elif subject.subject_name == 'Géographie' %}
+                                <i class="fas fa-map"></i>
+                            {% elif subject.subject_name == 'Informatique' %}
+                                <i class="fas fa-code"></i>
+                            {% elif subject.subject_name == 'Philosophie' %}
+                                <i class="fas fa-lightbulb"></i>
+                            {% elif subject.subject_name == 'Économie' %}
+                                <i class="fas fa-chart-line"></i>
+                            {% else %}
+                                <i class="fas fa-book"></i>
+                            {% endif %}
+                        </div>
+                        {{ subject.subject_name }}
+                    </div>
+                    <div class="risk-badge risk-{{ subject.analytics.risk_level }}">
+                        {{ subject.analytics.get_risk_level_display|default:"Moyen" }}
+                    </div>
+                </div>
+                
+                <!-- Métriques -->
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <div class="metric-value" id="visits-{{ subject.subject_name|slugify }}">
+                            {{ subject.analytics.total_visits|default:0 }}
+                        </div>
+                        <div class="metric-label">Visites</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value" id="tests-{{ subject.subject_name|slugify }}">
+                            {{ subject.analytics.tests_taken|default:0 }}
+                        </div>
+                        <div class="metric-label">Tests</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value" id="score-{{ subject.subject_name|slugify }}">
+                            {{ subject.analytics.average_test_score|default:0|floatformat:1 }}
+                        </div>
+                        <div class="metric-label">Score Moyen</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value" id="success-{{ subject.subject_name|slugify }}">
+                            {{ subject.success_rate|default:0|floatformat:1 }}%
+                        </div>
+                        <div class="metric-label">Réussite</div>
+                    </div>
+                </div>
+                
+                <!-- Prédiction IA -->
+                <div class="ai-prediction">
+                    <div class="ai-title">
+                        <i class="fas fa-robot"></i>
+                        Prédiction IA
+                    </div>
+                    <div class="prediction-value" id="prediction-{{ subject.subject_name|slugify }}">
+                        {{ subject.prediction_summary.probability|floatformat:1 }}%
+                    </div>
+                    <div class="progress-container">
+                        {% with probability=subject.prediction_summary.probability|default:0.5 %}
+                        <div class="progress-fill" id="progress-{{ subject.subject_name|slugify }}" style="width: {{ probability|floatformat:0 }}%"></div>
+                        {% endwith %}
+                    </div>
+                    <div class="confidence-score">
+                        Confiance: {{ subject.prediction_summary.confidence|floatformat:1 }}%
+                    </div>
+                </div>
+                
+                <!-- Engagement -->
+                <div class="engagement-section">
+                    <span class="engagement-label">Engagement:</span>
+                    <span class="engagement-value engagement-{{ subject.engagement_level }}" id="engagement-{{ subject.subject_name|slugify }}">
+                        {{ subject.engagement_level|default:"AUCUN" }}
+                    </span>
+                </div>
+                
+                <!-- Actions -->
+                <div class="actions-grid">
+                    <button onclick="recordVisit('{{ subject.subject_name }}')" class="btn btn-visit">
+                        <i class="fas fa-check"></i> Visite
+                    </button>
+                    <button onclick="startQuiz('{{ subject.subject_name }}')" class="btn btn-quiz">
+                        <i class="fas fa-play"></i> Test
+                    </button>
+                    <a href="/analytics/subjects/{{ subject.subject_name }}/" class="btn btn-details">
+                        <i class="fas fa-chart-bar"></i> Détails
+                    </a>
+                </div>
+                
+                <!-- Recommandations IA -->
+                {% if subject.analytics.recommended_actions %}
+                    <div class="ai-recommendations" id="recommendations-{{ subject.subject_name|slugify }}">
+                        <div class="rec-title">
+                            <i class="fas fa-lightbulb"></i>
+                            Recommandation IA
+                        </div>
+                        {% for rec in subject.analytics.recommended_actions %}
+                            {% if rec.priority == 'CRITICAL' or rec.priority == 'HIGH' %}
+                                <div class="rec-message">{{ rec.message }}</div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Modal Quiz -->
+    <div id="quizModal" class="quiz-modal">
+        <div class="quiz-content">
+            <div class="quiz-header">
+                <h2 id="quizTitle" class="quiz-title">Quiz</h2>
+                <button onclick="closeQuiz()" class="quiz-close">
+                    <i class="fas fa-times"></i> Fermer
+                </button>
+            </div>
+            
+            <div id="quizTimer" class="quiz-timer" style="display: none;">
+                <i class="fas fa-clock"></i> <span id="timeLeft">10:00</span>
+            </div>
+            
+            <div id="quizQuestions"></div>
+            
+            <button id="submitQuiz" onclick="submitQuiz()" class="quiz-submit" style="display: none;">
+                <i class="fas fa-paper-plane"></i> Soumettre le Quiz
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let currentQuiz = null;
+        let currentSubject = null;
+        let quizTimer = null;
+        
+        function recordVisit(subjectName) {
+            const duration = Math.floor(Math.random() * 30) + 15; // 15-45 minutes
+            const pages = Math.floor(Math.random() * 8) + 3; // 3-10 pages
+            
+            fetch('/analytics/api/record-visit/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    subject_name: subjectName,
+                    duration: duration,
+                    pages_viewed: pages
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updateSubjectDisplay(subjectName, {
+                        total_visits: data.total_visits,
+                        engagement_level: data.new_engagement,
+                        prediction: data.prediction
+                    });
+                    
+                    showNotification(`✅ Visite enregistrée pour ${subjectName}!\n📊 Analytics mis à jour\n🤖 Nouvelle prédiction: ${(data.prediction * 100).toFixed(1)}%`, 'success');
+                    
+                    // Animation de mise à jour
+                    animateCardUpdate(subjectName);
+                } else {
+                    showNotification(`❌ Erreur: ${data.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification(`❌ Erreur réseau: ${error}`, 'error');
+            });
+        }
+        
+        function startQuiz(subjectName) {
+            currentSubject = subjectName;
+            
+            fetch('/analytics/api/generate-quiz/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    subject_name: subjectName,
+                    difficulty: 'MEDIUM'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    currentQuiz = data.quiz;
+                    displayQuiz(data.quiz);
+                } else {
+                    showNotification(`❌ Erreur: ${data.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification(`❌ Erreur: ${error}`, 'error');
+            });
+        }
+        
+        function displayQuiz(quiz) {
+            document.getElementById('quizTitle').innerHTML = `<i class="fas fa-graduation-cap"></i> Quiz ${quiz.subject}`;
+            document.getElementById('quizModal').style.display = 'block';
+            
+            const questionsHTML = quiz.questions.map((question, index) => `
+                <div class="quiz-question">
+                    <h4><i class="fas fa-question-circle"></i> Question ${index + 1}: ${question.question}</h4>
+                    <ul class="quiz-options">
+                        ${question.options.map((option, optIndex) => `
+                            <li>
+                                <label>
+                                    <input type="radio" name="question_${index}" value="${optIndex}">
+                                    ${option}
+                                </label>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `).join('');
+            
+            document.getElementById('quizQuestions').innerHTML = questionsHTML;
+            document.getElementById('submitQuiz').style.display = 'block';
+            
+            startQuizTimer(quiz.time_limit);
+        }
+        
+        function startQuizTimer(minutes) {
+            let timeLeft = minutes * 60;
+            document.getElementById('quizTimer').style.display = 'block';
+            
+            quizTimer = setInterval(() => {
+                const mins = Math.floor(timeLeft / 60);
+                const secs = timeLeft % 60;
+                document.getElementById('timeLeft').textContent = 
+                    `${mins}:${secs.toString().padStart(2, '0')}`;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(quizTimer);
+                    showNotification('⏰ Temps écoulé! Soumission automatique...', 'warning');
+                    setTimeout(submitQuiz, 1000);
+                }
+                timeLeft--;
+            }, 1000);
+        }
+        
+        function submitQuiz() {
+            if (!currentQuiz) return;
+            
+            const userAnswers = {};
+            currentQuiz.questions.forEach((question, index) => {
+                const selected = document.querySelector(`input[name="question_${index}"]:checked`);
+                if (selected) {
+                    userAnswers[index] = selected.value;
+                }
+            });
+            
+            if (quizTimer) {
+                clearInterval(quizTimer);
+                quizTimer = null;
+            }
+            
+            fetch('/analytics/api/submit-quiz/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    subject_name: currentSubject,
+                    quiz_data: currentQuiz,
+                    user_answers: userAnswers
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    closeQuiz();
+                    showQuizResults(data);
+                    updateSubjectDisplayAfterQuiz(currentSubject, data);
+                    animateCardUpdate(currentSubject);
+                } else {
+                    showNotification(`❌ Erreur: ${data.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification(`❌ Erreur: ${error}`, 'error');
+            });
+        }
+        
+        function closeQuiz() {
+            document.getElementById('quizModal').style.display = 'none';
+            document.getElementById('quizTimer').style.display = 'none';
+            if (quizTimer) {
+                clearInterval(quizTimer);
+                quizTimer = null;
+            }
+            currentQuiz = null;
+            currentSubject = null;
+        }
+        
+        function showQuizResults(data) {
+            const resultMessage = `🎯 Quiz terminé!
+            
+📊 Score: ${data.score.toFixed(1)}% (${data.correct_answers}/${data.total_questions})
+${data.passed ? '✅ Réussi' : '❌ Échec'}
+
+🤖 Nouvelle prédiction IA: ${(data.new_prediction * 100).toFixed(1)}%
+🎯 Niveau de risque: ${data.risk_level}`;
+            
+            showNotification(resultMessage, data.passed ? 'success' : 'warning', 6000);
+        }
+        
+        function updateSubjectDisplay(subjectName, data) {
+            const slug = subjectName.toLowerCase().replace(/\s+/g, '-').replace(/[éèêë]/g, 'e').replace(/[àáâä]/g, 'a');
+            
+            if (data.total_visits !== undefined) {
+                const visitsEl = document.getElementById(`visits-${slug}`);
+                if (visitsEl) {
+                    animateNumber(visitsEl, parseInt(visitsEl.textContent), data.total_visits);
+                }
+            }
+            
+            if (data.engagement_level) {
+                const engagementEl = document.getElementById(`engagement-${slug}`);
+                if (engagementEl) {
+                    engagementEl.textContent = data.engagement_level;
+                    engagementEl.className = `engagement-value engagement-${data.engagement_level}`;
+                }
+            }
+            
+            if (data.prediction !== undefined) {
+                const predictionEl = document.getElementById(`prediction-${slug}`);
+                const progressEl = document.getElementById(`progress-${slug}`);
+                
+                if (predictionEl) {
+                    animateNumber(predictionEl, parseFloat(predictionEl.textContent), (data.prediction * 100).toFixed(1));
+                }
+                
+                if (progressEl) {
+                    progressEl.style.width = `${(data.prediction * 100).toFixed(0)}%`;
+                }
+            }
+        }
+        
+        function updateSubjectDisplayAfterQuiz(subjectName, data) {
+            const slug = subjectName.toLowerCase().replace(/\s+/g, '-').replace(/[éèêë]/g, 'e').replace(/[àáâä]/g, 'a');
+            
+            // Mettre à jour le nombre de tests
+            const testsEl = document.getElementById(`tests-${slug}`);
+            if (testsEl) {
+                const currentTests = parseInt(testsEl.textContent);
+                animateNumber(testsEl, currentTests, currentTests + 1);
+            }
+            
+            // Mettre à jour le score si c'est le premier test ou meilleur score
+            const scoreEl = document.getElementById(`score-${slug}`);
+            if (scoreEl && data.score) {
+                animateNumber(scoreEl, parseFloat(scoreEl.textContent), data.score);
+            }
+            
+            // Mettre à jour la prédiction
+            updateSubjectDisplay(subjectName, {
+                prediction: data.new_prediction
+            });
+        }
+        
+        function animateNumber(element, from, to) {
+            const duration = 1000;
+            const increment = (to - from) / (duration / 16);
+            let current = from;
+            
+            const timer = setInterval(() => {
+                current += increment;
+                if ((increment > 0 && current >= to) || (increment < 0 && current <= to)) {
+                    current = to;
+                    clearInterval(timer);
+                }
+                element.textContent = Math.round(current * 10) / 10;
+            }, 16);
+        }
+        
+        function animateCardUpdate(subjectName) {
+            const slug = subjectName.toLowerCase().replace(/\s+/g, '-').replace(/[éèêë]/g, 'e').replace(/[àáâä]/g, 'a');
+            const card = document.getElementById(`subject-${slug}`);
+            
+            if (card) {
+                card.style.transform = 'scale(1.02)';
+                card.style.boxShadow = '0 16px 48px rgba(102, 126, 234, 0.3)';
+                
+                setTimeout(() => {
+                    card.style.transform = 'translateY(-8px)';
+                    card.style.boxShadow = '0 16px 48px rgba(0, 0, 0, 0.15)';
+                }, 2000);
+            }
+        }
+        
+        function showNotification(message, type = 'info', duration = 4000) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.style.whiteSpace = 'pre-line';
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Animation d'entrée
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+                notification.style.opacity = '1';
+            }, 100);
+            
+            // Animation de sortie
+            setTimeout(() => {
+                notification.style.transform = 'translateX(100%)';
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }, duration);
+        }
+        
+        // Fermer le modal si on clique à l'extérieur
+        window.onclick = function(event) {
+            const modal = document.getElementById('quizModal');
+            if (event.target === modal) {
+                closeQuiz();
+            }
+        }
+        
+        // Animation d'entrée progressive
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.subject-card');
+            cards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
+    </script>
+</body>
+</html>
