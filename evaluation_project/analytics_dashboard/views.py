@@ -102,22 +102,17 @@ def _get_risk_statistics():
 
 def _get_prediction_probability(prediction):
     """Récupère la probabilité de prédiction"""
-    if prediction and prediction.raw_data:
-        try:
-            data = prediction.raw_data if isinstance(prediction.raw_data, dict) else json.loads(prediction.raw_data)
-            return data.get('success_probability', 0.5)
-        except:
-            pass
+    # 🔧 CORRECTION: prediction est un dict, pas un objet
+    if prediction and isinstance(prediction, dict):
+        return prediction.get('predicted_score', 0) / 100.0  # Convertir en probabilité 0-1
     return 0.5
 
 def _get_prediction_confidence(prediction):
     """Récupère la confiance de la prédiction"""
-    if prediction and prediction.raw_data:
-        try:
-            data = prediction.raw_data if isinstance(prediction.raw_data, dict) else json.loads(prediction.raw_data)
-            return data.get('confidence', 0.5)
-        except:
-            pass
+    # 🔧 CORRECTION: prediction est un dict, pas un objet
+    if prediction and isinstance(prediction, dict):
+        return prediction.get('confidence', 0) / 100.0  # Convertir en probabilité 0-1
+    return 0.5
     return 0.5
 
 def _prepare_chart_data(user):
@@ -145,7 +140,8 @@ def _get_ai_recommendations(analytics, prediction):
     """Génère des recommandations IA basées sur les analytics"""
     recommendations = []
     
-    if not prediction or not prediction.raw_data:
+    # 🔧 CORRECTION: prediction est un dict, pas un objet
+    if not prediction or not isinstance(prediction, dict):
         return [
             {
                 'title': 'Commencer à générer des données',
@@ -155,8 +151,8 @@ def _get_ai_recommendations(analytics, prediction):
         ]
     
     try:
-        data = prediction.raw_data if isinstance(prediction.raw_data, dict) else json.loads(prediction.raw_data)
-        ai_recommendations = data.get('recommendations', [])
+        # Les recommandations peuvent être directement dans le dict
+        ai_recommendations = prediction.get('recommendations', [])
         
         for rec in ai_recommendations:
             recommendations.append({

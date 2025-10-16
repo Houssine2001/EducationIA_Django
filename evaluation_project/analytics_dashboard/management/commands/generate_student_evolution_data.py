@@ -31,6 +31,8 @@ class Command(BaseCommand):
             help='Effacer les données existantes avant génération'
         )
 
+# ...existing code...
+
     def handle(self, *args, **options):
         students_count = options['students']
         days_count = options['days']
@@ -82,6 +84,10 @@ class Command(BaseCommand):
                 student, tracking_service, subjects, days_count, student_profile
             )
         
+        # 🔧 GÉNÉRATION DES PRÉDICTIONS IA APRÈS LES DONNÉES
+        self.stdout.write(self.style.SUCCESS('Génération des prédictions IA...'))
+        self.create_sample_predictions(students)
+        
         self.stdout.write(self.style.SUCCESS(
             f'Données générées avec succès pour {len(students)} étudiants!'
         ))
@@ -89,10 +95,13 @@ class Command(BaseCommand):
         # Statistiques finales
         total_trends = PerformanceTrend.objects.count()
         total_analytics = StudentAnalytics.objects.count()
+        total_predictions = PredictionModel.objects.count()
         
         self.stdout.write(self.style.SUCCESS(
-            f'Statistiques: {total_trends} performances, {total_analytics} analytics'
+            f'Statistiques: {total_trends} performances, {total_analytics} analytics, {total_predictions} prédictions'
         ))
+
+# ...existing code...
     
     def get_or_create_students(self, count):
         """Obtenir ou créer des étudiants pour les tests"""

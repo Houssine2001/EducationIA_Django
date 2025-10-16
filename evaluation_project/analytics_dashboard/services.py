@@ -153,231 +153,313 @@ class AnalyticsService:
             return 'HIGH'
         else:
             return 'CRITICAL'
+    
+    def get_comprehensive_student_data(self, student):
+        """Récupère toutes les données d'un étudiant pour les 3 modules analytics"""
+        from .models import SubjectAnalytics, SubjectTestResult
+        
+        # Mise à jour des analytics
+        analytics = self.update_student_analytics(student)
+        
+        # Récupérer les performances par matière
+        subject_analytics = SubjectAnalytics.objects.filter(student=student)
+        
+        # Récupérer l'historique de performances
+        performance_trends = PerformanceTrend.objects.filter(
+            student=student
+        ).order_by('-date')[:30]
+        
+        # Calculer les matières fortes et faibles
+        subjects_data = {}
+        for subject_analytic in subject_analytics:
+            subjects_data[subject_analytic.subject_name] = {
+                'average_score': subject_analytic.average_score,
+                'tests_count': subject_analytic.tests_count,
+                'success_rate': subject_analytic.success_rate,
+                'last_activity': subject_analytic.last_test_date
+            }
+        
+        # Identifier matière forte et faible
+        if subjects_data:
+            strongest_subject = max(subjects_data.items(), key=lambda x: x[1]['average_score'])
+            weakest_subject = min(subjects_data.items(), key=lambda x: x[1]['average_score'])
+        else:
+            strongest_subject = ('Aucune', {'average_score': 0})
+            weakest_subject = ('Aucune', {'average_score': 0})
+        
+        # Calculer les métriques d'engagement
+        current_streak = getattr(analytics, 'current_streak', 0)
+        total_study_time = getattr(analytics, 'study_time_minutes', 0)
+        
+        return {
+            'student_analytics': analytics,
+            'performance_history': performance_trends,
+            'subjects_data': subjects_data,
+            'strongest_subject': strongest_subject,
+            'weakest_subject': weakest_subject,
+            'current_streak': current_streak,
+            'total_study_time': total_study_time,
+            'chart_data': {
+                'labels': [trend.date.strftime('%d/%m') for trend in performance_trends],
+                'scores': [trend.score for trend in performance_trends],
+                'subjects': [trend.subject for trend in performance_trends]
+            }
+        }
 
 
 class PredictionService:
-    """Service pour les prédictions IA réelles"""
+    def __init__(self):
+        self.analytics_service = AnalyticsService()
     
     def generate_real_prediction(self, student):
-        """Génère une prédiction IA basée sur des données réelles"""
-        analytics = StudentAnalytics.objects.filter(user=student).first()
-        trends = PerformanceTrend.objects.filter(student=student).order_by('date')
+        """
+        Génère une prédiction IA RÉALISTE basée sur les vraies données
+        """
+        from .models import StudentAnalytics, PerformanceTrend, PredictionModel
         
-        if not analytics:
-            return None
+        # 1. Récupérer les données réelles
+        try:
+            analytics = StudentAnalytics.objects.get(user=student)
+        except StudentAnalytics.DoesNotExist:
+            # Créer des analytics vides si inexistants
+            analytics = StudentAnalytics.objects.create(
+                user=student,
+                student_name=f"{student.first_name} {student.last_name}".strip() or student.username,
+                student_email=student.email,
+                average_score=0,
+                total_exercises=0,
+                study_time_minutes=0,
+                current_streak=0
+            )
         
-        # Préparer les données pour l'IA
-        features = self._extract_features(student, analytics, trends)
+        # 2. Récupérer l'historique de performances
+        performance_trends = PerformanceTrend.objects.filter(
+            student=student
+        ).order_by('-date')[:10]  # 10 derniers tests
         
-        # Prédiction basée sur un modèle simple mais réel
-        prediction = self._predict_with_math(features)
+        # 3. CALCUL RÉALISTE DE LA PRÉDICTION
         
-        # Sauvegarder la prédiction
-        prediction_obj, created = PredictionModel.objects.update_or_create(
+        # A. Score moyen actuel (0-100)
+        current_score = analytics.average_score if analytics.average_score <= 100 else analytics.average_score * 5
+        
+        # B. Tendance récente (si l'étudiant progresse ou régresse)
+        trend_factor = self._calculate_trend(performance_trends)
+        
+        # C. Engagement - Calculer manuellement
+        engagement_factor = self._calculate_engagement(analytics, performance_trends)
+        
+        # D. Consistance (si l'étudiant a des résultats stables)
+        consistency_factor = self._calculate_consistency(performance_trends)
+        
+        # E. Nombre de tests (plus de tests = prédiction plus fiable)
+        # 🔧 CORRECTION: Convertir en liste pour éviter COUNT() sur LIMIT
+        trends = list(performance_trends)
+        total_tests = len(trends)
+        test_count_factor = min(total_tests / 10, 1.0)  # Max à 10 tests
+        
+        # 4. FORMULE DE PRÉDICTION RÉALISTE
+        
+        # Score de base = score actuel
+        base_prediction = current_score
+        
+        # Ajustement selon la tendance (-10 à +10 points)
+        trend_adjustment = trend_factor * 10
+        
+        # Ajustement selon l'engagement (-5 à +5 points)
+        engagement_adjustment = (engagement_factor - 0.5) * 10
+        
+        # Ajustement selon la consistance (-5 à +5 points)
+        consistency_adjustment = (consistency_factor - 0.5) * 10
+        
+        # Prédiction finale
+        predicted_score = base_prediction + trend_adjustment + engagement_adjustment + consistency_adjustment
+        
+        # Limiter entre 0 et 100
+        predicted_score = max(0, min(100, predicted_score))
+        
+        # 5. CALCUL DE LA CONFIANCE
+        
+        confidence = (
+            test_count_factor * 0.4 +      # 40% basé sur le nombre de tests
+            consistency_factor * 0.3 +      # 30% basé sur la consistance
+            engagement_factor * 0.3         # 30% basé sur l'engagement
+        ) * 100
+        
+        # Confiance minimum de 20%, maximum de 95%
+        confidence = max(20, min(95, confidence))
+        
+        # 6. SAUVEGARDER LA PRÉDICTION
+        # 🔧 CORRECTION: Utiliser les champs corrects du modèle PredictionModel
+        prediction, created = PredictionModel.objects.get_or_create(
             student=student,
-            prediction_type='RISK_ASSESSMENT',
+            prediction_type='overall_performance',
             defaults={
-                'confidence': prediction['confidence'],
-                'prediction_value': prediction['success_probability'],
+                'prediction_value': round(predicted_score, 1),
+                'confidence': round(confidence, 1),
                 'raw_data': {
-                    'risk_probability': prediction['risk_probability'],
-                    'success_probability': prediction['success_probability'],
-                    'next_score_prediction': prediction['next_score'],
-                    'improvement_trend': prediction['trend'],
-                    'key_factors': prediction['factors'],
-                    'recommendations': prediction['recommendations']
+                    'predicted_score': round(predicted_score, 1),
+                    'confidence_level': round(confidence, 1),
+                    'based_on_tests': total_tests,
+                    'current_average': analytics.average_score,
+                    'trend': trend_factor,
+                    'engagement': engagement_factor,
+                    'consistency': consistency_factor
                 }
             }
         )
         
-        return prediction_obj
-    
-    def _extract_features(self, student, analytics, trends):
-        """Extrait les caractéristiques pour l'IA"""
-        if trends.exists():
-            scores = [trend.score for trend in trends]
-            recent_scores = scores[-10:] if len(scores) >= 10 else scores
-        else:
-            scores = []
-            recent_scores = []
-        
-        features = {
-            'avg_score': analytics.average_score,
-            'success_rate': analytics.success_rate,
-            'learning_velocity': getattr(analytics, 'learning_velocity', 0),
-            'consistency': getattr(analytics, 'consistency_score', 0.5),
-            'engagement': getattr(analytics, 'engagement_score', 0.5),
-            'recent_performance': sum(recent_scores) / len(recent_scores) if recent_scores else analytics.average_score,
-            'performance_variance': self._calculate_variance(scores) if len(scores) > 1 else 0,
-            'days_active': trends.count() if trends.exists() else 0,
-            'improvement_rate': self._calculate_improvement_rate(scores),
-            'difficulty_adaptation': self._calculate_difficulty_adaptation(scores)
-        }
-        
-        return features
-    
-    def _calculate_variance(self, scores):
-        """Calcule la variance des scores"""
-        if len(scores) < 2:
-            return 0
-        mean = sum(scores) / len(scores)
-        variance = sum((score - mean) ** 2 for score in scores) / len(scores)
-        return variance
-    
-    def _predict_with_math(self, features):
-        """Utilise des calculs mathématiques pour faire des prédictions"""
-        try:
-            # Modèle basé sur des règles expertes et calculs statistiques
-            risk_probability = self._calculate_risk_probability(features)
-            success_probability = 1 - risk_probability
-            next_score = self._predict_next_score(features)
-            trend = self._analyze_trend(features)
-            
-            # Facteurs clés influençant la prédiction
-            factors = self._identify_key_factors(features)
-            recommendations = self._generate_recommendations(features, risk_probability)
-            
-            # Confiance basée sur la quantité et qualité des données
-            confidence = min(0.95, 0.5 + (features['days_active'] / 100) + (features['consistency'] * 0.3))
-            
-            outcome = 'SUCCESS' if success_probability > 0.6 else 'RISK'
-            
-            return {
-                'risk_probability': round(risk_probability, 3),
-                'success_probability': round(success_probability, 3),
-                'next_score': round(next_score, 1),
-                'trend': trend,
-                'factors': factors,
-                'recommendations': recommendations,
-                'confidence': round(confidence, 3),
-                'outcome': outcome
+        if not created:
+            # Mettre à jour si existe déjà
+            prediction.prediction_value = round(predicted_score, 1)
+            prediction.confidence = round(confidence, 1)
+            prediction.raw_data = {
+                'predicted_score': round(predicted_score, 1),
+                'confidence_level': round(confidence, 1),
+                'based_on_tests': total_tests,
+                'current_average': analytics.average_score,
+                'trend': trend_factor,
+                'engagement': engagement_factor,
+                'consistency': consistency_factor
             }
-            
-        except Exception as e:
-            # Fallback en cas d'erreur
-            return {
-                'risk_probability': 0.5,
-                'success_probability': 0.5,
-                'next_score': features.get('avg_score', 50),
-                'trend': 'stable',
-                'factors': ['insufficient_data'],
-                'recommendations': ['Continuer les exercices régulièrement'],
-                'confidence': 0.3,
-                'outcome': 'UNCERTAIN'
-            }
-    
-    def _calculate_risk_probability(self, features):
-        """Calcule la probabilité de risque"""
-        # Modèle basé sur des poids experts
-        weights = {
-            'avg_score': -0.008,  # Plus le score est élevé, moins le risque
-            'success_rate': -0.006,
-            'learning_velocity': -0.1,
-            'consistency': -0.3,
-            'engagement': -0.4,
-            'recent_performance': -0.005,
-            'performance_variance': 0.002,  # Plus de variance = plus de risque
+            prediction.save()
+        
+        return {
+            'predicted_score': round(predicted_score, 1),
+            'confidence': round(confidence, 1),
+            'current_score': round(current_score, 1),
+            'trend': trend_factor,
+            'engagement': engagement_factor,
+            'consistency': consistency_factor
         }
-        
-        risk_score = 0.5  # Base
-        for feature, value in features.items():
-            if feature in weights:
-                risk_score += weights[feature] * value
-        
-        # Normaliser entre 0 et 1
-        risk_probability = max(0.05, min(0.95, risk_score))
-        return risk_probability
     
-    def _predict_next_score(self, features):
-        """Prédit le prochain score"""
-        base_score = features['avg_score']
-        velocity = features['learning_velocity']
-        engagement_factor = features['engagement']
+    def _calculate_engagement(self, analytics, performance_trends):
+        """
+        Calcule l'engagement de l'étudiant (0 à 1)
+        Basé sur : nombre de tests, temps d'étude, régularité
+        """
+        # 🔧 CORRECTION: Convertir en liste pour éviter COUNT() sur LIMIT
+        trends = list(performance_trends)
         
-        # Prédiction basée sur la tendance et l'engagement
-        next_score = base_score + (velocity * engagement_factor * 2)
-        return max(0, min(100, next_score))
+        # Facteur 1: Nombre de tests (0-1)
+        total_tests = len(trends)
+        test_factor = min(total_tests / 20, 1.0)  # 20 tests = engagement max
+        
+        # Facteur 2: Temps d'étude (0-1)
+        study_time_hours = getattr(analytics, 'study_time_minutes', 0) / 60
+        time_factor = min(study_time_hours / 50, 1.0)  # 50h = engagement max
+        
+        # Facteur 3: Streak actuel (0-1)
+        current_streak = getattr(analytics, 'current_streak', 0)
+        streak_factor = min(current_streak / 14, 1.0)  # 14 jours = engagement max
+        
+        # Facteur 4: Régularité récente (0-1)
+        regularity_factor = self._calculate_regularity(performance_trends)
+        
+        # Moyenne pondérée
+        engagement = (
+            test_factor * 0.3 +        # 30% nombre de tests
+            time_factor * 0.2 +         # 20% temps d'étude
+            streak_factor * 0.2 +       # 20% streak
+            regularity_factor * 0.3     # 30% régularité
+        )
+        
+        return max(0, min(1, engagement))
     
-    def _analyze_trend(self, features):
-        """Analyse la tendance d'évolution"""
-        velocity = features['learning_velocity']
+    def _calculate_regularity(self, performance_trends):
+        """
+        Calcule la régularité de l'étudiant (0 à 1)
+        1 = très régulier (tests espacés uniformément)
+        0 = irrégulier (longues pauses)
+        """
+        # 🔧 CORRECTION: Convertir en liste pour éviter COUNT() sur LIMIT
+        trends = list(performance_trends)
         
-        if velocity > 0.5:
-            return 'improving'
-        elif velocity < -0.5:
-            return 'declining'
-        else:
-            return 'stable'
-    
-    def _identify_key_factors(self, features):
-        """Identifie les facteurs clés"""
-        factors = []
+        if len(trends) < 2:
+            return 0.5  # Neutre
         
-        if features['engagement'] < 0.5:
-            factors.append('faible_engagement')
-        if features['consistency'] < 0.6:
-            factors.append('irregularite')
-        if features['learning_velocity'] < 0:
-            factors.append('difficulte_apprentissage')
-        if features['avg_score'] < 60:
-            factors.append('performance_faible')
+        # Calculer les intervalles entre les tests
+        intervals = []
         
-        if not factors:
-            factors.append('bon_niveau_general')
+        for i in range(len(trends) - 1):
+            delta = (trends[i].date - trends[i+1].date).days
+            intervals.append(delta)
         
-        return factors
-    
-    def _generate_recommendations(self, features, risk_probability):
-        """Génère des recommandations personnalisées"""
-        recommendations = []
-        
-        if risk_probability > 0.7:
-            recommendations.append("Intervention urgente recommandée")
-        
-        if features['engagement'] < 0.5:
-            recommendations.append("Augmenter la fréquence des exercices")
-        
-        if features['consistency'] < 0.6:
-            recommendations.append("Travailler de manière plus régulière")
-        
-        if features['learning_velocity'] < 0:
-            recommendations.append("Revoir les bases et concepts fondamentaux")
-        
-        if not recommendations:
-            recommendations.append("Continuer sur cette excellente voie!")
-        
-        return recommendations
-    
-    def _calculate_improvement_rate(self, scores):
-        """Calcule le taux d'amélioration"""
-        if len(scores) < 5:
-            return 0.0
-        
-        mid_point = len(scores) // 2
-        first_half = scores[:mid_point]
-        second_half = scores[mid_point:]
-        
-        if first_half and second_half:
-            first_avg = sum(first_half) / len(first_half)
-            second_avg = sum(second_half) / len(second_half)
-            improvement = second_avg - first_avg
-            return improvement / len(scores)
-        
-        return 0.0
-    
-    def _calculate_difficulty_adaptation(self, scores):
-        """Calcule la capacité d'adaptation à la difficulté"""
-        if len(scores) < 3:
+        if not intervals:
             return 0.5
         
-        # Mesure la stabilité après des chutes de performance
-        adaptation_score = 0.5
-        for i in range(1, len(scores) - 1):
-            if scores[i] < scores[i-1] - 10:  # Chute significative
-                if scores[i+1] > scores[i]:  # Récupération
-                    adaptation_score += 0.1
+        # Calculer l'écart-type des intervalles
+        mean_interval = sum(intervals) / len(intervals)
+        variance = sum((x - mean_interval) ** 2 for x in intervals) / len(intervals)
+        std_dev = variance ** 0.5
         
-        return min(1.0, adaptation_score)
+        # Normaliser : moins d'écart-type = plus régulier
+        # On considère qu'un écart-type de 7 jours est acceptable
+        regularity = 1 - min(std_dev / 7, 1)
+        
+        return max(0, min(1, regularity))
+    
+    def _calculate_trend(self, performance_trends):
+        """
+        Calcule la tendance de progression (-1 à +1)
+        -1 = forte régression
+         0 = stable
+        +1 = forte progression
+        """
+        # 🔧 CORRECTION: Convertir en liste pour éviter COUNT() sur LIMIT
+        trends = list(performance_trends)
+        
+        if len(trends) < 2:
+            return 0  # Pas assez de données
+        
+        if len(trends) < 4:
+            # Trop peu de données, calculer simplement la pente
+            first_score = trends[-1].score
+            last_score = trends[0].score
+            diff = last_score - first_score
+            return max(-1, min(1, diff / 10))  # Normaliser entre -1 et 1
+        
+        # Séparer en deux groupes
+        recent_tests = trends[:len(trends)//2]
+        older_tests = trends[len(trends)//2:]
+        
+        # Moyenne de chaque groupe
+        recent_avg = sum(t.score for t in recent_tests) / len(recent_tests) if recent_tests else 0
+        older_avg = sum(t.score for t in older_tests) / len(older_tests) if older_tests else 0
+        
+        # Calculer la tendance
+        diff = recent_avg - older_avg
+        
+        # Normaliser entre -1 et 1
+        return max(-1, min(1, diff / 10))
+    
+    def _calculate_consistency(self, performance_trends):
+        """
+        Calcule la consistance des résultats (0 à 1)
+        0 = très inconsistant (grandes variations)
+        1 = très consistant (résultats stables)
+        """
+        # 🔧 CORRECTION: Convertir en liste pour éviter COUNT() sur LIMIT
+        trends = list(performance_trends)
+        
+        if len(trends) < 2:
+            return 0.5  # Neutre si pas assez de données
+        
+        scores = [t.score for t in trends]
+        
+        # Calculer l'écart-type
+        mean = sum(scores) / len(scores)
+        variance = sum((x - mean) ** 2 for x in scores) / len(scores)
+        std_dev = variance ** 0.5
+        
+        # Normaliser l'écart-type (0 = parfait, 5 = très variable)
+        # On inverse pour avoir 1 = consistant
+        consistency = 1 - min(std_dev / 5, 1)
+        
+        return max(0, min(1, consistency))
+    
+    def generate_predictions(self, student):
+        """Génère des prédictions pour un étudiant (méthode legacy)"""
+        return self.generate_real_prediction(student)
 
 
 class ReportService:
