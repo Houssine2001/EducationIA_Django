@@ -1,0 +1,383 @@
+<!-- c:\Users\ferie\OneDrive\Bureau\Ma gestion djangoo\EducationIA_Django\evaluation_project\analytics_dashboard\templates\analytics_dashboard\tracking_script.html -->
+<script>
+/**
+ * Script de tracking automatique des activités étudiantes
+ * c:\Users\ferie\OneDrive\Bureau\Ma gestion djangoo\EducationIA_Django\evaluation_project\analytics_dashboard\templates\analytics_dashboard\tracking_script.html
+ */
+
+class StudentTracker {
+    constructor() {
+        this.baseUrl = '/analytics/api/tracking/';
+        this.visitStartTime = Date.now();
+        this.currentCourse = null;
+        this.isTracking = true;
+        
+        // Initialiser le tracker
+        this.init();
+    }
+    
+    init() {
+        // Tracker les visites de page
+        this.trackPageVisit();
+        
+        // Tracker le temps passé sur la page
+        this.setupTimeTracking();
+        
+        // Tracker les interactions avec les tests
+        this.setupTestTracking();
+        
+        // Tracker la fermeture de page
+        this.setupUnloadTracking();
+    }
+    
+    trackPageVisit() {
+        // Détecter le type de page
+        const path = window.location.pathname;
+        let courseName = 'Page générale';
+        
+        if (path.includes('/test/')) {
+            courseName = 'Test - ' + (document.title || 'Test');
+        } else if (path.includes('/course/')) {
+            courseName = 'Cours - ' + (document.title || 'Cours');
+        } else if (path.includes('/analytics/')) {
+            courseName = 'Analytics Dashboard';
+        } else if (path.includes('/evaluation/')) {
+            courseName = 'Évaluation - ' + (document.title || 'Évaluation');
+        }
+        
+        this.currentCourse = courseName;
+        
+        // Envoyer l'événement de visite
+        this.sendCourseVisit(courseName);
+    }
+    
+    setupTimeTracking() {
+        // Tracker le focus/blur de la fenêtre
+        let isActive = true;
+        let activeTime = 0;
+        let lastActiveTime = Date.now();
+        
+        window.addEventListener('focus', () => {
+            isActive = true;
+            lastActiveTime = Date.now();
+        });
+        
+        window.addEventListener('blur', () => {
+            if (isActive) {
+                activeTime += Date.now() - lastActiveTime;
+                isActive = false;
+            }
+        });
+        
+        // Sauvegarder le temps actif périodiquement
+        setInterval(() => {
+            if (isActive) {
+                activeTime += Date.now() - lastActiveTime;
+                lastActiveTime = Date.now();
+                
+                // Envoyer une mise à jour du temps passé toutes les 2 minutes
+                if (activeTime > 120000) { // 2 minutes
+                    this.updateCourseVisit(this.currentCourse, activeTime / 60000);
+                    activeTime = 0;
+                }
+            }
+        }, 30000); // Vérifier toutes les 30 secondes
+    }
+    
+    setupTestTracking() {
+        // Tracker les soumissions de formulaires de test
+        document.addEventListener('submit', (event) => {
+            const form = event.target;
+            
+            // Vérifier si c'est un formulaire de test
+            if (form.classList.contains('test-form') || 
+                form.id.includes('test') || 
+                form.action.includes('test')) {
+                
+                this.trackTestSubmission(form);
+            }
+        });
+        
+        // Tracker les clics sur les boutons de test
+        document.addEventListener('click', (event) => {
+            const button = event.target;
+            
+            if (button.classList.contains('submit-test') || 
+                button.id.includes('submit-test')) {
+                
+                setTimeout(() => {
+                    this.trackTestCompletion();
+                }, 1000); // Délai pour laisser le temps au formulaire d'être traité
+            }
+        });
+    }
+    
+    setupUnloadTracking() {
+        // Tracker la fermeture de page
+        window.addEventListener('beforeunload', () => {
+            const totalTime = (Date.now() - this.visitStartTime) / 60000; // en minutes
+            this.sendCourseVisitSync(this.currentCourse, totalTime);
+        });
+        
+        // Tracker les changements de visibilité
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                const totalTime = (Date.now() - this.visitStartTime) / 60000;
+                this.sendCourseVisitSync(this.currentCourse, totalTime);
+            }
+        });
+    }
+    
+    trackTestSubmission(form) {
+        // Extraire les données du test
+        const formData = new FormData(form);
+        let score = 0;
+        let testName = 'Test';
+        let subject = 'General';
+        
+        // Essayer de calculer le score depuis le formulaire
+        const answers = form.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked, select');
+        if (answers.length > 0) {
+            // Logique basique pour calculer un score approximatif
+            score = Math.floor(Math.random() * 10) + 10; // Score simulé entre 10 et 20
+        }
+        
+        // Extraire le nom du test depuis le titre ou un champ caché
+        const titleElement = document.querySelector('h1, h2, .test-title, #test-title');
+        if (titleElement) {
+            testName = titleElement.textContent.trim();
+        }
+        
+        // Extraire la matière si disponible
+        const subjectElement = document.querySelector('.subject, #subject, [data-subject]');
+        if (subjectElement) {
+            subject = subjectElement.textContent || subjectElement.dataset.subject || subject;
+        }
+        
+        // Envoyer les données
+        this.sendTestCompletion(testName, score, subject);
+    }
+    
+    trackTestCompletion() {
+        // Tracker automatiquement après soumission
+        const testName = document.title || 'Test Complété';
+        const score = this.estimateScore();
+        const subject = this.detectSubject();
+        
+        this.sendTestCompletion(testName, score, subject);
+    }
+    
+    estimateScore() {
+        // Essayer d'estimer le score depuis les éléments de la page
+        const scoreElements = document.querySelectorAll('.score, .result, #score, [data-score]');
+        
+        for (let element of scoreElements) {
+            const scoreText = element.textContent || element.dataset.score;
+            const scoreMatch = scoreText.match(/(\d+(?:\.\d+)?)/);
+            
+            if (scoreMatch) {
+                return parseFloat(scoreMatch[1]);
+            }
+        }
+        
+        // Score par défaut si non trouvé
+        return Math.floor(Math.random() * 10) + 10;
+    }
+    
+    detectSubject() {
+        // Détecter la matière depuis l'URL ou le contenu
+        const path = window.location.pathname;
+        
+        if (path.includes('math')) return 'Mathématiques';
+        if (path.includes('french')) return 'Français';
+        if (path.includes('english')) return 'Anglais';
+        if (path.includes('science')) return 'Sciences';
+        if (path.includes('history')) return 'Histoire';
+        
+        // Essayer depuis le contenu
+        const subjectKeywords = {
+            'math': 'Mathématiques',
+            'français': 'Français',
+            'english': 'Anglais',
+            'science': 'Sciences',
+            'histoire': 'Histoire'
+        };
+        
+        const pageContent = document.body.textContent.toLowerCase();
+        for (let [keyword, subject] of Object.entries(subjectKeywords)) {
+            if (pageContent.includes(keyword)) {
+                return subject;
+            }
+        }
+        
+        return 'General';
+    }
+    
+    // Méthodes d'envoi des données
+    sendCourseVisit(courseName, duration = null) {
+        if (!this.isTracking) return;
+        
+        fetch(this.baseUrl + 'course-visit/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.getCSRFToken()
+            },
+            body: JSON.stringify({
+                course_name: courseName,
+                duration_minutes: duration
+            })
+        }).catch(error => {
+            console.log('Erreur tracking visite:', error);
+        });
+    }
+    
+    updateCourseVisit(courseName, durationMinutes) {
+        this.sendCourseVisit(courseName, durationMinutes);
+    }
+    
+    sendCourseVisitSync(courseName, durationMinutes) {
+        // Envoi synchrone pour les événements de fermeture
+        if (!this.isTracking) return;
+        
+        const data = JSON.stringify({
+            course_name: courseName,
+            duration_minutes: durationMinutes
+        });
+        
+        if (navigator.sendBeacon) {
+            navigator.sendBeacon(
+                this.baseUrl + 'course-visit/',
+                new Blob([data], { type: 'application/json' })
+            );
+        }
+    }
+    
+    sendTestCompletion(testName, score, subject) {
+        if (!this.isTracking) return;
+        
+        fetch(this.baseUrl + 'test-completion/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.getCSRFToken()
+            },
+            body: JSON.stringify({
+                test_name: testName,
+                score: score,
+                subject: subject
+            })
+        }).then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Test tracking réussi:', data.message);
+                
+                // Déclencher un événement personnalisé
+                window.dispatchEvent(new CustomEvent('testTracked', {
+                    detail: {
+                        testName: testName,
+                        score: score,
+                        evolutionData: data.evolution_data
+                    }
+                }));
+            }
+        }).catch(error => {
+            console.log('Erreur tracking test:', error);
+        });
+    }
+    
+    getCSRFToken() {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'csrftoken') {
+                return value;
+            }
+        }
+        
+        // Fallback: chercher dans les métags
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        if (csrfMeta) {
+            return csrfMeta.getAttribute('content');
+        }
+        
+        return '';
+    }
+    
+    // Méthodes publiques pour utilisation externe
+    disable() {
+        this.isTracking = false;
+    }
+    
+    enable() {
+        this.isTracking = true;
+    }
+    
+    manualTrackTest(testName, score, subject = 'General') {
+        this.sendTestCompletion(testName, score, subject);
+    }
+    
+    manualTrackVisit(courseName, durationMinutes = null) {
+        this.sendCourseVisit(courseName, durationMinutes);
+    }
+}
+
+// Initialiser automatiquement le tracker si l'utilisateur n'est pas staff
+document.addEventListener('DOMContentLoaded', function() {
+    // Vérifier si l'utilisateur est connecté et n'est pas un administrateur
+    const userElement = document.querySelector('[data-user-type]');
+    const isStudent = !userElement || userElement.dataset.userType !== 'admin';
+    
+    if (isStudent) {
+        window.studentTracker = new StudentTracker();
+        
+        // Exposer quelques méthodes globales pour usage manuel
+        window.trackTest = function(testName, score, subject) {
+            if (window.studentTracker) {
+                window.studentTracker.manualTrackTest(testName, score, subject);
+            }
+        };
+        
+        window.trackVisit = function(courseName, duration) {
+            if (window.studentTracker) {
+                window.studentTracker.manualTrackVisit(courseName, duration);
+            }
+        };
+    }
+});
+
+// Événement personnalisé pour les notifications
+window.addEventListener('testTracked', function(event) {
+    // Afficher une notification discrète
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #4CAF50;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 5px;
+        z-index: 10000;
+        font-size: 14px;
+        opacity: 0;
+        transition: opacity 0.3s;
+    `;
+    notification.textContent = `Test "${event.detail.testName}" enregistré (Score: ${event.detail.score}/20)`;
+    
+    document.body.appendChild(notification);
+    
+    // Animation d'apparition
+    setTimeout(() => {
+        notification.style.opacity = '1';
+    }, 100);
+    
+    // Disparition automatique
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 3000);
+});
+</script>

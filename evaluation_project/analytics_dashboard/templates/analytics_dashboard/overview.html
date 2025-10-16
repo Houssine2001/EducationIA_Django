@@ -1,3 +1,4 @@
+{% load analytics_filters %}
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -83,6 +84,16 @@
             border-color: #c3e6cb;
             color: #155724;
         }
+        .alert-warning {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+        .alert-danger {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
         nav {
             background: white;
             padding: 1rem;
@@ -98,17 +109,65 @@
         nav a:hover {
             text-decoration: underline;
         }
+        .ai-prediction {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+        }
+        .prediction-score {
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 1rem 0;
+        }
+        .risk-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .risk-LOW { background: #28a745; color: white; }
+        .risk-MEDIUM { background: #ffc107; color: black; }
+        .risk-HIGH { background: #fd7e14; color: white; }
+        .risk-CRITICAL { background: #dc3545; color: white; animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .recommendations {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .recommendation-item {
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            border-left: 3px solid #e67e22;
+            background: white;
+            border-radius: 4px;
+        }
+        .priority-CRITICAL { border-left-color: #dc3545; }
+        .priority-HIGH { border-left-color: #fd7e14; }
+        .priority-MEDIUM { border-left-color: #ffc107; }
+        .priority-LOW { border-left-color: #28a745; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>🤖 Analytics Dashboard IA</h1>
-            <p>Analyse intelligente des performances étudiantes</p>
+            <p>Analyse intelligente des performances étudiantes avec prédictions IA réelles</p>
         </div>
         
         <nav>
             <a href="/analytics/">🏠 Dashboard</a>
+            <a href="/analytics/evolution/">📈 Évolution</a>
+            <a href="/analytics/subjects/">📚 Matières</a>
             <a href="/analytics/students/">👥 Étudiants</a>
             <a href="/analytics/reports/">📊 Rapports</a>
             <a href="/analytics/predictions/">🔮 Prédictions IA</a>
@@ -139,22 +198,52 @@
             {% endif %}
 
             {% if student_analytics %}
+                <div class="ai-prediction">
+                    <h3>🤖 Prédiction IA Personnalisée</h3>
+                    <div class="prediction-score">
+                        {{ student_analytics.predicted_success_probability|floatformat:1|mul:100 }}%
+                    </div>
+                    <div style="text-align: center; margin: 1rem 0;">
+                        <span class="risk-badge risk-{{ student_analytics.risk_level }}">
+                            {{ student_analytics.get_risk_level_display }}
+                        </span>
+                    </div>
+                    <div style="text-align: center;">
+                        <small>Confiance: {{ student_analytics.prediction_confidence|floatformat:1|mul:100 }}%</small>
+                    </div>
+                </div>
+
                 <div class="alert alert-info">
-                    <strong>Vos Analytics:</strong><br>
+                    <strong>📊 Vos Métriques Analytics:</strong><br>
                     📈 Taux de réussite: {{ student_analytics.success_rate|floatformat:1 }}%<br>
                     📊 Score moyen: {{ student_analytics.average_score|floatformat:1 }}<br>
-                    ⚠️ Niveau de risque: {{ student_analytics.get_risk_level_display }}<br>
-                    💪 Engagement: {{ student_analytics.engagement_score|floatformat:2 }}
+                    💪 Engagement: {{ student_analytics.engagement_score|floatformat:2|mul:100 }}%<br>
+                    🎯 Consistance: {{ student_analytics.consistency_score|floatformat:2|mul:100 }}%<br>
+                    📈 Tendance: {{ student_analytics.improvement_trend|floatformat:2 }}
                 </div>
+
+                {% if ai_recommendations %}
+                <div class="recommendations">
+                    <h4>🎯 Recommandations IA Personnalisées</h4>
+                    {% for rec in ai_recommendations %}
+                        <div class="recommendation-item priority-{{ rec.priority }}">
+                            <strong>{{ rec.type }}:</strong> {{ rec.message }}<br>
+                            <small>📋 Action: {{ rec.action }} | ⏰ {{ rec.timeline }}</small>
+                        </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
             {% endif %}
 
             <div class="alert alert-success">
-                ✅ <strong>Module Analytics Dashboard fonctionnel!</strong><br>
-                Le système d'analytics IA est maintenant opérationnel.
+                ✅ <strong>Module Analytics Dashboard avec IA réelle fonctionnel!</strong><br>
+                Le système d'analytics IA utilise maintenant de vraies prédictions basées sur vos données.
             </div>
 
             <div style="margin-top: 2rem;">
                 <h3>Actions disponibles:</h3>
+                <a href="/analytics/subjects/" class="btn">📚 Mes Matières</a>
+                <a href="/analytics/evolution/" class="btn">📈 Évolution Étudiants</a>
                 <a href="/analytics/students/" class="btn">📋 Voir tous les étudiants</a>
                 <a href="/analytics/reports/generate/" class="btn">📄 Générer un rapport</a>
                 <a href="/analytics/predictions/" class="btn">🔮 Voir les prédictions</a>
@@ -167,7 +256,7 @@
 
         {% if risk_stats %}
         <div class="card">
-            <h3>📊 Répartition des Risques</h3>
+            <h3>📊 Répartition des Risques (Prédictions IA Réelles)</h3>
             <div class="stats-grid">
                 {% for risk in risk_stats %}
                 <div class="stat-card">
@@ -200,6 +289,10 @@
         }
 
         function updatePredictions() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '🔄 Calcul IA en cours...';
+            
             fetch('/analytics/api/update-predictions/', {
                 method: 'POST',
                 headers: {
@@ -209,12 +302,20 @@
             })
             .then(response => response.json())
             .then(data => {
-                alert(data.message);
                 if (data.status === 'success') {
+                    alert(`✅ ${data.message}\n\n📊 Détails:\n- Total mis à jour: ${data.total_updated}\n- Échantillon de prédictions:\n${data.predictions.map(p => `  • ${p.student}: ${(p.prediction * 100).toFixed(1)}% (${p.risk_level})`).join('\n')}`);
                     location.reload();
+                } else {
+                    alert(`❌ ${data.message}`);
                 }
+                btn.disabled = false;
+                btn.textContent = '🤖 Mettre à jour IA';
             })
-            .catch(error => alert('Erreur: ' + error));
+            .catch(error => {
+                alert('❌ Erreur: ' + error);
+                btn.disabled = false;
+                btn.textContent = '🤖 Mettre à jour IA';
+            });
         }
     </script>
 </body>

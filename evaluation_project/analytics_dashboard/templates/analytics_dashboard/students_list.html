@@ -1,0 +1,342 @@
+<!-- c:\Users\ferie\OneDrive\Bureau\Ma gestion djangoo\EducationIA_Django\evaluation_project\analytics_dashboard\templates\analytics_dashboard\students_list.html -->
+{% extends 'evaluation/base.html' %}
+{% load analytics_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-users text-primary"></i> {{ page_title }}</h2>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" onclick="refreshStudentData()">
+                <i class="fas fa-sync-alt"></i> Actualiser
+            </button>
+            <a href="{% url 'analytics_dashboard:overview' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Retour Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistiques rapides -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Total Étudiants</h5>
+                    <h3 class="mb-0">{{ total_students }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Étudiants Actifs</h5>
+                    <h3 class="mb-0">
+                        {% for student_data in students %}
+                            {% if student_data.last_activity %}1{% else %}0{% endif %}
+                        {% empty %}0{% endfor %}
+                    </h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Tests Totaux</h5>
+                    <h3 class="mb-0">
+                        {% for student_data in students %}
+                            {{ student_data.total_tests|add:0 }}
+                        {% empty %}0{% endfor %}
+                    </h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Moyenne Générale</h5>
+                    <h3 class="mb-0">
+                        {% if students %}
+                            {% for student_data in students %}
+                                {% if student_data.analytics.average_score %}
+                                    {{ student_data.analytics.average_score|floatformat:1 }}
+                                {% endif %}
+                            {% empty %}0.0{% endfor %}%
+                        {% else %}0.0%{% endif %}
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des étudiants -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-list"></i> Liste des Étudiants
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if students %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Étudiant</th>
+                                <th>Taux de Réussite</th>
+                                <th>Moyenne</th>
+                                <th>Niveau de Risque</th>
+                                <th>Tests Passés</th>
+                                <th>Dernière Activité</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student_data in students %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2">
+                                            <i class="fas fa-user text-white"></i>
+                                        </div>
+                                        <div>
+                                            <strong>{{ student_data.student.username }}</strong>
+                                            {% if student_data.student.first_name %}
+                                                <br>
+                                                <small class="text-muted">
+                                                    {{ student_data.student.first_name }} {{ student_data.student.last_name }}
+                                                </small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if student_data.analytics %}
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar 
+                                                {% if student_data.analytics.success_rate >= 80 %}bg-success
+                                                {% elif student_data.analytics.success_rate >= 60 %}bg-warning
+                                                {% else %}bg-danger{% endif %}"
+                                                role="progressbar"
+                                                style="width: {{ student_data.analytics.success_rate }}%">
+                                                {{ student_data.analytics.success_rate|floatformat:1 }}%
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">Aucune donnée</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if student_data.analytics and student_data.analytics.average_score %}
+                                        <span class="badge 
+                                            {% if student_data.analytics.average_score >= 16 %}badge-success
+                                            {% elif student_data.analytics.average_score >= 12 %}badge-warning
+                                            {% else %}badge-danger{% endif %}">
+                                            {{ student_data.analytics.average_score|floatformat:1 }}/20
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if student_data.analytics %}
+                                        <span class="badge 
+                                            {% if student_data.analytics.risk_level == 'LOW' %}badge-success
+                                            {% elif student_data.analytics.risk_level == 'MEDIUM' %}badge-warning
+                                            {% elif student_data.analytics.risk_level == 'HIGH' %}badge-danger
+                                            {% else %}badge-dark{% endif %}">
+                                            {% if student_data.analytics.risk_level == 'LOW' %}Faible
+                                            {% elif student_data.analytics.risk_level == 'MEDIUM' %}Moyen
+                                            {% elif student_data.analytics.risk_level == 'HIGH' %}Élevé
+                                            {% else %}Critique{% endif %}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge badge-info">{{ student_data.total_tests }}</span>
+                                </td>
+                                <td>
+                                    {% if student_data.last_activity %}
+                                        <small class="text-success">
+                                            <i class="fas fa-circle"></i>
+                                            {{ student_data.last_activity|date:"d/m/Y" }}
+                                        </small>
+                                    {% else %}
+                                        <small class="text-muted">
+                                            <i class="fas fa-circle"></i>
+                                            Aucune activité
+                                        </small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'analytics_dashboard:student_detail' student_data.student.id %}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-info" 
+                                                onclick="viewStudentChart({{ student_data.student.id }})">
+                                            <i class="fas fa-chart-line"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if students.has_other_pages %}
+                <nav aria-label="Navigation pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if students.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1">&laquo; Premier</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ students.previous_page_number }}">Précédent</a>
+                            </li>
+                        {% endif %}
+
+                        {% for num in students.paginator.page_range %}
+                            {% if students.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > students.number|add:'-3' and num < students.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if students.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ students.next_page_number }}">Suivant</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ students.paginator.num_pages }}">Dernier &raquo;</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Aucun étudiant trouvé</h5>
+                    <p class="text-muted">Les étudiants apparaîtront ici une fois qu'ils auront créé des comptes.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour graphique étudiant -->
+<div class="modal fade" id="studentChartModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Évolution de l'Étudiant</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <canvas id="studentPerformanceChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshStudentData() {
+    // Actualiser les données via API
+    fetch('{% url "analytics_dashboard:refresh_analytics" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            location.reload();
+        } else {
+            alert('Erreur lors de l\'actualisation: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        alert('Erreur lors de l\'actualisation');
+    });
+}
+
+function viewStudentChart(studentId) {
+    // Charger et afficher le graphique de l'étudiant
+    fetch(`/analytics/api/student-performance/${studentId}/`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.performance_trends && data.performance_trends.length > 0) {
+            const ctx = document.getElementById('studentPerformanceChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.performance_trends.map(t => new Date(t.date).toLocaleDateString()),
+                    datasets: [{
+                        label: 'Score',
+                        data: data.performance_trends.map(t => t.score),
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 20
+                        }
+                    }
+                }
+            });
+            
+            $('#studentChartModal').modal('show');
+        } else {
+            alert('Aucune donnée de performance disponible pour cet étudiant.');
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        alert('Erreur lors du chargement des données');
+    });
+}
+</script>
+
+<style>
+.avatar-sm {
+    width: 40px;
+    height: 40px;
+}
+
+.progress {
+    border-radius: 10px;
+}
+
+.badge {
+    font-size: 0.85em;
+}
+
+.table td {
+    vertical-align: middle;
+}
+</style>
+{% endblock %}

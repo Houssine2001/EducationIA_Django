@@ -1,27 +1,71 @@
-{% extends 'base.html' %}
-{% load static %}
+<!-- c:\Users\ferie\OneDrive\Bureau\Ma gestion djangoo\EducationIA_Django\evaluation_project\analytics_dashboard\templates\analytics_dashboard\student_evolution_dashboard.html -->
+{% extends 'evaluation/base.html' %}
+{% load analytics_filters %}
 
-{% block title %}Évolution des Étudiants - EduIA{% endblock %}
-
-{% block page_title %}📈 Évolution des Étudiants{% endblock %}
-{% block page_subtitle %}Tableau de bord analytique des performances{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
 
 {% block content %}
-<div class="space-y-8">
-    <!-- Statistiques générales -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <!-- Total Étudiants -->
-        <div class="bg-gradient-to-r from-blue-600 to-blue-700 p-6 rounded-xl text-white card-hover">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-blue-100 text-sm font-medium">Total Étudiants</p>
-                    <p class="text-3xl font-bold">{{ total_students }}</p>
-                </div>
-                <div class="bg-blue-500/30 p-3 rounded-lg">
-                    <i class="fas fa-users text-2xl"></i>
-                </div>
-            </div>
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-chart-line text-success"></i> {{ page_title }}</h2>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-success" onclick="refreshEvolutionData()">
+                <i class="fas fa-sync-alt"></i> Actualiser
+            </button>
+            <a href="{% url 'analytics_dashboard:overview' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Retour Dashboard
+            </a>
         </div>
+    </div>
+
+    {% if user.is_staff %}
+        <!-- Vue Administrateur -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-users"></i> Évolution Globale des Étudiants
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% if students_data %}
+                            <!-- Statistiques rapides -->
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <div class="card bg-primary text-white">
+                                        <div class="card-body text-center">
+                                            <h3>{{ students_data|length }}</h3>
+                                            <p class="mb-0">Total Étudiants</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-success text-white">
+                                        <div class="card-body text-center">
+                                            <h3 id="activeStudentsCount">0</h3>
+                                            <p class="mb-0">Étudiants Actifs</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-info text-white">
+                                        <div class="card-body text-center">
+                                            <h3 id="totalTestsCount">0</h3>
+                                            <p class="mb-0">Tests Totaux</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-warning text-white">
+                                        <div class="card-body text-center">
+                                            <h3 id="averageScore">0.0</h3>
+                                            <p class="mb-0">Moyenne Générale</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
         
         <!-- Total Tests -->
         <div class="bg-gradient-to-r from-green-600 to-green-700 p-6 rounded-xl text-white card-hover">
@@ -72,7 +116,6 @@
         </h3>
         <canvas id="scoreEvolutionChart" width="400" height="200"></canvas>
     </div>
-    {% endif %}
     
     <!-- Top étudiants et statistiques -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -145,6 +188,7 @@
         </div>
     </div>
     {% endif %}
+    {% endif %}
     
     <!-- Message si pas de données -->
     {% if not chart_data or chart_data == "[]" %}
@@ -153,6 +197,8 @@
         <h3 class="text-lg font-semibold text-blue-800 mb-2">Données en cours de collecte</h3>
         <p class="text-blue-600">Les données d'évolution seront disponibles une fois que les étudiants auront commencé à passer des tests.</p>
     </div>
+    {% endif %}
+    {% endif %}
     {% endif %}
 </div>
 {% endblock %}

@@ -8,549 +8,203 @@ from django.db.models import Avg, Count, Q
 from django.core.paginator import Paginator
 from datetime import datetime, timedelta
 import json
+import subprocess
+import sys
 
 # Import des modèles analytics
-from .models import StudentAnalytics, ClassroomAnalytics, AnalyticsReport, PredictionModel
+from .models import StudentAnalytics, ClassroomAnalytics, AnalyticsReport, PredictionModel, PerformanceTrend
 from .services import AnalyticsService, PredictionService, ReportService
 
 # Import des modèles evaluation avec gestion d'erreur
 try:
-    from evaluation.models import Test, TestSubmission
+    from evaluation.models import Test, TestSubmission, StudentProgress
 except ImportError:
     Test = None
     TestSubmission = None
-
+    StudentProgress = None
 
 @login_required
 def dashboard_overview(request):
-    """Vue principale du dashboard analytics"""
-    # Statistiques générales avec gestion d'erreur pour Djongo
-    try:
-        total_students = User.objects.count()
-    except Exception:
-        total_students = 0
-    
-    try:
-        total_analytics = StudentAnalytics.objects.count()
-    except Exception:
-        total_analytics = 0
-    
+    """Vue principale du dashboard analytics avec vraies données"""
     context = {
         'page_title': 'Dashboard Analytics IA',
-        'total_students': total_students,
-        'total_analytics': total_analytics,
-        'risk_stats': [],  # Vide pour éviter les erreurs
-        'user_type': 'admin' if request.user.is_staff else 'student',
+        'user_type': 'admin' if request.user.is_staff else 'student'
     }
     
-    # Données spécifiques selon le type d'utilisateur
+    # Actualiser les analytics de l'utilisateur actuel
+    analytics_service = AnalyticsService()
+    student_analytics = analytics_service.update_student_analytics(request.user)
+    
     if request.user.is_staff:
-        try:
-            context.update({
-                'recent_reports': AnalyticsReport.objects.all()[:5],
-            })
-        except Exception:
-            context.update({'recent_reports': []})
+        # Statistiques pour les administrateurs
+        context.update({
+            'total_students': User.objects.filter(is_staff=False).count(),
+            'total_analytics': StudentAnalytics.objects.count(),
+            'active_students': StudentAnalytics.objects.filter(
+                last_activity__gte=timezone.now() - timedelta(days=7)
+            ).count(),
+            'total_tests_taken': PerformanceTrend.objects.count(),
+            'risk_stats': _get_risk_statistics()
+        })
     else:
-        try:
-            student_analytics = StudentAnalytics.objects.filter(user=request.user).first()
-            context.update({'student_analytics': student_analytics})
-        except Exception:
-            context.update({'student_analytics': None})
+        # Données pour l'étudiant connecté
+        if student_analytics:
+            # Récupérer les prédictions IA
+            prediction_service = PredictionService()
+            prediction = prediction_service.generate_real_prediction(request.user)
+            
+            # Historique récent des performances
+            recent_trends = PerformanceTrend.objects.filter(
+                student=request.user
+            ).order_by('-date')[:7]
+            
+            # Données pour le graphique
+            chart_data = _prepare_chart_data(request.user)
+            
+            # Recommandations IA
+            ai_recommendations = _get_ai_recommendations(student_analytics, prediction)
+            
+            context.update({
+                'student_analytics': {
+                    'predicted_success_probability': _get_prediction_probability(prediction),
+                    'prediction_confidence': _get_prediction_confidence(prediction),
+                    'risk_level': student_analytics.risk_level,
+                    'success_rate': student_analytics.success_rate,
+                    'average_score': student_analytics.average_score,
+                    'engagement_score': getattr(student_analytics, 'engagement_score', 0.5),
+                    'consistency_score': getattr(student_analytics, 'consistency_score', 0.5),
+                    'learning_velocity': getattr(student_analytics, 'learning_velocity', 0),
+                },
+                'performance_history': [
+                    {
+                        'date': trend.date,
+                        'score': trend.score,
+                        'subject': trend.subject
+                    } for trend in recent_trends
+                ],
+                'chart_data': chart_data,
+                'ai_recommendations': ai_recommendations
+            })
     
     return render(request, 'analytics_dashboard/overview.html', context)
 
-
-@login_required
-def student_evolution_dashboard(request):
-    """Vue principale du tableau de bord évolution des étudiants - Version sécurisée"""
+def _get_risk_statistics():
+    """Calcule les statistiques par niveau de risque"""
+    risk_stats = {}
+    risk_levels = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
     
-    # Initialiser avec des valeurs par défaut
-    context = {
-        'total_students': 0,
-        'total_tests': 0,
-        'total_submissions': 0,
-        'avg_score': 0.0,
-        'chart_data': json.dumps([]),
-        'top_students': [],
-        'score_distribution': {
-            'excellent': 0,
-            'good': 0,
-            'average': 0,
-            'poor': 0,
-        },
-        'subjects_evolution': {},
+    for level in risk_levels:
+        count = StudentAnalytics.objects.filter(risk_level=level).count()
+        if count > 0:
+            risk_stats[level] = count
+    
+    return risk_stats
+
+def _get_prediction_probability(prediction):
+    """Récupère la probabilité de prédiction"""
+    if prediction and prediction.raw_data:
+        try:
+            data = prediction.raw_data if isinstance(prediction.raw_data, dict) else json.loads(prediction.raw_data)
+            return data.get('success_probability', 0.5)
+        except:
+            pass
+    return 0.5
+
+def _get_prediction_confidence(prediction):
+    """Récupère la confiance de la prédiction"""
+    if prediction and prediction.raw_data:
+        try:
+            data = prediction.raw_data if isinstance(prediction.raw_data, dict) else json.loads(prediction.raw_data)
+            return data.get('confidence', 0.5)
+        except:
+            pass
+    return 0.5
+
+def _prepare_chart_data(user):
+    """Prépare les données pour le graphique de performance"""
+    trends = PerformanceTrend.objects.filter(
+        student=user
+    ).order_by('date')[:30]
+    
+    if not trends.exists():
+        return None
+    
+    labels = []
+    scores = []
+    
+    for trend in trends:
+        labels.append(trend.date.strftime('%d/%m'))
+        scores.append(trend.score)
+    
+    return {
+        'labels': labels,
+        'scores': scores
     }
-    
-    try:
-        # Méthode alternative pour compter les utilisateurs (compatible Djongo)
-        all_users = list(User.objects.all())
-        students = [user for user in all_users if not user.is_staff]
-        context['total_students'] = len(students)
-        
-        # Vérifier si les modèles Test et TestSubmission sont disponibles
-        if Test is not None and TestSubmission is not None:
-            try:
-                # Statistiques des tests
-                all_tests = list(Test.objects.all())
-                context['total_tests'] = len(all_tests)
-                
-                # Statistiques des soumissions
-                all_submissions = list(TestSubmission.objects.all())
-                context['total_submissions'] = len(all_submissions)
-                
-                if all_submissions:
-                    # Calcul de la moyenne générale
-                    total_score = sum(submission.score for submission in all_submissions)
-                    context['avg_score'] = round(total_score / len(all_submissions), 2)
-                    
-                    # Évolution des scores sur les 30 derniers jours
-                    thirty_days_ago = datetime.now() - timedelta(days=30)
-                    recent_submissions = [
-                        submission for submission in all_submissions 
-                        if submission.submitted_at >= thirty_days_ago
-                    ]
-                    
-                    # Données pour les graphiques
-                    daily_stats = {}
-                    for submission in recent_submissions:
-                        date_key = submission.submitted_at.strftime('%Y-%m-%d')
-                        if date_key not in daily_stats:
-                            daily_stats[date_key] = {'scores': [], 'count': 0}
-                        daily_stats[date_key]['scores'].append(submission.score)
-                        daily_stats[date_key]['count'] += 1
-                    
-                    # Calcul des moyennes quotidiennes
-                    chart_data = []
-                    for date_str, data in sorted(daily_stats.items()):
-                        if data['scores']:
-                            avg_daily_score = sum(data['scores']) / len(data['scores'])
-                            chart_data.append({
-                                'date': date_str,
-                                'avg_score': round(avg_daily_score, 2),
-                                'submissions_count': data['count']
-                            })
-                    
-                    context['chart_data'] = json.dumps(chart_data)
-                    
-                    # Top 5 des étudiants
-                    student_stats = {}
-                    for submission in all_submissions:
-                        student = submission.student
-                        if student and not student.is_staff:
-                            if student.id not in student_stats:
-                                student_stats[student.id] = {
-                                    'user': student,
-                                    'scores': [],
-                                    'total_tests': 0
-                                }
-                            student_stats[student.id]['scores'].append(submission.score)
-                            student_stats[student.id]['total_tests'] += 1
-                    
-                    # Calculer les moyennes et créer le top 5
-                    top_students = []
-                    for student_id, data in student_stats.items():
-                        if data['scores']:
-                            avg_score = sum(data['scores']) / len(data['scores'])
-                            top_students.append({
-                                'name': data['user'].get_full_name() or data['user'].username,
-                                'avg_score': round(avg_score, 2),
-                                'total_tests': data['total_tests']
-                            })
-                    
-                    # Trier et prendre les 5 premiers
-                    top_students = sorted(top_students, key=lambda x: x['avg_score'], reverse=True)[:5]
-                    context['top_students'] = top_students
-                    
-                    # Répartition des scores par tranche
-                    excellent = len([s for s in all_submissions if s.score >= 90])
-                    good = len([s for s in all_submissions if 70 <= s.score < 90])
-                    average = len([s for s in all_submissions if 50 <= s.score < 70])
-                    poor = len([s for s in all_submissions if s.score < 50])
-                    
-                    context['score_distribution'] = {
-                        'excellent': excellent,
-                        'good': good,
-                        'average': average,
-                        'poor': poor,
-                    }
-                    
-                    # Évolution par matière
-                    subjects_evolution = {}
-                    for submission in all_submissions:
-                        try:
-                            subject = submission.test.subject if hasattr(submission.test, 'subject') else 'Matière inconnue'
-                            if subject not in subjects_evolution:
-                                subjects_evolution[subject] = {
-                                    'total_submissions': 0,
-                                    'avg_score': 0,
-                                    'scores': []
-                                }
-                            subjects_evolution[subject]['scores'].append(submission.score)
-                            subjects_evolution[subject]['total_submissions'] += 1
-                        except AttributeError:
-                            continue
-                    
-                    # Calcul des moyennes par matière
-                    for subject, data in subjects_evolution.items():
-                        if data['scores']:
-                            data['avg_score'] = round(sum(data['scores']) / len(data['scores']), 2)
-                    
-                    context['subjects_evolution'] = subjects_evolution
-                    
-            except Exception as e:
-                print(f"Erreur lors du traitement des données de test: {e}")
-                
-    except Exception as e:
-        print(f"Erreur générale dans student_evolution_dashboard: {e}")
-    
-    return render(request, 'analytics_dashboard/student_evolution_dashboard.html', context)
 
-
-@login_required
-def student_analytics(request, student_id):
-    """Détails analytics d'un étudiant"""
-    try:
-        student = get_object_or_404(User, id=student_id)
-        
-        # Créer ou récupérer les analytics de base
-        analytics, created = StudentAnalytics.objects.get_or_create(
-            user=student,
-            defaults={
-                'student_name': student.get_full_name() or student.username,
-                'student_email': student.email,
-                'total_exercises': 0,
-                'completed_exercises': 0,
-                'average_score': 0.0,
-                'success_rate': 0.0,
+def _get_ai_recommendations(analytics, prediction):
+    """Génère des recommandations IA basées sur les analytics"""
+    recommendations = []
+    
+    if not prediction or not prediction.raw_data:
+        return [
+            {
+                'title': 'Commencer à générer des données',
+                'description': 'Passez des tests pour que l\'IA puisse analyser vos performances',
+                'priority': 'HIGH'
             }
-        )
-        
-        context = {
-            'student': student,
-            'analytics': analytics,
-            'page_title': f'Analytics - {analytics.student_name}'
-        }
-        
-        return render(request, 'analytics_dashboard/student_detail.html', context)
-        
-    except Exception as e:
-        messages.error(request, f'Erreur lors du chargement des analytics: {str(e)}')
-        return redirect('analytics_dashboard:overview')
-
-
-@login_required
-def students_list(request):
-    """Liste des étudiants avec leurs analytics"""
-    try:
-        students_analytics = StudentAnalytics.objects.all()
-        
-        # Pagination
-        paginator = Paginator(students_analytics, 20)
-        page_number = request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
-        
-        context = {
-            'page_obj': page_obj,
-            'page_title': 'Tous les Étudiants'
-        }
-        
-    except Exception as e:
-        context = {
-            'page_obj': None,
-            'page_title': 'Tous les Étudiants',
-            'error': str(e)
-        }
+        ]
     
-    return render(request, 'analytics_dashboard/students_list.html', context)
-
-
-@login_required
-def classroom_analytics(request, classroom_id):
-    """Analytics d'une classe"""
     try:
-        classroom = get_object_or_404(ClassroomAnalytics, id=classroom_id)
+        data = prediction.raw_data if isinstance(prediction.raw_data, dict) else json.loads(prediction.raw_data)
+        ai_recommendations = data.get('recommendations', [])
         
-        context = {
-            'classroom': classroom,
-            'page_title': f'Classe - {classroom.class_name}'
-        }
-        
-    except Exception as e:
-        context = {
-            'classroom': None,
-            'page_title': 'Classe',
-            'error': str(e)
-        }
-    
-    return render(request, 'analytics_dashboard/classroom_detail.html', context)
-
-
-@login_required
-def classrooms_list(request):
-    """Liste des classes"""
-    try:
-        classrooms = ClassroomAnalytics.objects.all()
-        
-        context = {
-            'classrooms': classrooms,
-            'page_title': 'Toutes les Classes'
-        }
-        
-    except Exception as e:
-        context = {
-            'classrooms': [],
-            'page_title': 'Toutes les Classes',
-            'error': str(e)
-        }
-    
-    return render(request, 'analytics_dashboard/classrooms_list.html', context)
-
-
-@login_required
-def reports_list(request):
-    """Liste des rapports"""
-    try:
-        reports = AnalyticsReport.objects.all()
-        
-        # Pagination
-        paginator = Paginator(reports, 10)
-        page_number = request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
-        
-        context = {
-            'page_obj': page_obj,
-            'page_title': 'Rapports Analytics'
-        }
-        
-    except Exception as e:
-        context = {
-            'page_obj': None,
-            'page_title': 'Rapports Analytics',
-            'error': str(e)
-        }
-    
-    return render(request, 'analytics_dashboard/reports_list.html', context)
-
-
-@login_required
-def generate_report(request):
-    """Générer un nouveau rapport"""
-    if request.method == 'POST':
-        try:
-            # Créer un rapport simple
-            report = AnalyticsReport.objects.create(
-                title=f"Rapport généré le {timezone.now().strftime('%d/%m/%Y %H:%M')}",
-                generated_by=request.user,
-                data={'message': 'Rapport généré avec succès'}
-            )
-            messages.success(request, 'Rapport généré avec succès!')
-            return redirect('analytics_dashboard:report_detail', report_id=report.pk)
-        except Exception as e:
-            messages.error(request, f'Erreur lors de la génération: {str(e)}')
-    
-    context = {
-        'page_title': 'Générer un Rapport'
-    }
-    
-    return render(request, 'analytics_dashboard/generate_report.html', context)
-
-
-@login_required
-def report_detail(request, report_id):
-    """Détails d'un rapport"""
-    try:
-        report = get_object_or_404(AnalyticsReport, id=report_id)
-        
-        context = {
-            'report': report,
-            'page_title': f'Rapport - {report.title}'
-        }
-        
-    except Exception as e:
-        context = {
-            'report': None,
-            'page_title': 'Rapport',
-            'error': str(e)
-        }
-    
-    return render(request, 'analytics_dashboard/report_detail.html', context)
-
-
-@login_required
-def predictions_view(request):
-    """Vue des prédictions IA"""
-    try:
-        predictions = PredictionModel.objects.all()[:20]
-        
-        context = {
-            'predictions': predictions,
-            'page_title': 'Prédictions IA'
-        }
-        
-    except Exception as e:
-        context = {
-            'predictions': [],
-            'page_title': 'Prédictions IA',
-            'error': str(e)
-        }
-    
-    return render(request, 'analytics_dashboard/predictions.html', context)
-
-
-# =============================================================================
-# API VIEWS POUR AJAX
-# =============================================================================
-
-@login_required
-def api_student_performance(request, student_id):
-    """API pour les données de performance d'un étudiant"""
-    try:
-        analytics = StudentAnalytics.objects.get(user_id=student_id)
-        data = {
-            'success_rate': analytics.success_rate,
-            'average_score': analytics.average_score,
-            'total_exercises': analytics.total_exercises,
-            'completed_exercises': analytics.completed_exercises,
-        }
-        return JsonResponse(data)
-    except StudentAnalytics.DoesNotExist:
-        return JsonResponse({'error': 'Analytics not found'}, status=404)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-
-
-@login_required
-def api_class_trends(request, classroom_id):
-    """API pour les tendances d'une classe"""
-    try:
-        classroom = ClassroomAnalytics.objects.get(id=classroom_id)
-        data = {
-            'students_count': classroom.students_count,
-            'average_performance': classroom.average_performance,
-        }
-        return JsonResponse(data)
-    except ClassroomAnalytics.DoesNotExist:
-        return JsonResponse({'error': 'Classroom not found'}, status=404)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-
-
-@login_required
-def api_risk_distribution(request):
-    """API pour la distribution des risques - utilise les scores moyens"""
-    try:
-        analytics = StudentAnalytics.objects.all()
-        
-        # Calculer la distribution basée sur les scores moyens
-        excellent = len([a for a in analytics if a.average_score >= 90])
-        good = len([a for a in analytics if 70 <= a.average_score < 90])
-        average = len([a for a in analytics if 50 <= a.average_score < 70])
-        poor = len([a for a in analytics if a.average_score < 50])
-        
-        data = {
-            'excellent': excellent,
-            'good': good,
-            'average': average,
-            'poor': poor
-        }
-        return JsonResponse(data)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-
-
-@login_required
-def api_overview_stats(request):
-    """API pour les statistiques générales du dashboard"""
-    try:
-        all_analytics = list(StudentAnalytics.objects.all())
-        total_students = len(all_analytics)
-        
-        # Moyennes générales
-        if all_analytics:
-            avg_score = sum(a.average_score for a in all_analytics) / len(all_analytics)
-            avg_success_rate = sum(a.success_rate for a in all_analytics) / len(all_analytics)
-        else:
-            avg_score = 0
-            avg_success_rate = 0
-        
-        data = {
-            'total_students': total_students,
-            'avg_score': round(avg_score, 2),
-            'avg_success_rate': round(avg_success_rate, 2),
-            'last_updated': timezone.now().isoformat()
-        }
-        
-        return JsonResponse(data)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-
-
-@login_required
-def update_predictions(request):
-    """Mettre à jour les prédictions IA"""
-    if request.method == 'POST':
-        try:
-            updated_count = 0
-            
-            # Créer des prédictions factices pour les 5 premiers étudiants
-            all_users = list(User.objects.all())
-            students = [u for u in all_users if not u.is_staff][:5]
-            
-            for student in students:
-                try:
-                    PredictionModel.objects.create(
-                        student=student,
-                        prediction_type='risk_assessment',
-                        prediction_value=0.5,
-                        confidence=0.8
-                    )
-                    updated_count += 1
-                except Exception as e:
-                    continue
-            
-            return JsonResponse({
-                'status': 'success', 
-                'message': f'Prédictions mises à jour pour {updated_count} étudiants'
+        for rec in ai_recommendations:
+            recommendations.append({
+                'title': rec,
+                'priority': 'MEDIUM'
             })
-        except Exception as e:
-            return JsonResponse({
-                'status': 'error', 
-                'message': f'Erreur: {str(e)}'
-            }, status=500)
+        
+        # Ajouter des recommandations basées sur les métriques
+        if analytics.success_rate < 60:
+            recommendations.append({
+                'title': 'Améliorer le taux de réussite',
+                'description': f'Votre taux de réussite ({analytics.success_rate:.1f}%) peut être amélioré',
+                'priority': 'HIGH'
+            })
+        
+        if getattr(analytics, 'engagement_score', 0) < 0.5:
+            recommendations.append({
+                'title': 'Augmenter l\'engagement',
+                'description': 'Essayez de faire plus d\'exercices régulièrement',
+                'priority': 'MEDIUM'
+            })
+        
+    except Exception as e:
+        recommendations.append({
+            'title': 'Continuer les exercices',
+            'description': 'Continuez à pratiquer pour améliorer vos performances',
+            'priority': 'LOW'
+        })
     
-    return JsonResponse({'status': 'error', 'message': 'Méthode non autorisée'}, status=405)
+    return recommendations
 
-
-@login_required
+@login_required 
 def refresh_analytics(request):
     """Actualiser toutes les analytics"""
     if request.method == 'POST':
         try:
             updated_count = 0
+            analytics_service = AnalyticsService()
             
             # Actualiser pour tous les utilisateurs non-staff
-            all_users = list(User.objects.all())
-            users = [u for u in all_users if not u.is_staff]
+            users = User.objects.filter(is_staff=False)
             
             for user in users:
                 try:
-                    analytics, created = StudentAnalytics.objects.get_or_create(
-                        user=user,
-                        defaults={
-                            'student_name': user.get_full_name() or user.username,
-                            'student_email': user.email,
-                            'total_exercises': 0,
-                            'completed_exercises': 0,
-                            'average_score': 0.0,
-                            'success_rate': 0.0,
-                        }
-                    )
-                    if not created:
-                        analytics.updated_at = timezone.now()
-                        analytics.save()
+                    analytics_service.update_student_analytics(user)
                     updated_count += 1
                 except Exception as e:
+                    print(f"Erreur pour {user.username}: {e}")
                     continue
             
             return JsonResponse({
@@ -564,3 +218,517 @@ def refresh_analytics(request):
             }, status=500)
     
     return JsonResponse({'status': 'error', 'message': 'Méthode non autorisée'}, status=405)
+
+@login_required
+def generate_test_data_view(request):
+    """Générer des données de test via l'interface"""
+    if request.method == 'POST':
+        try:
+            # Exécuter la commande de génération de données
+            result = subprocess.run([
+                sys.executable, 'manage.py', 'generate_test_data', '--students', '5'
+            ], capture_output=True, text=True, cwd='.')
+            
+            if result.returncode == 0:
+                return JsonResponse({
+                    'status': 'success',
+                    'message': 'Données de test générées avec succès!'
+                })
+            else:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Erreur lors de la génération: {result.stderr}'
+                })
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'Erreur: {str(e)}'
+            })
+    
+    return JsonResponse({'status': 'error', 'message': 'Méthode non autorisée'}, status=405)
+
+@login_required
+def update_predictions(request):
+    """Mettre à jour les prédictions IA"""
+    if request.method == 'POST':
+        try:
+            updated_count = 0
+            prediction_service = PredictionService()
+            
+            # Mettre à jour pour tous les étudiants ayant des données
+            students = User.objects.filter(is_staff=False)
+            
+            for student in students:
+                try:
+                    prediction = prediction_service.generate_real_prediction(student)
+                    if prediction:
+                        updated_count += 1
+                except Exception as e:
+                    print(f"Erreur pour {student.username}: {e}")
+                    continue
+            
+            return JsonResponse({
+                'status': 'success', 
+                'message': f'Prédictions IA mises à jour pour {updated_count} étudiants'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error', 
+                'message': f'Erreur: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({'status': 'error', 'message': 'Méthode non autorisée'}, status=405)
+
+@login_required
+def student_analytics(request):
+    """Analytics détaillées pour un étudiant"""
+    analytics_service = AnalyticsService()
+    analytics = analytics_service.update_student_analytics(request.user)
+    
+    context = {
+        'analytics': analytics,
+        'page_title': 'Mes Analytics Détaillées'
+    }
+    
+    return render(request, 'analytics_dashboard/student_analytics.html', context)
+
+@login_required
+def analytics_reports(request):
+    """Liste des rapports analytics"""
+    reports = AnalyticsReport.objects.filter(
+        generated_by=request.user
+    ).order_by('-generated_at')[:10]
+    
+    context = {
+        'reports': reports,
+        'page_title': 'Mes Rapports Analytics'
+    }
+    
+    return render(request, 'analytics_dashboard/reports.html', context)
+
+@login_required
+def generate_report(request):
+    """Générer un nouveau rapport"""
+    if request.method == 'POST':
+        report_service = ReportService()
+        report = report_service.generate_student_report(request.user)
+        
+        messages.success(request, 'Rapport généré avec succès!')
+        return redirect('analytics_dashboard:reports')
+    
+    return redirect('analytics_dashboard:reports')
+
+# Vue pour l'évolution des étudiants
+@login_required
+def student_evolution_dashboard(request):
+    """Dashboard d'évolution des performances étudiantes"""
+    context = {
+        'page_title': 'Évolution des Étudiants',
+    }
+    
+    if request.user.is_staff:
+        # Vue admin : tous les étudiants
+        students_data = []
+        students = User.objects.filter(is_staff=False)
+        
+        for student in students:
+            analytics = StudentAnalytics.objects.filter(user=student).first()
+            recent_trends = PerformanceTrend.objects.filter(
+                student=student
+            ).order_by('-date')[:5]
+            
+            if analytics:
+                students_data.append({
+                    'student': student,
+                    'analytics': analytics,
+                    'recent_performance': [
+                        {'date': t.date, 'score': t.score} for t in recent_trends
+                    ]
+                })
+        
+        context['students_data'] = students_data
+    else:
+        # Vue étudiant : ses propres données
+        analytics = StudentAnalytics.objects.filter(user=request.user).first()
+        trends = PerformanceTrend.objects.filter(
+            student=request.user
+        ).order_by('date')
+        
+        context.update({
+            'student_analytics': analytics,
+            'performance_trends': trends,
+            'chart_data': _prepare_chart_data(request.user)
+        })
+    
+    return render(request, 'analytics_dashboard/student_evolution_dashboard.html', context)
+
+@login_required
+def students_list(request):
+    """Liste tous les étudiants avec leurs analytics"""
+    # c:\Users\ferie\OneDrive\Bureau\Ma gestion djangoo\EducationIA_Django\evaluation_project\analytics_dashboard\views.py
+    if not request.user.is_staff:
+        return redirect('analytics_dashboard:overview')
+    
+    students = User.objects.filter(is_staff=False).order_by('username')
+    students_data = []
+    
+    for student in students:
+        analytics = StudentAnalytics.objects.filter(user=student).first()
+        recent_activity = PerformanceTrend.objects.filter(
+            student=student
+        ).order_by('-date').first()
+        
+        students_data.append({
+            'student': student,
+            'analytics': analytics,
+            'last_activity': recent_activity.date if recent_activity else None,
+            'total_tests': PerformanceTrend.objects.filter(student=student).count()
+        })
+    
+    # Pagination
+    paginator = Paginator(students_data, 20)
+    page = request.GET.get('page', 1)
+    students_page = paginator.get_page(page)
+    
+    context = {
+        'students': students_page,
+        'page_title': 'Liste des Étudiants',
+        'total_students': len(students_data)
+    }
+    
+    return render(request, 'analytics_dashboard/students_list.html', context)
+
+@login_required
+def classrooms_list(request):
+    """Liste des classes avec analytics"""
+    # c:\Users\ferie\OneDrive\Bureau\Ma gestion djangoo\EducationIA_Django\evaluation_project\analytics_dashboard\views.py
+    if not request.user.is_staff:
+        return redirect('analytics_dashboard:overview')
+    
+    # Grouper les étudiants par classe simulée (basé sur la première lettre du nom)
+    classrooms_data = {}
+    students = User.objects.filter(is_staff=False)
+    
+    for student in students:
+        class_name = f"Classe {student.username[0].upper()}" if student.username else "Classe A"
+        
+        if class_name not in classrooms_data:
+            classrooms_data[class_name] = {
+                'name': class_name,
+                'students': [],
+                'total_students': 0,
+                'average_score': 0,
+                'active_count': 0
+            }
+        
+        analytics = StudentAnalytics.objects.filter(user=student).first()
+        if analytics:
+            classrooms_data[class_name]['students'].append({
+                'student': student,
+                'analytics': analytics
+            })
+            classrooms_data[class_name]['total_students'] += 1
+            
+            # Calculer les moyennes
+            if analytics.average_score:
+                classrooms_data[class_name]['average_score'] += analytics.average_score
+            
+            # Vérifier l'activité récente
+            if analytics.last_activity and analytics.last_activity >= timezone.now() - timedelta(days=7):
+                classrooms_data[class_name]['active_count'] += 1
+    
+    # Finaliser les calculs de moyenne
+    for class_data in classrooms_data.values():
+        if class_data['total_students'] > 0:
+            class_data['average_score'] = class_data['average_score'] / class_data['total_students']
+    
+    context = {
+        'classrooms': list(classrooms_data.values()),
+        'page_title': 'Gestion des Classes',
+        'total_classrooms': len(classrooms_data)
+    }
+    
+    return render(request, 'analytics_dashboard/classrooms_list.html', context)
+
+@login_required
+def classroom_analytics(request, classroom_id):
+    """Analytics détaillées d'une classe"""
+    # c:\Users\ferie\OneDrive\Bureau\Ma gestion djangoo\EducationIA_Django\evaluation_project\analytics_dashboard\views.py
+    if not request.user.is_staff:
+        return redirect('analytics_dashboard:overview')
+    
+    # Simuler une classe basée sur l'ID
+    class_letters = ['A', 'B', 'C', 'D', 'E', 'F']
+    if classroom_id <= len(class_letters):
+        class_letter = class_letters[classroom_id - 1]
+        class_name = f"Classe {class_letter}"
+    else:
+        class_name = "Classe Inconnue"
+    
+    # Récupérer les étudiants de cette "classe"
+    students = User.objects.filter(
+        is_staff=False,
+        username__istartswith=class_letter.lower()
+    ) if classroom_id <= len(class_letters) else User.objects.none()
+    
+    students_analytics = []
+    total_score = 0
+    active_students = 0
+    
+    for student in students:
+        analytics = StudentAnalytics.objects.filter(user=student).first()
+        if analytics:
+            students_analytics.append({
+                'student': student,
+                'analytics': analytics,
+                'recent_trends': PerformanceTrend.objects.filter(
+                    student=student
+                ).order_by('-date')[:5]
+            })
+            total_score += analytics.average_score or 0
+            if analytics.last_activity and analytics.last_activity >= timezone.now() - timedelta(days=7):
+                active_students += 1
+    
+    average_score = total_score / len(students_analytics) if students_analytics else 0
+    
+    context = {
+        'classroom_name': class_name,
+        'classroom_id': classroom_id,
+        'students_analytics': students_analytics,
+        'total_students': len(students_analytics),
+        'average_score': average_score,
+        'active_students': active_students,
+        'page_title': f'Analytics - {class_name}'
+    }
+    
+    return render(request, 'analytics_dashboard/classroom_analytics.html', context)
+
+@login_required
+def reports_list(request):
+    """Liste des rapports analytics"""
+    # c:\Users\ferie\OneDrive\Bureau\Ma gestion djangoo\EducationIA_Django\evaluation_project\analytics_dashboard\views.py
+    reports = AnalyticsReport.objects.all().order_by('-generated_at')
+    
+    if not request.user.is_staff:
+        reports = reports.filter(generated_by=request.user)
+    
+    paginator = Paginator(reports, 15)
+    page = request.GET.get('page', 1)
+    reports_page = paginator.get_page(page)
+    
+    context = {
+        'reports': reports_page,
+        'page_title': 'Rapports Analytics',
+        'can_generate': True
+    }
+    
+    return render(request, 'analytics_dashboard/reports_list.html', context)
+
+@login_required
+def report_detail(request, report_id):
+    """Détail d'un rapport analytics"""
+    # c:\Users\ferie\OneDrive\Bureau\Ma gestion djangoo\EducationIA_Django\evaluation_project\analytics_dashboard\views.py
+    report = get_object_or_404(AnalyticsReport, pk=report_id)
+    
+    # Vérifier les permissions
+    if not request.user.is_staff and report.generated_by != request.user:
+        return redirect('analytics_dashboard:reports_list')
+    
+    # Parser les données du rapport si elles existent
+    report_data = {}
+    if report.report_data:
+        try:
+            report_data = json.loads(report.report_data)
+        except:
+            report_data = {'error': 'Données non valides'}
+    
+    context = {
+        'report': report,
+        'report_data': report_data,
+        'page_title': f'Rapport - {report.report_type}'
+    }
+    
+    return render(request, 'analytics_dashboard/report_detail.html', context)
+
+@login_required
+def predictions_view(request):
+    """Vue des prédictions IA"""
+    # c:\Users\ferie\OneDrive\Bureau\Ma gestion djangoo\EducationIA_Django\evaluation_project\analytics_dashboard\views.py
+    context = {
+        'page_title': 'Prédictions IA',
+    }
+    
+    if request.user.is_staff:
+        # Vue admin : prédictions pour tous
+        predictions = PredictionModel.objects.all().order_by('-created_at')[:20]
+        
+        # Statistiques globales des prédictions
+        total_predictions = PredictionModel.objects.count()
+        recent_predictions = PredictionModel.objects.filter(
+            created_at__gte=timezone.now() - timedelta(days=7)
+        ).count()
+        
+        context.update({
+            'predictions': predictions,
+            'total_predictions': total_predictions,
+            'recent_predictions': recent_predictions,
+            'is_admin': True
+        })
+    else:
+        # Vue étudiant : ses prédictions
+        predictions = PredictionModel.objects.filter(
+            student=request.user
+        ).order_by('-created_at')[:10]
+        
+        latest_prediction = predictions.first() if predictions.exists() else None
+        prediction_data = {}
+        
+        if latest_prediction and latest_prediction.raw_data:
+            try:
+                prediction_data = latest_prediction.raw_data if isinstance(latest_prediction.raw_data, dict) else json.loads(latest_prediction.raw_data)
+            except:
+                prediction_data = {}
+        
+        context.update({
+            'predictions': predictions,
+            'latest_prediction': latest_prediction,
+            'prediction_data': prediction_data,
+            'is_admin': False
+        })
+    
+    return render(request, 'analytics_dashboard/predictions.html', context)
+
+# API Endpoints pour le tracking en temps réel
+@login_required
+def api_student_performance(request, student_id):
+    """API pour récupérer les performances d'un étudiant"""
+    # c:\Users\ferie\OneDrive\Bureau\Ma gestion djangoo\EducationIA_Django\evaluation_project\analytics_dashboard\views.py
+    try:
+        student = get_object_or_404(User, pk=student_id)
+        
+        # Vérifier les permissions
+        if not request.user.is_staff and request.user != student:
+            return JsonResponse({'error': 'Permission denied'}, status=403)
+        
+        analytics = StudentAnalytics.objects.filter(user=student).first()
+        trends = PerformanceTrend.objects.filter(
+            student=student
+        ).order_by('date')[:30]
+        
+        data = {
+            'student_id': student.id,
+            'student_name': f"{student.first_name} {student.last_name}".strip() or student.username,
+            'analytics': {
+                'success_rate': analytics.success_rate if analytics else 0,
+                'average_score': analytics.average_score if analytics else 0,
+                'risk_level': analytics.risk_level if analytics else 'LOW',
+                'total_tests': analytics.total_tests_taken if analytics else 0,
+                'last_activity': analytics.last_activity.isoformat() if analytics and analytics.last_activity else None
+            },
+            'performance_trends': [
+                {
+                    'date': trend.date.isoformat(),
+                    'score': trend.score,
+                    'subject': trend.subject
+                } for trend in trends
+            ]
+        }
+        
+        return JsonResponse(data)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def api_class_trends(request, classroom_id):
+    """API pour les tendances d'une classe"""
+    # c:\Users\ferie\OneDrive\Bureau\Ma gestion djangoo\EducationIA_Django\evaluation_project\analytics_dashboard\views.py
+    if not request.user.is_staff:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    try:
+        # Simuler les données de classe
+        class_letters = ['A', 'B', 'C', 'D', 'E', 'F']
+        if classroom_id <= len(class_letters):
+            class_letter = class_letters[classroom_id - 1]
+            students = User.objects.filter(
+                is_staff=False,
+                username__istartswith=class_letter.lower()
+            )
+        else:
+            students = User.objects.none()
+        
+        trends_data = []
+        for student in students:
+            recent_trends = PerformanceTrend.objects.filter(
+                student=student
+            ).order_by('-date')[:5]
+            
+            if recent_trends.exists():
+                trends_data.extend([
+                    {
+                        'student_id': student.id,
+                        'student_name': student.username,
+                        'date': trend.date.isoformat(),
+                        'score': trend.score,
+                        'subject': trend.subject
+                    } for trend in recent_trends
+                ])
+        
+        return JsonResponse({
+            'classroom_id': classroom_id,
+            'trends': trends_data
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def api_risk_distribution(request):
+    """API pour la distribution des risques"""
+    # c:\Users\ferie\OneDrive\Bureau\Ma gestion djangoo\EducationIA_Django\evaluation_project\analytics_dashboard\views.py
+    if not request.user.is_staff:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    try:
+        risk_data = _get_risk_statistics()
+        return JsonResponse({
+            'risk_distribution': risk_data,
+            'total_students': sum(risk_data.values())
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def api_overview_stats(request):
+    """API pour les statistiques générales"""
+    # c:\Users\ferie\OneDrive\Bureau\Ma gestion djangoo\EducationIA_Django\evaluation_project\analytics_dashboard\views.py
+    try:
+        if request.user.is_staff:
+            # Stats admin
+            data = {
+                'total_students': User.objects.filter(is_staff=False).count(),
+                'active_students': StudentAnalytics.objects.filter(
+                    last_activity__gte=timezone.now() - timedelta(days=7)
+                ).count(),
+                'total_tests': PerformanceTrend.objects.count(),
+                'total_predictions': PredictionModel.objects.count(),
+                'average_success_rate': StudentAnalytics.objects.aggregate(
+                    avg_success=Avg('success_rate')
+                )['avg_success'] or 0
+            }
+        else:
+            # Stats étudiant
+            analytics = StudentAnalytics.objects.filter(user=request.user).first()
+            data = {
+                'my_tests': PerformanceTrend.objects.filter(student=request.user).count(),
+                'my_success_rate': analytics.success_rate if analytics else 0,
+                'my_average_score': analytics.average_score if analytics else 0,
+                'my_risk_level': analytics.risk_level if analytics else 'LOW',
+                'predictions_count': PredictionModel.objects.filter(student=request.user).count()
+            }
+        
+        return JsonResponse(data)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

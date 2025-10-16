@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from . import subject_views
+from . import api_views
 
 app_name = 'analytics_dashboard'
 
@@ -48,4 +49,14 @@ urlpatterns = [
     path('api/subjects-summary/', subject_views.api_all_subjects_summary, name='api_subjects_summary'),
     path('api/generate-quiz/', subject_views.generate_quiz_api, name='generate_quiz_api'),
     path('api/submit-quiz/', subject_views.submit_quiz_api, name='submit_quiz_api'),
+
+    # API endpoints pour le tracking temps réel
+    path('api/tracking/test-completion/', api_views.api_record_test_completion, name='api_record_test_completion'),
+    path('api/tracking/course-visit/', api_views.api_record_course_visit, name='api_record_course_visit'),
+    path('api/tracking/student-evolution/<int:student_id>/', api_views.api_get_student_evolution, name='api_get_student_evolution'),
+    path('api/tracking/student-evolution/', api_views.api_get_student_evolution, name='api_get_my_evolution'),
+    path('api/tracking/class-evolution/', api_views.api_get_class_evolution, name='api_get_class_evolution'),
+    path('api/tracking/dashboard/', api_views.api_get_real_time_dashboard, name='api_get_real_time_dashboard'),
+    path('api/tracking/performance-trends/', api_views.api_get_performance_trends, name='api_get_performance_trends'),
+    path('api/tracking/engagement-metrics/', api_views.api_get_engagement_metrics, name='api_get_engagement_metrics'),
 ]
