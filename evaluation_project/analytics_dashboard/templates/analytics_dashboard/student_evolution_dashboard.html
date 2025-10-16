@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Évolution des Étudiants - EduIA{% endblock %}
+
+{% block page_title %}📈 Évolution des Étudiants{% endblock %}
+{% block page_subtitle %}Tableau de bord analytique des performances{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Statistiques générales -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Total Étudiants -->
+        <div class="bg-gradient-to-r from-blue-600 to-blue-700 p-6 rounded-xl text-white card-hover">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-blue-100 text-sm font-medium">Total Étudiants</p>
+                    <p class="text-3xl font-bold">{{ total_students }}</p>
+                </div>
+                <div class="bg-blue-500/30 p-3 rounded-lg">
+                    <i class="fas fa-users text-2xl"></i>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Total Tests -->
+        <div class="bg-gradient-to-r from-green-600 to-green-700 p-6 rounded-xl text-white card-hover">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-green-100 text-sm font-medium">Total Tests</p>
+                    <p class="text-3xl font-bold">{{ total_tests }}</p>
+                </div>
+                <div class="bg-green-500/30 p-3 rounded-lg">
+                    <i class="fas fa-clipboard-list text-2xl"></i>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Total Soumissions -->
+        <div class="bg-gradient-to-r from-purple-600 to-purple-700 p-6 rounded-xl text-white card-hover">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-purple-100 text-sm font-medium">Soumissions</p>
+                    <p class="text-3xl font-bold">{{ total_submissions }}</p>
+                </div>
+                <div class="bg-purple-500/30 p-3 rounded-lg">
+                    <i class="fas fa-paper-plane text-2xl"></i>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Moyenne Générale -->
+        <div class="bg-gradient-to-r from-yellow-600 to-orange-600 p-6 rounded-xl text-white card-hover">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-yellow-100 text-sm font-medium">Moyenne Générale</p>
+                    <p class="text-3xl font-bold">{{ avg_score }}%</p>
+                </div>
+                <div class="bg-yellow-500/30 p-3 rounded-lg">
+                    <i class="fas fa-chart-line text-2xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if chart_data and chart_data != "[]" %}
+    <!-- Graphique d'évolution -->
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <i class="fas fa-chart-line text-blue-600 mr-2"></i>
+            Évolution des Scores (30 derniers jours)
+        </h3>
+        <canvas id="scoreEvolutionChart" width="400" height="200"></canvas>
+    </div>
+    {% endif %}
+    
+    <!-- Top étudiants et statistiques -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Top 5 Étudiants -->
+        {% if top_students %}
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-trophy text-yellow-500 mr-2"></i>
+                Top 5 Étudiants
+            </h3>
+            <div class="space-y-4">
+                {% for student in top_students %}
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                            {{ forloop.counter }}
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-800">{{ student.name }}</p>
+                            <p class="text-sm text-gray-600">{{ student.total_tests }} test{{ student.total_tests|pluralize }}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-2xl font-bold text-green-600">{{ student.avg_score }}%</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Répartition des performances -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-chart-pie text-green-600 mr-2"></i>
+                Répartition des Performances
+            </h3>
+            <canvas id="scoreDistributionChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+    
+    <!-- Performance par matière -->
+    {% if subjects_evolution %}
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+            <i class="fas fa-book text-purple-600 mr-2"></i>
+            Performance par Matière
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for subject, data in subjects_evolution.items %}
+            <div class="border-l-4 border-blue-500 pl-4 py-2 bg-gray-50 rounded">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-semibold text-gray-800">{{ subject }}</p>
+                        <p class="text-sm text-gray-600">{{ data.total_submissions }} soumission{{ data.total_submissions|pluralize }}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xl font-bold {% if data.avg_score >= 80 %}text-green-600{% elif data.avg_score >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                            {{ data.avg_score }}%
+                        </p>
+                    </div>
+                </div>
+                <!-- Barre de progression -->
+                <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+                    <div class="bg-blue-600 h-2 rounded-full transition-all duration-500" 
+                         style="width: {{ data.avg_score }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Message si pas de données -->
+    {% if not chart_data or chart_data == "[]" %}
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+        <i class="fas fa-info-circle text-blue-500 text-4xl mb-4"></i>
+        <h3 class="text-lg font-semibold text-blue-800 mb-2">Données en cours de collecte</h3>
+        <p class="text-blue-600">Les données d'évolution seront disponibles une fois que les étudiants auront commencé à passer des tests.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% if chart_data and chart_data != "[]" %}
+    const chartData = {{ chart_data|safe }};
+    
+    // Graphique d'évolution des scores
+    const ctx1 = document.getElementById('scoreEvolutionChart');
+    if (ctx1 && chartData.length > 0) {
+        new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: chartData.map(item => {
+                    const date = new Date(item.date);
+                    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+                }),
+                datasets: [{
+                    label: 'Score Moyen (%)',
+                    data: chartData.map(item => item.avg_score),
+                    borderColor: '#3b82f6',
+                    backgroundColor: '#3b82f620',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#3b82f6',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: {
+                            color: '#f3f4f6'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: '#f3f4f6'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    {% endif %}
+    
+    // Graphique de répartition des scores
+    const ctx2 = document.getElementById('scoreDistributionChart');
+    if (ctx2) {
+        new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: ['Excellent (90-100%)', 'Bien (70-89%)', 'Moyen (50-69%)', 'Insuffisant (<50%)'],
+                datasets: [{
+                    data: [
+                        {{ score_distribution.excellent }},
+                        {{ score_distribution.good }},
+                        {{ score_distribution.average }},
+                        {{ score_distribution.poor }}
+                    ],
+                    backgroundColor: [
+                        '#10b981',
+                        '#3b82f6',
+                        '#f59e0b',
+                        '#ef4444'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

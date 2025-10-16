@@ -7,6 +7,8 @@ app_name = 'analytics_dashboard'
 urlpatterns = [
     # Dashboard principal
     path('', views.dashboard_overview, name='overview'),
+        path('evolution/', views.student_evolution_dashboard, name='evolution_dashboard'),
+
 
     # Analytics par matière
     path('subjects/', subject_views.subject_overview, name='subject_overview'),
