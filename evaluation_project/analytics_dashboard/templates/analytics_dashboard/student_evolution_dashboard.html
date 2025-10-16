@@ -1,308 +1,436 @@
 <!-- c:\Users\ferie\OneDrive\Bureau\Ma gestion djangoo\EducationIA_Django\evaluation_project\analytics_dashboard\templates\analytics_dashboard\student_evolution_dashboard.html -->
-{% extends 'evaluation/base.html' %}
+{% extends 'base.html' %}
+{% load static %}
 {% load analytics_filters %}
 
-{% block title %}{{ page_title }}{% endblock %}
+{% block title %}Mon Évolution - EducationIA{% endblock %}
 
-{% block content %}
-<div class="container-fluid">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fas fa-chart-line text-success"></i> {{ page_title }}</h2>
-        <div class="d-flex gap-2">
-            <button class="btn btn-outline-success" onclick="refreshEvolutionData()">
-                <i class="fas fa-sync-alt"></i> Actualiser
-            </button>
-            <a href="{% url 'analytics_dashboard:overview' %}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Retour Dashboard
-            </a>
-        </div>
-    </div>
+{% block extra_css %}
+<style>
+    /* VARIABLES */
+    :root {
+        --color-success: #10b981;
+        --color-warning: #f59e0b;
+        --color-danger: #ef4444;
+        --color-info: #3b82f6;
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+        --shadow-lg: 0 10px 30px rgba(0,0,0,0.15);
+        --gradient-success: linear-gradient(135deg, #10b981, #059669);
+        --gradient-warning: linear-gradient(135deg, #f59e0b, #d97706);
+        --gradient-danger: linear-gradient(135deg, #ef4444, #dc2626);
+        --gradient-purple: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    }
 
-    {% if user.is_staff %}
-        <!-- Vue Administrateur -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">
-                            <i class="fas fa-users"></i> Évolution Globale des Étudiants
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        {% if students_data %}
-                            <!-- Statistiques rapides -->
-                            <div class="row mb-4">
-                                <div class="col-md-3">
-                                    <div class="card bg-primary text-white">
-                                        <div class="card-body text-center">
-                                            <h3>{{ students_data|length }}</h3>
-                                            <p class="mb-0">Total Étudiants</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card bg-success text-white">
-                                        <div class="card-body text-center">
-                                            <h3 id="activeStudentsCount">0</h3>
-                                            <p class="mb-0">Étudiants Actifs</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card bg-info text-white">
-                                        <div class="card-body text-center">
-                                            <h3 id="totalTestsCount">0</h3>
-                                            <p class="mb-0">Tests Totaux</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card bg-warning text-white">
-                                        <div class="card-body text-center">
-                                            <h3 id="averageScore">0.0</h3>
-                                            <p class="mb-0">Moyenne Générale</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-        
-        <!-- Total Tests -->
-        <div class="bg-gradient-to-r from-green-600 to-green-700 p-6 rounded-xl text-white card-hover">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-green-100 text-sm font-medium">Total Tests</p>
-                    <p class="text-3xl font-bold">{{ total_tests }}</p>
-                </div>
-                <div class="bg-green-500/30 p-3 rounded-lg">
-                    <i class="fas fa-clipboard-list text-2xl"></i>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Total Soumissions -->
-        <div class="bg-gradient-to-r from-purple-600 to-purple-700 p-6 rounded-xl text-white card-hover">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-purple-100 text-sm font-medium">Soumissions</p>
-                    <p class="text-3xl font-bold">{{ total_submissions }}</p>
-                </div>
-                <div class="bg-purple-500/30 p-3 rounded-lg">
-                    <i class="fas fa-paper-plane text-2xl"></i>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Moyenne Générale -->
-        <div class="bg-gradient-to-r from-yellow-600 to-orange-600 p-6 rounded-xl text-white card-hover">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-yellow-100 text-sm font-medium">Moyenne Générale</p>
-                    <p class="text-3xl font-bold">{{ avg_score }}%</p>
-                </div>
-                <div class="bg-yellow-500/30 p-3 rounded-lg">
-                    <i class="fas fa-chart-line text-2xl"></i>
-                </div>
-            </div>
-        </div>
-    </div>
+    .dashboard-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 3rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0 0 20px 20px;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-md);
+        transition: all 0.3s;
+        border: 2px solid transparent;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--gradient-purple);
+        transform: scaleX(0);
+        transition: transform 0.3s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .stat-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .stat-card.success { border-color: var(--color-success); }
+    .stat-card.success::before { background: var(--gradient-success); }
     
-    {% if chart_data and chart_data != "[]" %}
-    <!-- Graphique d'évolution -->
-    <div class="bg-white rounded-xl shadow-lg p-6">
-        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-            <i class="fas fa-chart-line text-blue-600 mr-2"></i>
-            Évolution des Scores (30 derniers jours)
-        </h3>
-        <canvas id="scoreEvolutionChart" width="400" height="200"></canvas>
-    </div>
+    .stat-card.warning { border-color: var(--color-warning); }
+    .stat-card.warning::before { background: var(--gradient-warning); }
     
-    <!-- Top étudiants et statistiques -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <!-- Top 5 Étudiants -->
-        {% if top_students %}
-        <div class="bg-white rounded-xl shadow-lg p-6">
-            <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                <i class="fas fa-trophy text-yellow-500 mr-2"></i>
-                Top 5 Étudiants
-            </h3>
-            <div class="space-y-4">
-                {% for student in top_students %}
-                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                            {{ forloop.counter }}
-                        </div>
-                        <div>
-                            <p class="font-semibold text-gray-800">{{ student.name }}</p>
-                            <p class="text-sm text-gray-600">{{ student.total_tests }} test{{ student.total_tests|pluralize }}</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-2xl font-bold text-green-600">{{ student.avg_score }}%</p>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-        
-        <!-- Répartition des performances -->
-        <div class="bg-white rounded-xl shadow-lg p-6">
-            <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                <i class="fas fa-chart-pie text-green-600 mr-2"></i>
-                Répartition des Performances
-            </h3>
-            <canvas id="scoreDistributionChart" width="400" height="200"></canvas>
-        </div>
-    </div>
+    .stat-card.danger { border-color: var(--color-danger); }
+    .stat-card.danger::before { background: var(--gradient-danger); }
+
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        margin-bottom: 1rem;
+        color: white;
+    }
+
+    .stat-card.success .stat-icon { background: var(--gradient-success); }
+    .stat-card.warning .stat-icon { background: var(--gradient-warning); }
+    .stat-card.danger .stat-icon { background: var(--gradient-danger); }
+    .stat-card .stat-icon { background: var(--gradient-purple); }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 800;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        color: #6b7280;
+        font-size: 0.95rem;
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+
+    .message-alert {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-md);
+        border-left: 6px solid;
+        animation: slideIn 0.5s;
+    }
+
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateX(-30px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+
+    .message-alert.success { 
+        border-left-color: var(--color-success);
+        background: linear-gradient(to right, rgba(16, 185, 129, 0.05), white);
+    }
     
-    <!-- Performance par matière -->
-    {% if subjects_evolution %}
-    <div class="bg-white rounded-xl shadow-lg p-6">
-        <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
-            <i class="fas fa-book text-purple-600 mr-2"></i>
-            Performance par Matière
-        </h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {% for subject, data in subjects_evolution.items %}
-            <div class="border-l-4 border-blue-500 pl-4 py-2 bg-gray-50 rounded">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="font-semibold text-gray-800">{{ subject }}</p>
-                        <p class="text-sm text-gray-600">{{ data.total_submissions }} soumission{{ data.total_submissions|pluralize }}</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-xl font-bold {% if data.avg_score >= 80 %}text-green-600{% elif data.avg_score >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
-                            {{ data.avg_score }}%
-                        </p>
-                    </div>
-                </div>
-                <!-- Barre de progression -->
-                <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
-                    <div class="bg-blue-600 h-2 rounded-full transition-all duration-500" 
-                         style="width: {{ data.avg_score }}%"></div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-    {% endif %}
+    .message-alert.warning { 
+        border-left-color: var(--color-warning);
+        background: linear-gradient(to right, rgba(245, 158, 11, 0.05), white);
+    }
     
-    <!-- Message si pas de données -->
-    {% if not chart_data or chart_data == "[]" %}
-    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
-        <i class="fas fa-info-circle text-blue-500 text-4xl mb-4"></i>
-        <h3 class="text-lg font-semibold text-blue-800 mb-2">Données en cours de collecte</h3>
-        <p class="text-blue-600">Les données d'évolution seront disponibles une fois que les étudiants auront commencé à passer des tests.</p>
-    </div>
-    {% endif %}
-    {% endif %}
-    {% endif %}
-</div>
+    .message-alert.danger { 
+        border-left-color: var(--color-danger);
+        background: linear-gradient(to right, rgba(239, 68, 68, 0.05), white);
+    }
+
+    .emoji-large {
+        font-size: 4rem;
+        margin-right: 1rem;
+        animation: bounce 1s infinite;
+    }
+
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+
+    .message-title {
+        font-size: 1.8rem;
+        font-weight: 800;
+        margin-bottom: 0.75rem;
+    }
+
+    .message-text {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: #374151;
+    }
+
+    .level-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: var(--gradient-purple);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 50px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        box-shadow: var(--shadow-md);
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+
+    .chart-container {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: var(--shadow-md);
+        margin-bottom: 2rem;
+    }
+
+    .chart-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        color: #1f2937;
+    }
+
+    .badges-container {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin: 2rem 0;
+    }
+
+    .achievement-badge {
+        background: white;
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        box-shadow: var(--shadow-md);
+        border: 2px solid #e5e7eb;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .achievement-badge:hover {
+        transform: scale(1.05);
+    }
+
+    .achievement-badge.earned {
+        border-color: #fbbf24;
+        background: linear-gradient(135deg, #fef3c7, white);
+    }
+
+    .achievement-icon {
+        font-size: 2rem;
+        filter: grayscale(100%);
+        opacity: 0.3;
+    }
+
+    .achievement-badge.earned .achievement-icon {
+        filter: grayscale(0%);
+        opacity: 1;
+    }
+
+    @media (max-width: 768px) {
+        .stats-grid { grid-template-columns: 1fr; }
+        .dashboard-header { padding: 2rem 1rem; }
+    }
+</style>
 {% endblock %}
 
-{% block extra_js %}
+{% block content %}
+<div class="dashboard-header">
+    <div class="container text-center">
+        <h1 class="display-4 mb-3" style="font-weight: 800;">
+            <i class="fas fa-chart-line me-2"></i>Mon Évolution
+        </h1>
+        {% if student_analytics %}
+        <div class="level-badge">
+            <i class="fas fa-trophy"></i>
+            Niveau {{ student_analytics.level }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="container">
+    {% if student_analytics %}
+        <!-- MESSAGE BASÉ SUR LA PERFORMANCE -->
+        {% if student_analytics.average_score >= 80 and student_analytics.total_tests >= 5 %}
+            <div class="message-alert success">
+                <div class="d-flex align-items-center">
+                    <span class="emoji-large">🎉</span>
+                    <div>
+                        <div class="message-title text-success">Excellent travail !</div>
+                        <div class="message-text">
+                            Vous êtes sur une excellente lancée avec une moyenne de <strong>{{ student_analytics.average_score|floatformat:1 }}%</strong> ! 
+                            Continuez comme ça, vous êtes un champion ! 🏆
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% elif student_analytics.average_score >= 60 and student_analytics.total_tests >= 3 %}
+            <div class="message-alert warning">
+                <div class="d-flex align-items-center">
+                    <span class="emoji-large">📈</span>
+                    <div>
+                        <div class="message-title text-warning">Bon début, mais on peut faire mieux !</div>
+                        <div class="message-text">
+                            Votre moyenne de <strong>{{ student_analytics.average_score|floatformat:1 }}%</strong> est correcte, mais vous avez le potentiel pour atteindre l'excellence. 
+                            Visitez plus de cours et entraînez-vous davantage ! 💪
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% elif student_analytics.total_tests < 3 %}
+            <div class="message-alert danger">
+                <div class="d-flex align-items-center">
+                    <span class="emoji-large">😤</span>
+                    <div>
+                        <div class="message-title text-danger">Attention ! Activité insuffisante !</div>
+                        <div class="message-text">
+                            Seulement <strong>{{ student_analytics.total_tests }} test(s)</strong> passé(s) ! C'est inacceptable si vous voulez progresser. 
+                            <strong>Visitez les cours et passez plus de tests MAINTENANT !</strong> ⚠️
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="message-alert danger">
+                <div class="d-flex align-items-center">
+                    <span class="emoji-large">🚨</span>
+                    <div>
+                        <div class="message-title text-danger">Performance alarmante !</div>
+                        <div class="message-text">
+                            Votre moyenne de <strong>{{ student_analytics.average_score|floatformat:1 }}%</strong> est préoccupante. 
+                            Vous devez <strong>absolument revoir les cours et vous entraîner davantage</strong> ! L'effort paie toujours. 🔥
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- STATISTIQUES PRINCIPALES -->
+        <div class="stats-grid">
+            <div class="stat-card {% if student_analytics.average_score >= 80 %}success{% elif student_analytics.average_score >= 60 %}warning{% else %}danger{% endif %}">
+                <div class="stat-icon"><i class="fas fa-chart-bar"></i></div>
+                <div class="stat-value">{{ student_analytics.average_score|floatformat:0 }}%</div>
+                <div class="stat-label">Score Moyen</div>
+            </div>
+
+            <div class="stat-card {% if student_analytics.total_tests >= 10 %}success{% elif student_analytics.total_tests >= 5 %}warning{% else %}danger{% endif %}">
+                <div class="stat-icon"><i class="fas fa-clipboard-check"></i></div>
+                <div class="stat-value">{{ student_analytics.total_tests }}</div>
+                <div class="stat-label">Tests Passés</div>
+            </div>
+
+            <div class="stat-card {% if student_analytics.streak_days >= 7 %}success{% elif student_analytics.streak_days >= 3 %}warning{% else %}danger{% endif %}">
+                <div class="stat-icon"><i class="fas fa-fire"></i></div>
+                <div class="stat-value">{{ student_analytics.streak_days }}</div>
+                <div class="stat-label">Jours Consécutifs</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                <div class="stat-value">{{ student_analytics.total_time_spent|floatformat:0 }}h</div>
+                <div class="stat-label">Temps d'Étude</div>
+            </div>
+        </div>
+
+        <!-- BADGES & ACHIEVEMENTS -->
+        <div class="chart-container">
+            <h3 class="chart-title text-center">🏅 Vos Réalisations</h3>
+            <div class="badges-container">
+                <div class="achievement-badge {% if student_analytics.average_score >= 80 %}earned{% endif %}">
+                    <span class="achievement-icon">🎓</span>
+                    <span class="achievement-name">Expert</span>
+                </div>
+                <div class="achievement-badge {% if student_analytics.total_tests >= 10 %}earned{% endif %}">
+                    <span class="achievement-icon">💼</span>
+                    <span class="achievement-name">Travailleur</span>
+                </div>
+                <div class="achievement-badge {% if student_analytics.streak_days >= 7 %}earned{% endif %}">
+                    <span class="achievement-icon">🔥</span>
+                    <span class="achievement-name">Série de 7j</span>
+                </div>
+                <div class="achievement-badge {% if student_analytics.perfect_scores >= 3 %}earned{% endif %}">
+                    <span class="achievement-icon">⭐</span>
+                    <span class="achievement-name">Perfectionniste</span>
+                </div>
+                <div class="achievement-badge {% if student_analytics.total_time_spent >= 20 %}earned{% endif %}">
+                    <span class="achievement-icon">⏰</span>
+                    <span class="achievement-name">Marathonien</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRAPHIQUE D'ÉVOLUTION -->
+        {% if performance_trends %}
+        <div class="chart-container">
+            <h3 class="chart-title">📊 Évolution de vos Performances</h3>
+            <canvas id="evolutionChart" height="80"></canvas>
+        </div>
+        {% endif %}
+
+    {% else %}
+        <div class="alert alert-info text-center" style="margin-top: 3rem; padding: 3rem;">
+            <i class="fas fa-info-circle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+            <h3>Aucune donnée disponible</h3>
+            <p class="mb-0">Commencez à passer des tests pour voir vos statistiques ici !</p>
+        </div>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    {% if chart_data and chart_data != "[]" %}
-    const chartData = {{ chart_data|safe }};
-    
-    // Graphique d'évolution des scores
-    const ctx1 = document.getElementById('scoreEvolutionChart');
-    if (ctx1 && chartData.length > 0) {
-        new Chart(ctx1, {
+    {% if performance_trends %}
+    const ctx = document.getElementById('evolutionChart');
+    if (ctx) {
+        new Chart(ctx, {
             type: 'line',
             data: {
-                labels: chartData.map(item => {
-                    const date = new Date(item.date);
-                    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-                }),
+                labels: {{ chart_data.labels|safe }},
                 datasets: [{
-                    label: 'Score Moyen (%)',
-                    data: chartData.map(item => item.avg_score),
-                    borderColor: '#3b82f6',
-                    backgroundColor: '#3b82f620',
-                    borderWidth: 3,
-                    fill: true,
+                    label: 'Score (%)',
+                    data: {{ chart_data.scores|safe }},
+                    borderColor: 'rgb(139, 92, 246)',
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
                     tension: 0.4,
-                    pointBackgroundColor: '#3b82f6',
+                    fill: true,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    pointBackgroundColor: 'rgb(139, 92, 246)',
                     pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointRadius: 6
+                    pointBorderWidth: 2
                 }]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top'
+                    legend: { display: true, position: 'top' },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12
                     }
                 },
                 scales: {
                     y: {
                         beginAtZero: true,
                         max: 100,
-                        grid: {
-                            color: '#f3f4f6'
-                        },
-                        ticks: {
-                            callback: function(value) {
-                                return value + '%';
-                            }
-                        }
-                    },
-                    x: {
-                        grid: {
-                            color: '#f3f4f6'
-                        }
+                        ticks: { callback: function(value) { return value + '%'; } }
                     }
                 }
             }
         });
     }
     {% endif %}
-    
-    // Graphique de répartition des scores
-    const ctx2 = document.getElementById('scoreDistributionChart');
-    if (ctx2) {
-        new Chart(ctx2, {
-            type: 'doughnut',
-            data: {
-                labels: ['Excellent (90-100%)', 'Bien (70-89%)', 'Moyen (50-69%)', 'Insuffisant (<50%)'],
-                datasets: [{
-                    data: [
-                        {{ score_distribution.excellent }},
-                        {{ score_distribution.good }},
-                        {{ score_distribution.average }},
-                        {{ score_distribution.poor }}
-                    ],
-                    backgroundColor: [
-                        '#10b981',
-                        '#3b82f6',
-                        '#f59e0b',
-                        '#ef4444'
-                    ],
-                    borderWidth: 2,
-                    borderColor: '#fff'
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            padding: 20,
-                            usePointStyle: true
-                        }
-                    }
-                }
-            }
-        });
-    }
 });
 </script>
 {% endblock %}
