@@ -928,12 +928,20 @@ def start_challenge(request, challenge_id):
         challenge = Challenge.objects.get(_id=ObjectId(challenge_id), student=request.user)
         
         if challenge.status == 'ACTIVE':
-            messages.info(request, f'🎯 Défi "{challenge.title}" démarré ! Bonne chance !')
-            # Ici vous pouvez rediriger vers la page d'exercices
-            return redirect('analytics_dashboard:gamified_dashboard')
+            # Extraire la matière du défi depuis target_data
+            subject = challenge.target_data.get('subject', '')
+            
+            # Message de démarrage
+            messages.success(request, f'🎯 Défi "{challenge.title}" activé ! Rendez-vous dans la section Exercices IA pour compléter ce défi.')
+            messages.info(request, f'📚 Sujet: {subject} | 🎁 Récompense: {challenge.xp_reward} XP + {challenge.coins_reward} coins')
+            
+            # Rediriger vers les exercices IA filtrés par matière
+            return redirect('exercise_generator:student_exercise_sets')
         else:
             messages.warning(request, '⚠️ Ce défi n\'est plus actif')
     except Challenge.DoesNotExist:
         messages.error(request, '❌ Défi introuvable')
+    except Exception as e:
+        messages.error(request, f'❌ Erreur: {str(e)}')
     
     return redirect('analytics_dashboard:gamified_dashboard')
