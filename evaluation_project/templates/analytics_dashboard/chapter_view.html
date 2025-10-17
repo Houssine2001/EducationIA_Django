@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ chapter.title }} - {{ subject.name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 py-8 px-4">
+    <div class="max-w-5xl mx-auto">
+        
+        <!-- Header -->
+        <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-8 mb-8 border border-white/20">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center space-x-4">
+                    <a href="{% url 'analytics_dashboard:subject_chapters' subject.pk %}" 
+                       class="text-white hover:text-gray-300 transition-colors">
+                        <i class="fas fa-arrow-left text-2xl"></i>
+                    </a>
+                    <div class="text-5xl">{{ subject.icon }}</div>
+                    <div>
+                        <div class="text-sm text-gray-400">{{ subject.name }}</div>
+                        <h1 class="text-3xl font-bold text-white">{{ chapter.title }}</h1>
+                    </div>
+                </div>
+                
+                <!-- Badge de difficulté -->
+                {% if chapter.difficulty == 'EASY' %}
+                    <span class="px-4 py-2 bg-green-500 text-white text-sm font-bold rounded-full">
+                        ⭐ Facile
+                    </span>
+                {% elif chapter.difficulty == 'MEDIUM' %}
+                    <span class="px-4 py-2 bg-orange-500 text-white text-sm font-bold rounded-full">
+                        ⭐⭐ Moyen
+                    </span>
+                {% else %}
+                    <span class="px-4 py-2 bg-red-500 text-white text-sm font-bold rounded-full">
+                        ⭐⭐⭐ Difficile
+                    </span>
+                {% endif %}
+            </div>
+
+            <!-- Métadonnées -->
+            <div class="flex items-center space-x-6 text-gray-300">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-list-ol"></i>
+                    <span>Chapitre {{ chapter.order }}</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-clock"></i>
+                    <span>{{ chapter.duration_minutes }} minutes</span>
+                </div>
+                {% if is_completed %}
+                <div class="flex items-center space-x-2 text-green-400">
+                    <i class="fas fa-check-circle"></i>
+                    <span class="font-bold">Terminé</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Alerte de suivi automatique -->
+        <div class="bg-blue-900/50 border border-blue-500/50 rounded-2xl p-4 mb-8 flex items-start space-x-3">
+            <i class="fas fa-info-circle text-blue-400 text-xl mt-1"></i>
+            <div class="flex-1">
+                <div class="text-white font-medium">Suivi Automatique Activé</div>
+                <div class="text-blue-200 text-sm">Votre visite et votre temps d'étude sont enregistrés automatiquement pour améliorer vos prédictions IA.</div>
+            </div>
+        </div>
+
+        <!-- Contenu du chapitre -->
+        <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-8 mb-8 border border-white/20">
+            <h2 class="text-2xl font-bold text-white mb-4">📖 Contenu du Chapitre</h2>
+            
+            <!-- Description -->
+            <div class="bg-black/20 rounded-2xl p-6 mb-6">
+                <p class="text-gray-300 text-lg">{{ chapter.description }}</p>
+            </div>
+
+            <!-- Contenu principal -->
+            <div class="prose prose-invert max-w-none">
+                <div class="text-gray-200 leading-relaxed whitespace-pre-wrap">{{ chapter.content }}</div>
+            </div>
+        </div>
+
+        <!-- Statistiques de progression -->
+        {% if visit_count > 0 %}
+        <div class="bg-gradient-to-r from-purple-900/50 to-pink-900/50 backdrop-blur-lg rounded-3xl p-8 mb-8 border border-purple-500/30">
+            <h3 class="text-2xl font-bold text-white mb-6">📊 Vos Statistiques</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-black/30 rounded-2xl p-6 text-center">
+                    <div class="text-4xl font-bold text-blue-400">{{ visit_count }}</div>
+                    <div class="text-gray-300 mt-2">Visites</div>
+                </div>
+                <div class="bg-black/30 rounded-2xl p-6 text-center">
+                    <div class="text-4xl font-bold text-green-400">{{ total_time|floatformat:0 }}</div>
+                    <div class="text-gray-300 mt-2">Minutes d'Étude</div>
+                </div>
+                <div class="bg-black/30 rounded-2xl p-6 text-center">
+                    <div class="text-4xl font-bold text-purple-400">{{ avg_time|floatformat:0 }}</div>
+                    <div class="text-gray-300 mt-2">Minutes par Visite</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Actions -->
+        <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20">
+            <h3 class="text-2xl font-bold text-white mb-6">🎯 Actions</h3>
+            
+            <div class="space-y-4">
+                <!-- Marquer comme terminé / Réviser -->
+                {% if not is_completed %}
+                <button onclick="markComplete()" 
+                        class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white font-bold py-4 rounded-2xl hover:from-green-600 hover:to-green-700 transition-all flex items-center justify-center space-x-3">
+                    <i class="fas fa-check-circle text-2xl"></i>
+                    <span class="text-xl">✅ Marquer comme Terminé</span>
+                </button>
+                {% else %}
+                <div class="w-full bg-green-900/50 border border-green-500/50 text-green-300 font-bold py-4 rounded-2xl flex items-center justify-center space-x-3">
+                    <i class="fas fa-check-circle text-2xl"></i>
+                    <span class="text-xl">✓ Chapitre Terminé</span>
+                </div>
+                {% endif %}
+
+                <!-- Retour aux chapitres -->
+                <a href="{% url 'analytics_dashboard:subject_chapters' subject.pk %}" 
+                   class="block w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold py-4 rounded-2xl hover:from-blue-600 hover:to-purple-600 transition-all text-center">
+                    📚 Retour aux Chapitres
+                </a>
+
+                <!-- Voir prédiction -->
+                <a href="{% url 'analytics_dashboard:subject_prediction' subject.pk %}" 
+                   class="block w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-4 rounded-2xl hover:from-purple-600 hover:to-pink-600 transition-all text-center">
+                    🎯 Voir ma Prédiction IA
+                </a>
+            </div>
+        </div>
+
+        <!-- Note motivationnelle -->
+        <div class="mt-8 bg-gradient-to-r from-yellow-900/50 to-orange-900/50 backdrop-blur-lg rounded-3xl p-6 border border-yellow-500/30 text-center">
+            <div class="text-4xl mb-3">🌟</div>
+            <p class="text-yellow-200 text-lg font-medium">
+                Continuez ainsi ! Plus vous étudiez régulièrement, plus vos prédictions de réussite s'améliorent.
+            </p>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// Enregistrement de la visite au chargement
+const chapterId = '{{ chapter.pk }}';
+const startTime = Date.now();
+
+// Marquer comme terminé
+function markComplete() {
+    fetch(`/analytics/chapitre/${chapterId}/complete/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Notification de succès
+            showNotification('✅ Chapitre terminé ! Prédiction mise à jour.', 'success');
+            
+            // Redirection après 2 secondes
+            setTimeout(() => {
+                window.location.href = "{% url 'analytics_dashboard:subject_chapters' subject.pk %}";
+            }, 2000);
+        } else {
+            showNotification('❌ Erreur: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        showNotification('❌ Erreur lors de la mise à jour', 'error');
+    });
+}
+
+// Enregistrer la visite lors de la fermeture
+window.addEventListener('beforeunload', function() {
+    const duration = Math.floor((Date.now() - startTime) / 1000);
+    
+    // Utiliser sendBeacon pour garantir l'envoi
+    const data = new FormData();
+    data.append('duration_seconds', duration);
+    
+    navigator.sendBeacon(
+        `/analytics/chapitre/${chapterId}/visit/`,
+        data
+    );
+});
+
+// Système de notification
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 px-6 py-4 rounded-2xl font-bold text-white z-50 transform transition-all ${
+        type === 'success' ? 'bg-green-500' : 'bg-red-500'
+    }`;
+    notification.textContent = message;
+    notification.style.animation = 'slideIn 0.3s ease-out';
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-in';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+</script>
+
+<style>
+    @keyframes slideIn {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+    }
+
+    .prose-invert {
+        color: #e5e7eb;
+    }
+</style>
+{% endblock %}

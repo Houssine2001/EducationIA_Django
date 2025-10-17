@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ subject.name }} - Chapitres{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 py-8 px-4">
+    <div class="max-w-7xl mx-auto">
+        
+        <!-- Header -->
+        <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-8 mb-8 border border-white/20">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <a href="{% url 'analytics_dashboard:subjects_list' %}" 
+                       class="text-white hover:text-gray-300 transition-colors">
+                        <i class="fas fa-arrow-left text-2xl"></i>
+                    </a>
+                    <div class="text-6xl">{{ subject.icon }}</div>
+                    <div>
+                        <h1 class="text-4xl font-bold text-white">{{ subject.name }}</h1>
+                        <p class="text-gray-300">{{ subject.description }}</p>
+                    </div>
+                </div>
+                
+                <!-- Badge de progression -->
+                <div class="text-center bg-black/30 rounded-2xl p-4">
+                    <div class="text-3xl font-bold text-white">{{ completion_rate|floatformat:0 }}%</div>
+                    <div class="text-sm text-gray-300">Progression</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prédiction IA -->
+        {% if prediction_report %}
+        <div class="bg-gradient-to-r from-purple-900/50 to-pink-900/50 backdrop-blur-lg rounded-3xl p-8 mb-8 border border-purple-500/30">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Prédiction principale -->
+                <div class="col-span-1 md:col-span-1 text-center">
+                    <div class="text-sm text-gray-300 mb-2">🎯 Prédiction de Réussite</div>
+                    <div class="text-5xl font-bold text-white mb-2">
+                        {{ prediction_report.current_prediction.predicted_success_rate|floatformat:1 }}%
+                    </div>
+                    <div class="text-sm text-gray-400">Confiance: {{ prediction_report.current_prediction.confidence_level|floatformat:0 }}%</div>
+                    
+                    <!-- Badge de risque -->
+                    {% if prediction_report.current_prediction.risk_level == 'LOW' %}
+                        <span class="inline-block mt-3 px-4 py-2 bg-green-500 text-white text-sm font-bold rounded-full">
+                            ✓ Risque Faible
+                        </span>
+                    {% elif prediction_report.current_prediction.risk_level == 'MEDIUM' %}
+                        <span class="inline-block mt-3 px-4 py-2 bg-orange-500 text-white text-sm font-bold rounded-full">
+                            ! Risque Moyen
+                        </span>
+                    {% elif prediction_report.current_prediction.risk_level == 'HIGH' %}
+                        <span class="inline-block mt-3 px-4 py-2 bg-red-500 text-white text-sm font-bold rounded-full">
+                            ⚠ Risque Élevé
+                        </span>
+                    {% else %}
+                        <span class="inline-block mt-3 px-4 py-2 bg-purple-500 text-white text-sm font-bold rounded-full">
+                            🚨 Risque Critique
+                        </span>
+                    {% endif %}
+                </div>
+
+                <!-- Métriques d'engagement -->
+                <div class="col-span-1 md:col-span-2">
+                    <h3 class="text-white font-bold mb-4">📊 Métriques d'Engagement</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-black/30 rounded-xl p-4">
+                            <div class="text-sm text-gray-300">Engagement Visites</div>
+                            <div class="text-2xl font-bold text-blue-400">{{ prediction_report.engagement_metrics.visit_engagement|floatformat:1 }}%</div>
+                        </div>
+                        <div class="bg-black/30 rounded-xl p-4">
+                            <div class="text-sm text-gray-300">Engagement Tests</div>
+                            <div class="text-2xl font-bold text-green-400">{{ prediction_report.engagement_metrics.test_engagement|floatformat:1 }}%</div>
+                        </div>
+                        <div class="bg-black/30 rounded-xl p-4">
+                            <div class="text-sm text-gray-300">Score Régularité</div>
+                            <div class="text-2xl font-bold text-purple-400">{{ prediction_report.engagement_metrics.consistency_score|floatformat:1 }}%</div>
+                        </div>
+                        <div class="bg-black/30 rounded-xl p-4">
+                            <div class="text-sm text-gray-300">Score Moyen Tests</div>
+                            <div class="text-2xl font-bold text-orange-400">{{ prediction_report.engagement_metrics.average_test_score|floatformat:1 }}%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommandations IA -->
+            {% if prediction_report.recommendations %}
+            <div class="mt-6 pt-6 border-t border-white/20">
+                <h3 class="text-white font-bold mb-3">💡 Recommandations Personnalisées</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {% for rec in prediction_report.recommendations %}
+                    <div class="bg-black/30 rounded-lg p-3 flex items-start space-x-3">
+                        <div class="text-2xl">
+                            {% if rec.type == 'CHAPTER' %}📖
+                            {% elif rec.type == 'TEST' %}📝
+                            {% elif rec.type == 'ENGAGEMENT' %}🔥
+                            {% else %}✅{% endif %}
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-white text-sm">{{ rec.message }}</div>
+                            <div class="text-xs text-gray-400 mt-1">Priorité: {{ rec.priority }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Lien vers détail -->
+            <div class="text-center mt-6">
+                <a href="{% url 'analytics_dashboard:subject_prediction' subject.pk %}" 
+                   class="inline-block bg-white/10 hover:bg-white/20 text-white font-medium px-6 py-2 rounded-lg transition-all">
+                    📈 Voir l'Analyse Complète
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Liste des chapitres -->
+        <div class="space-y-4">
+            {% for chapter_data in chapters_with_status %}
+            <div class="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 overflow-hidden hover:border-white/40 transition-all">
+                <div class="p-6">
+                    <div class="flex items-start justify-between">
+                        <!-- Info du chapitre -->
+                        <div class="flex items-start space-x-4 flex-1">
+                            <!-- Numéro -->
+                            <div class="bg-gradient-to-br from-blue-500 to-purple-500 text-white font-bold text-xl w-12 h-12 rounded-xl flex items-center justify-center">
+                                {{ chapter_data.chapter.order }}
+                            </div>
+                            
+                            <!-- Contenu -->
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold text-white mb-2">
+                                    {{ chapter_data.chapter.title }}
+                                </h3>
+                                <p class="text-gray-300 text-sm mb-3">{{ chapter_data.chapter.description }}</p>
+                                
+                                <!-- Badges -->
+                                <div class="flex items-center space-x-3">
+                                    <!-- Difficulté -->
+                                    {% if chapter_data.chapter.difficulty == 'EASY' %}
+                                        <span class="px-3 py-1 bg-green-500/20 text-green-400 text-xs font-medium rounded-full border border-green-500/50">
+                                            ⭐ Facile
+                                        </span>
+                                    {% elif chapter_data.chapter.difficulty == 'MEDIUM' %}
+                                        <span class="px-3 py-1 bg-orange-500/20 text-orange-400 text-xs font-medium rounded-full border border-orange-500/50">
+                                            ⭐⭐ Moyen
+                                        </span>
+                                    {% else %}
+                                        <span class="px-3 py-1 bg-red-500/20 text-red-400 text-xs font-medium rounded-full border border-red-500/50">
+                                            ⭐⭐⭐ Difficile
+                                        </span>
+                                    {% endif %}
+                                    
+                                    <!-- Durée -->
+                                    <span class="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs font-medium rounded-full border border-blue-500/50">
+                                        <i class="fas fa-clock mr-1"></i>{{ chapter_data.chapter.duration_minutes }} min
+                                    </span>
+                                    
+                                    <!-- Statut -->
+                                    {% if chapter_data.status.completed %}
+                                        <span class="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
+                                            ✓ Terminé
+                                        </span>
+                                    {% elif chapter_data.status.visited %}
+                                        <span class="px-3 py-1 bg-purple-500 text-white text-xs font-bold rounded-full">
+                                            👁 En cours
+                                        </span>
+                                    {% else %}
+                                        <span class="px-3 py-1 bg-gray-500 text-white text-xs font-bold rounded-full">
+                                            ○ Non commencé
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Barre de progression -->
+                                {% if chapter_data.status.progress_percentage > 0 %}
+                                <div class="mt-3">
+                                    <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                        <span>Progression</span>
+                                        <span>{{ chapter_data.status.progress_percentage }}%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
+                                        <div class="bg-gradient-to-r from-green-400 to-blue-500 h-full rounded-full transition-all" 
+                                             style="width: {{ chapter_data.status.progress_percentage }}%"></div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Bouton d'action -->
+                        <a href="{% url 'analytics_dashboard:chapter_view' chapter_data.chapter.pk %}" 
+                           class="ml-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold px-6 py-3 rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all whitespace-nowrap">
+                            {% if chapter_data.status.completed %}
+                                🔄 Réviser
+                            {% elif chapter_data.status.visited %}
+                                ▶ Continuer
+                            {% else %}
+                                🚀 Commencer
+                            {% endif %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-12 text-center border border-white/20">
+                <div class="text-6xl mb-4">📖</div>
+                <h3 class="text-2xl font-bold text-white mb-2">Aucun chapitre disponible</h3>
+                <p class="text-gray-300">Les chapitres seront bientôt ajoutés à cette matière</p>
+            </div>
+            {% endfor %}
+        </div>
+
+    </div>
+</div>
+
+<style>
+    .transition-all {
+        transition: all 0.3s ease;
+    }
+</style>
+{% endblock %}

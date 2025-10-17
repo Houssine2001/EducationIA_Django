@@ -6,6 +6,9 @@ import json
 import numpy as np
 from datetime import datetime, timedelta
 
+# Importer les modèles de matières et chapitres
+from .subject_models import Subject, Chapter, ChapterVisit, StudentSubjectProgress
+
 
 class StudentAnalytics(models.Model):
     """Modèle pour stocker les analytics des étudiants"""

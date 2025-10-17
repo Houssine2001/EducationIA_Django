@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from . import subject_views
 from . import api_views
+from . import subject_chapter_views
 
 app_name = 'analytics_dashboard'
 
@@ -10,6 +11,14 @@ urlpatterns = [
     path('', views.dashboard_overview, name='overview'),
         path('evolution/', views.student_evolution_dashboard, name='evolution_dashboard'),
 
+    # 📚 Nouveau système de matières et chapitres
+    path('matieres/', subject_chapter_views.subjects_list, name='subjects_list'),
+    path('matieres/<str:subject_id>/', subject_chapter_views.subject_chapters, name='subject_chapters'),
+    path('matieres/<str:subject_id>/prediction/', subject_chapter_views.subject_prediction, name='subject_prediction'),
+    path('chapitre/<str:chapter_id>/', subject_chapter_views.chapter_view, name='chapter_view'),
+    path('chapitre/<str:chapter_id>/complete/', subject_chapter_views.mark_chapter_complete, name='mark_chapter_complete'),
+    path('chapitre/<str:chapter_id>/visit/', subject_chapter_views.record_chapter_visit_api, name='record_chapter_visit_api'),
+    path('progression/', subject_chapter_views.my_progress_overview, name='my_progress_overview'),
 
     # Analytics par matière
     path('subjects/', subject_views.subject_overview, name='subject_overview'),
