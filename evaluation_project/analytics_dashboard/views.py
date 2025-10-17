@@ -810,9 +810,10 @@ def join_competition_view(request, competition_id):
     """Inscrit un étudiant à une compétition"""
     from .services import CompetitionService
     from .models import Competition
+    from bson import ObjectId
     
     try:
-        competition = Competition.objects.get(_id=competition_id)
+        competition = Competition.objects.get(_id=ObjectId(competition_id))
         service = CompetitionService()
         
         participant, message = service.join_competition(competition, request.user)
@@ -826,16 +827,17 @@ def join_competition_view(request, competition_id):
     except Exception as e:
         messages.error(request, f'❌ Erreur: {str(e)}')
     
-    return redirect('gamified_dashboard')
+    return redirect('analytics_dashboard:gamified_dashboard')
 
 
 @login_required
 def competition_leaderboard(request, competition_id):
     """Affiche le classement d'une compétition"""
     from .models import Competition
+    from bson import ObjectId
     
     try:
-        competition = Competition.objects.get(_id=competition_id)
+        competition = Competition.objects.get(_id=ObjectId(competition_id))
         leaderboard = competition.get_leaderboard()
         
         # Trouver la position de l'utilisateur
@@ -853,7 +855,7 @@ def competition_leaderboard(request, competition_id):
         return render(request, 'analytics_dashboard/competition_leaderboard.html', context)
     except Competition.DoesNotExist:
         messages.error(request, '❌ Compétition introuvable')
-        return redirect('gamified_dashboard')
+        return redirect('analytics_dashboard:gamified_dashboard')
 
 
 @login_required
@@ -920,17 +922,18 @@ def my_badges(request):
 def start_challenge(request, challenge_id):
     """Démarre un défi"""
     from .models import Challenge
+    from bson import ObjectId
     
     try:
-        challenge = Challenge.objects.get(_id=challenge_id, student=request.user)
+        challenge = Challenge.objects.get(_id=ObjectId(challenge_id), student=request.user)
         
         if challenge.status == 'ACTIVE':
             messages.info(request, f'🎯 Défi "{challenge.title}" démarré ! Bonne chance !')
             # Ici vous pouvez rediriger vers la page d'exercices
-            return redirect('gamified_dashboard')
+            return redirect('analytics_dashboard:gamified_dashboard')
         else:
             messages.warning(request, '⚠️ Ce défi n\'est plus actif')
     except Challenge.DoesNotExist:
         messages.error(request, '❌ Défi introuvable')
     
-    return redirect('gamified_dashboard')
+    return redirect('analytics_dashboard:gamified_dashboard')
