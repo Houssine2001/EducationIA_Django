@@ -152,16 +152,21 @@ const startTime = Date.now();
 
 // Marquer comme terminé
 function markComplete() {
+    const duration = Math.floor((Date.now() - startTime) / 1000);
+    
     fetch(`/analytics/chapitre/${chapterId}/complete/`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': '{{ csrf_token }}',
             'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+            duration_seconds: duration
+        })
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
+        if (data.status === 'success') {
             // Notification de succès
             showNotification('✅ Chapitre terminé ! Prédiction mise à jour.', 'success');
             

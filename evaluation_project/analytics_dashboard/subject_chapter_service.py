@@ -18,9 +18,15 @@ class SubjectChapterService:
     def get_subject_with_chapters(self, subject_id):
         """Récupère une matière avec tous ses chapitres"""
         try:
+            # Convertir l'ID en ObjectId si c'est une string
+            from bson import ObjectId
+            if isinstance(subject_id, str):
+                subject_id = ObjectId(subject_id)
+            
             subject = Subject.objects.get(_id=subject_id)
-            chapters = subject.chapters.all().order_by('order')
-            return subject, chapters
+            # Utiliser Chapter.objects.filter au lieu de subject.chapters
+            chapters = Chapter.objects.filter(subject=subject).order_by('order')
+            return subject, list(chapters)
         except Subject.DoesNotExist:
             return None, []
     
@@ -128,19 +134,20 @@ class SubjectChapterService:
     
     def get_student_chapter_status(self, student, subject):
         """Récupère le statut de chaque chapitre pour un étudiant"""
-        chapters = subject.chapters.all().order_by('order')
+        chapters = Chapter.objects.filter(subject=subject).order_by('order')
         chapter_status = []
         
         for chapter in chapters:
             # Vérifier si visité
-            visits = ChapterVisit.objects.filter(
+            visits = list(ChapterVisit.objects.filter(
                 student=student,
                 chapter=chapter
-            )
+            ))
             
-            is_visited = visits.exists()
-            is_completed = visits.filter(completed=True).exists()
-            visit_count = visits.count()
+            is_visited = len(visits) > 0
+            # Compter manuellement les visites complétées (bug Djongo avec .filter(boolean=True))
+            is_completed = any(v.completed for v in visits)
+            visit_count = len(visits)
             total_time = sum(v.duration_seconds for v in visits)
             
             chapter_status.append({
@@ -162,7 +169,7 @@ class SubjectChapterService:
         for subject in subjects:
             progress = self.get_student_progress(student, subject)
             
-            total_chapters = subject.chapters.count()
+            total_chapters = Chapter.objects.filter(subject=subject).count()
             completion_rate = progress.calculate_completion_rate()
             
             overview.append({
@@ -185,8 +192,9 @@ class SubjectChapterService:
         recommendations = []
         
         # Recommandation 1: Chapitres non visités
-        unvisited_chapters = subject.chapters.exclude(
-            _id__in=ChapterVisit.objects.filter(student=student).values('chapter___id')
+        visited_chapter_ids = ChapterVisit.objects.filter(student=student).values_list('chapter___id', flat=True)
+        unvisited_chapters = Chapter.objects.filter(subject=subject).exclude(
+            _id__in=list(visited_chapter_ids)
         )[:3]
         
         if unvisited_chapters:
@@ -265,7 +273,7 @@ class PredictionReportService:
             },
             'metrics': {
                 'chapters': {
-                    'total': subject.chapters.count(),
+                    'total': Chapter.objects.filter(subject=subject).count(),
                     'visited': progress.chapters_visited,
                     'completed': progress.chapters_completed,
                     'completion_rate': progress.calculate_completion_rate()

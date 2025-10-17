@@ -95,14 +95,16 @@ class StudentSubjectProgress(models.Model):
     
     def calculate_completion_rate(self):
         """Taux de complétion des chapitres"""
-        total_chapters = self.subject.chapters.count()
+        from analytics_dashboard.subject_models import Chapter
+        total_chapters = Chapter.objects.filter(subject=self.subject).count()
         if total_chapters == 0:
             return 0.0
         return (self.chapters_completed / total_chapters) * 100
     
     def calculate_visit_engagement(self):
         """Score d'engagement basé sur les visites"""
-        total_chapters = self.subject.chapters.count()
+        from analytics_dashboard.subject_models import Chapter
+        total_chapters = Chapter.objects.filter(subject=self.subject).count()
         if total_chapters == 0:
             return 0.0
         visit_rate = min(self.chapters_visited / total_chapters, 1.0)

@@ -49,24 +49,54 @@ def subject_chapters(request, subject_id):
     
     # Récupérer le statut de chaque chapitre
     if not request.user.is_staff:
-        chapter_status = service.get_student_chapter_status(request.user, subject)
+        chapter_status_list = service.get_student_chapter_status(request.user, subject)
         progress = service.get_student_progress(request.user, subject)
+        
+        # Reformater pour le template: chapter_data.chapter et chapter_data.status
+        chapters_with_status = []
+        for item in chapter_status_list:
+            chapters_with_status.append({
+                'chapter': item['chapter'],
+                'status': {
+                    'visited': item['is_visited'],
+                    'completed': item['is_completed'],
+                    'visit_count': item['visit_count'],
+                    'total_time_minutes': item['total_time_minutes'],
+                    'progress_percentage': item['progress_percentage']
+                }
+            })
         
         # Générer le rapport de prédiction
         report_service = PredictionReportService()
         prediction_report = report_service.generate_detailed_report(request.user, subject)
+        
+        # Calculer le taux de complétion
+        completion_rate = progress.calculate_completion_rate()
     else:
-        chapter_status = [{'chapter': ch, 'is_visited': False, 'is_completed': False} for ch in chapters]
+        chapters_with_status = []
+        for ch in chapters:
+            chapters_with_status.append({
+                'chapter': ch,
+                'status': {
+                    'visited': False,
+                    'completed': False,
+                    'visit_count': 0,
+                    'total_time_minutes': 0,
+                    'progress_percentage': 0
+                }
+            })
         progress = None
         prediction_report = None
+        completion_rate = 0
     
     context = {
         'page_title': f'{subject.name} - Chapitres',
         'subject': subject,
-        'chapter_status': chapter_status,
+        'chapters_with_status': chapters_with_status,
         'progress': progress,
         'prediction_report': prediction_report,
-        'total_chapters': len(chapters)
+        'total_chapters': len(chapters),
+        'completion_rate': completion_rate
     }
     
     return render(request, 'analytics_dashboard/subject_chapters.html', context)
@@ -75,7 +105,12 @@ def subject_chapters(request, subject_id):
 @login_required
 def chapter_view(request, chapter_id):
     """Vue d'un chapitre spécifique"""
+    from bson import ObjectId
     service = SubjectChapterService()
+    
+    # Convertir l'ID en ObjectId si c'est une string
+    if isinstance(chapter_id, str):
+        chapter_id = ObjectId(chapter_id)
     
     chapter = get_object_or_404(Chapter, _id=chapter_id)
     
@@ -85,15 +120,24 @@ def chapter_view(request, chapter_id):
     # Récupérer le statut pour cet étudiant
     if not request.user.is_staff:
         from .subject_models import ChapterVisit
-        previous_visits = ChapterVisit.objects.filter(
+        previous_visits = list(ChapterVisit.objects.filter(
             student=request.user,
             chapter=chapter
-        ).order_by('-visited_at')
+        ).order_by('-visited_at'))
         
-        is_completed = previous_visits.filter(completed=True).exists()
+        # Compter manuellement (bug Djongo avec filter sur boolean)
+        is_completed = any(v.completed for v in previous_visits)
+        
+        # Calculer les statistiques
+        visit_count = len(previous_visits)
+        total_time = sum(v.duration_seconds for v in previous_visits) / 60  # en minutes
+        avg_time = total_time / visit_count if visit_count > 0 else 0
     else:
         previous_visits = []
         is_completed = False
+        visit_count = 0
+        total_time = 0
+        avg_time = 0
     
     context = {
         'page_title': chapter.title,
@@ -101,7 +145,10 @@ def chapter_view(request, chapter_id):
         'subject': chapter.subject,
         'previous_visits': previous_visits[:5],  # 5 dernières visites
         'is_completed': is_completed,
-        'start_time': start_time
+        'start_time': start_time,
+        'visit_count': visit_count,
+        'total_time': total_time,
+        'avg_time': avg_time
     }
     
     return render(request, 'analytics_dashboard/chapter_view.html', context)
@@ -112,7 +159,12 @@ def chapter_view(request, chapter_id):
 @login_required
 def mark_chapter_complete(request, chapter_id):
     """Marque un chapitre comme terminé"""
+    from bson import ObjectId
     try:
+        # Convertir l'ID en ObjectId si c'est une string
+        if isinstance(chapter_id, str):
+            chapter_id = ObjectId(chapter_id)
+        
         chapter = get_object_or_404(Chapter, _id=chapter_id)
         data = json.loads(request.body)
         duration_seconds = data.get('duration_seconds', 0)
@@ -150,7 +202,12 @@ def mark_chapter_complete(request, chapter_id):
 @login_required
 def record_chapter_visit_api(request, chapter_id):
     """Enregistre une visite de chapitre (appelé automatiquement)"""
+    from bson import ObjectId
     try:
+        # Convertir l'ID en ObjectId si c'est une string
+        if isinstance(chapter_id, str):
+            chapter_id = ObjectId(chapter_id)
+        
         chapter = get_object_or_404(Chapter, _id=chapter_id)
         data = json.loads(request.body)
         duration_seconds = data.get('duration_seconds', 0)
@@ -178,8 +235,13 @@ def record_chapter_visit_api(request, chapter_id):
 @login_required
 def subject_prediction(request, subject_id):
     """Page de prédiction détaillée pour une matière"""
+    from bson import ObjectId
     service = SubjectChapterService()
     report_service = PredictionReportService()
+    
+    # Convertir l'ID en ObjectId si c'est une string
+    if isinstance(subject_id, str):
+        subject_id = ObjectId(subject_id)
     
     subject = get_object_or_404(Subject, _id=subject_id)
     
