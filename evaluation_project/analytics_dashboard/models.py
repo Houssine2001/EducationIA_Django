@@ -226,10 +226,10 @@ class StudentAnalytics(models.Model):
 class PerformanceTrend(models.Model):
     """Tendances de performance dans le temps"""
     _id = models.ObjectIdField(primary_key=True, default=ObjectId)
-    student = models.ForeignKey(User, on_delete=models.CASCADE)
+    student = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
     date = models.DateTimeField(auto_now_add=True)
     score = models.FloatField()
-    subject = models.CharField(max_length=100)
+    subject = models.CharField(max_length=100, default='General')
 
 
 class ClassroomAnalytics(models.Model):
@@ -513,3 +513,307 @@ class SubjectQuiz(models.Model):
     difficulty_level = models.CharField(max_length=20, default='MEDIUM')  # EASY, MEDIUM, HARD
     questions = models.JSONField(default=list)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+# ============================================================
+# 🎮 SYSTÈME GAMIFIÉ - DÉFIS ET COMPÉTITIONS
+# ============================================================
+
+class StudentProfile(models.Model):
+    """Profil gamifié de l'étudiant"""
+    _id = models.ObjectIdField(primary_key=True, default=ObjectId)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='gamification_profile')
+    
+    # Points et niveau
+    total_xp = models.IntegerField(default=0)
+    level = models.IntegerField(default=1)
+    coins = models.IntegerField(default=0)
+    
+    # Statistiques
+    challenges_completed = models.IntegerField(default=0)
+    challenges_failed = models.IntegerField(default=0)
+    current_streak = models.IntegerField(default=0)  # Jours consécutifs
+    longest_streak = models.IntegerField(default=0)
+    
+    # Badges gagnés
+    badges = models.JSONField(default=list)
+    
+    # Classement
+    rank = models.IntegerField(default=0)
+    rank_percentile = models.FloatField(default=0.0)
+    
+    # Métadonnées
+    last_activity = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-total_xp']
+        indexes = [
+            models.Index(fields=['-total_xp']),
+            models.Index(fields=['level']),
+        ]
+    
+    def add_xp(self, amount):
+        """Ajoute de l'XP et gère la montée de niveau"""
+        self.total_xp += amount
+        
+        # Calcul du niveau (100 XP par niveau, avec scaling)
+        new_level = 1 + int(self.total_xp ** 0.5 / 10)
+        
+        if new_level > self.level:
+            self.level = new_level
+            return True  # Level up!
+        
+        return False
+    
+    def add_badge(self, badge_name):
+        """Ajoute un badge au profil"""
+        if badge_name not in self.badges:
+            self.badges.append(badge_name)
+            return True
+        return False
+    
+    def __str__(self):
+        return f"{self.user.username} - Lvl {self.level} ({self.total_xp} XP)"
+
+
+class Challenge(models.Model):
+    """Défi personnalisé pour un étudiant"""
+    _id = models.ObjectIdField(primary_key=True, default=ObjectId)
+    
+    # Type de défi
+    DIFFICULTY_CHOICES = [
+        ('EASY', 'Facile'),
+        ('MEDIUM', 'Moyen'),
+        ('HARD', 'Difficile'),
+        ('LEGENDARY', 'Légendaire'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('ACTIVE', 'Actif'),
+        ('COMPLETED', 'Terminé'),
+        ('FAILED', 'Échoué'),
+        ('EXPIRED', 'Expiré'),
+    ]
+    
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='challenges')
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    difficulty = models.CharField(max_length=20, choices=DIFFICULTY_CHOICES, default='MEDIUM')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE')
+    
+    # Objectifs
+    subject = models.CharField(max_length=100, null=True, blank=True)
+    target_data = models.JSONField(default=dict)  # Objectifs spécifiques
+    
+    # Progression
+    current_progress = models.FloatField(default=0.0)  # 0-100%
+    progress_data = models.JSONField(default=dict)  # Détails de progression
+    
+    # Récompenses
+    xp_reward = models.IntegerField(default=0)
+    coins_reward = models.IntegerField(default=0)
+    badge_reward = models.CharField(max_length=100, null=True, blank=True)
+    
+    # Dates
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    # Métadonnées
+    tips = models.JSONField(default=list)
+    motivational_quote = models.CharField(max_length=300, null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['student', 'status']),
+            models.Index(fields=['expires_at']),
+        ]
+    
+    def check_completion(self):
+        """Vérifie si le défi est terminé"""
+        if self.current_progress >= 100:
+            self.status = 'COMPLETED'
+            self.completed_at = timezone.now()
+            return True
+        return False
+    
+    def check_expiration(self):
+        """Vérifie si le défi a expiré"""
+        if timezone.now() > self.expires_at and self.status == 'ACTIVE':
+            self.status = 'EXPIRED'
+            return True
+        return False
+    
+    def __str__(self):
+        return f"{self.get_difficulty_display()} - {self.title} ({self.student.username})"
+
+
+class WeeklyMission(models.Model):
+    """Mission hebdomadaire ambitieuse"""
+    _id = models.ObjectIdField(primary_key=True, default=ObjectId)
+    
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='weekly_missions')
+    week_number = models.IntegerField()  # Semaine de l'année
+    year = models.IntegerField()
+    
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    
+    # Objectif global
+    target_score = models.FloatField()
+    current_score = models.FloatField(default=0.0)
+    
+    # Jalons (milestones)
+    milestones = models.JSONField(default=list)
+    
+    # Statut
+    status = models.CharField(max_length=20, default='ACTIVE')
+    progress_percentage = models.FloatField(default=0.0)
+    
+    # Récompenses
+    total_xp_reward = models.IntegerField(default=600)
+    total_coins_reward = models.IntegerField(default=350)
+    exclusive_badge = models.CharField(max_length=100, null=True, blank=True)
+    
+    # Dates
+    start_date = models.DateField()
+    end_date = models.DateField()
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-week_number']
+        unique_together = ['student', 'week_number', 'year']
+    
+    def update_progress(self):
+        """Met à jour la progression de la mission"""
+        completed_milestones = sum(1 for m in self.milestones if m.get('completed', False))
+        total_milestones = len(self.milestones)
+        
+        if total_milestones > 0:
+            self.progress_percentage = (completed_milestones / total_milestones) * 100
+        
+        if self.progress_percentage >= 100:
+            self.status = 'COMPLETED'
+            self.completed_at = timezone.now()
+    
+    def __str__(self):
+        return f"Semaine {self.week_number}/{self.year} - {self.student.username}"
+
+
+class Competition(models.Model):
+    """Compétition entre étudiants"""
+    _id = models.ObjectIdField(primary_key=True, default=ObjectId)
+    
+    COMPETITION_TYPES = [
+        ('DAILY', 'Quotidienne'),
+        ('WEEKLY', 'Hebdomadaire'),
+        ('MONTHLY', 'Mensuelle'),
+        ('SPECIAL', 'Événement Spécial'),
+    ]
+    
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    competition_type = models.CharField(max_length=20, choices=COMPETITION_TYPES)
+    
+    # Participants
+    participants = models.ManyToManyField(User, through='CompetitionParticipant', related_name='competitions')
+    max_participants = models.IntegerField(default=100)
+    
+    # Règles
+    subject = models.CharField(max_length=100, null=True, blank=True)
+    rules = models.JSONField(default=dict)
+    
+    # Récompenses
+    rewards = models.JSONField(default=dict)  # Par position (1er, 2ème, 3ème...)
+    
+    # Dates
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    # Statut
+    status = models.CharField(max_length=20, default='UPCOMING')  # UPCOMING, ACTIVE, FINISHED
+    
+    class Meta:
+        ordering = ['-start_date']
+    
+    def get_leaderboard(self):
+        """Retourne le classement de la compétition"""
+        return self.competitionparticipant_set.order_by('-score', 'last_update')[:10]
+    
+    def __str__(self):
+        return f"{self.get_competition_type_display()} - {self.title}"
+
+
+class CompetitionParticipant(models.Model):
+    """Participation d'un étudiant à une compétition"""
+    _id = models.ObjectIdField(primary_key=True, default=ObjectId)
+    
+    competition = models.ForeignKey(Competition, on_delete=models.CASCADE)
+    student = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    # Performance
+    score = models.FloatField(default=0.0)
+    exercises_completed = models.IntegerField(default=0)
+    time_spent = models.IntegerField(default=0)  # en minutes
+    
+    # Classement
+    rank = models.IntegerField(default=0)
+    
+    # Métadonnées
+    joined_at = models.DateTimeField(auto_now_add=True)
+    last_update = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['competition', 'student']
+        ordering = ['-score']
+    
+    def __str__(self):
+        return f"{self.student.username} - {self.competition.title} (Rang #{self.rank})"
+
+
+class Badge(models.Model):
+    """Badge déblocable"""
+    _id = models.ObjectIdField(primary_key=True, default=ObjectId)
+    
+    RARITY_CHOICES = [
+        ('COMMON', 'Commun'),
+        ('RARE', 'Rare'),
+        ('EPIC', 'Épique'),
+        ('LEGENDARY', 'Légendaire'),
+    ]
+    
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField()
+    icon = models.CharField(max_length=50)  # Emoji ou nom d'icône
+    rarity = models.CharField(max_length=20, choices=RARITY_CHOICES, default='COMMON')
+    
+    # Conditions pour débloquer
+    unlock_condition = models.JSONField(default=dict)
+    
+    # Statistiques
+    times_awarded = models.IntegerField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.icon} {self.name} ({self.get_rarity_display()})"
+
+
+class Achievement(models.Model):
+    """Succès débloqué par un étudiant"""
+    _id = models.ObjectIdField(primary_key=True, default=ObjectId)
+    
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='achievements')
+    badge = models.ForeignKey(Badge, on_delete=models.CASCADE)
+    
+    unlocked_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['student', 'badge']
+        ordering = ['-unlocked_at']
+    
+    def __str__(self):
+        return f"{self.student.username} - {self.badge.name}"

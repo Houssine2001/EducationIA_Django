@@ -728,3 +728,209 @@ def api_overview_stats(request):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+# ============================================================
+# 🎮 VUES GAMIFICATION
+# ============================================================
+
+@login_required
+def gamified_dashboard(request):
+    """Dashboard gamifié pour l'étudiant"""
+    from .services import ChallengeService, WeeklyMissionService
+    from .models import StudentProfile, Competition, Challenge, WeeklyMission
+    
+    # Récupérer ou créer le profil gamifié
+    profile, created = StudentProfile.objects.get_or_create(user=request.user)
+    
+    if created:
+        messages.success(request, '🎉 Bienvenue dans le système gamifié ! Gagnez des XP et montez de niveau !')
+    
+    # Défis du jour
+    challenge_service = ChallengeService()
+    daily_challenges = Challenge.objects.filter(
+        student=request.user,
+        status='ACTIVE',
+        expires_at__gte=timezone.now()
+    ).order_by('difficulty')
+    
+    # Si pas de défis, en générer
+    if daily_challenges.count() == 0:
+        try:
+            daily_challenges = challenge_service.generate_daily_challenges(request.user)
+            messages.info(request, f'✨ {len(daily_challenges)} nouveaux défis générés pour vous !')
+        except Exception as e:
+            messages.warning(request, f'⚠️ Impossible de générer les défis: {str(e)}')
+            daily_challenges = []
+    
+    # Mission hebdomadaire
+    mission_service = WeeklyMissionService()
+    try:
+        weekly_mission = mission_service.generate_weekly_mission(request.user)
+    except Exception as e:
+        weekly_mission = None
+        messages.warning(request, f'⚠️ Mission hebdomadaire: {str(e)}')
+    
+    # Compétitions actives
+    active_competitions = Competition.objects.filter(
+        status='ACTIVE',
+        end_date__gte=timezone.now()
+    ).order_by('end_date')[:5]
+    
+    # Classement top 10
+    leaderboard = StudentProfile.objects.all().order_by('-total_xp')[:10]
+    
+    # Position de l'utilisateur
+    user_rank = StudentProfile.objects.filter(total_xp__gt=profile.total_xp).count() + 1
+    profile.rank = user_rank
+    profile.save()
+    
+    # XP pour prochain niveau
+    next_level_xp = ((profile.level + 1) * 10) ** 2
+    current_level_xp = (profile.level * 10) ** 2
+    xp_progress = ((profile.total_xp - current_level_xp) / (next_level_xp - current_level_xp)) * 100
+    
+    context = {
+        'page_title': 'Dashboard Gamifié',
+        'profile': profile,
+        'daily_challenges': daily_challenges,
+        'weekly_mission': weekly_mission,
+        'competitions': active_competitions,
+        'leaderboard': leaderboard,
+        'user_rank': user_rank,
+        'next_level_xp': next_level_xp,
+        'xp_progress': xp_progress,
+    }
+    
+    return render(request, 'analytics_dashboard/gamified_dashboard.html', context)
+
+
+@login_required
+def join_competition_view(request, competition_id):
+    """Inscrit un étudiant à une compétition"""
+    from .services import CompetitionService
+    from .models import Competition
+    
+    try:
+        competition = Competition.objects.get(_id=competition_id)
+        service = CompetitionService()
+        
+        participant, message = service.join_competition(competition, request.user)
+        
+        if participant:
+            messages.success(request, f'✅ {message}')
+        else:
+            messages.error(request, f'❌ {message}')
+    except Competition.DoesNotExist:
+        messages.error(request, '❌ Compétition introuvable')
+    except Exception as e:
+        messages.error(request, f'❌ Erreur: {str(e)}')
+    
+    return redirect('gamified_dashboard')
+
+
+@login_required
+def competition_leaderboard(request, competition_id):
+    """Affiche le classement d'une compétition"""
+    from .models import Competition
+    
+    try:
+        competition = Competition.objects.get(_id=competition_id)
+        leaderboard = competition.get_leaderboard()
+        
+        # Trouver la position de l'utilisateur
+        user_participant = competition.competitionparticipant_set.filter(
+            student=request.user
+        ).first()
+        
+        context = {
+            'page_title': f'Classement - {competition.title}',
+            'competition': competition,
+            'leaderboard': leaderboard,
+            'user_participant': user_participant,
+        }
+        
+        return render(request, 'analytics_dashboard/competition_leaderboard.html', context)
+    except Competition.DoesNotExist:
+        messages.error(request, '❌ Compétition introuvable')
+        return redirect('gamified_dashboard')
+
+
+@login_required
+def my_challenges(request):
+    """Affiche tous les défis de l'étudiant"""
+    from .models import Challenge
+    
+    active_challenges = Challenge.objects.filter(
+        student=request.user,
+        status='ACTIVE'
+    ).order_by('-created_at')
+    
+    completed_challenges = Challenge.objects.filter(
+        student=request.user,
+        status='COMPLETED'
+    ).order_by('-completed_at')[:20]
+    
+    failed_challenges = Challenge.objects.filter(
+        student=request.user,
+        status__in=['FAILED', 'EXPIRED']
+    ).order_by('-created_at')[:10]
+    
+    context = {
+        'page_title': 'Mes Défis',
+        'active_challenges': active_challenges,
+        'completed_challenges': completed_challenges,
+        'failed_challenges': failed_challenges,
+    }
+    
+    return render(request, 'analytics_dashboard/my_challenges.html', context)
+
+
+@login_required
+def my_badges(request):
+    """Affiche tous les badges de l'étudiant"""
+    from .models import StudentProfile, Badge, Achievement
+    
+    profile = StudentProfile.objects.get(user=request.user)
+    
+    # Badges débloqués
+    my_achievements = Achievement.objects.filter(student=request.user).order_by('-unlocked_at')
+    unlocked_badge_names = [a.badge.name for a in my_achievements]
+    
+    # Tous les badges disponibles
+    all_badges = Badge.objects.all().order_by('rarity', 'name')
+    
+    # Séparer débloqués et verrouillés
+    unlocked_badges = [b for b in all_badges if b.name in unlocked_badge_names]
+    locked_badges = [b for b in all_badges if b.name not in unlocked_badge_names]
+    
+    context = {
+        'page_title': 'Mes Badges',
+        'profile': profile,
+        'unlocked_badges': unlocked_badges,
+        'locked_badges': locked_badges,
+        'achievements': my_achievements,
+        'unlock_percentage': (len(unlocked_badges) / len(all_badges) * 100) if all_badges else 0,
+    }
+    
+    return render(request, 'analytics_dashboard/my_badges.html', context)
+
+
+@login_required
+def start_challenge(request, challenge_id):
+    """Démarre un défi"""
+    from .models import Challenge
+    
+    try:
+        challenge = Challenge.objects.get(_id=challenge_id, student=request.user)
+        
+        if challenge.status == 'ACTIVE':
+            messages.info(request, f'🎯 Défi "{challenge.title}" démarré ! Bonne chance !')
+            # Ici vous pouvez rediriger vers la page d'exercices
+            return redirect('gamified_dashboard')
+        else:
+            messages.warning(request, '⚠️ Ce défi n\'est plus actif')
+    except Challenge.DoesNotExist:
+        messages.error(request, '❌ Défi introuvable')
+    
+    return redirect('gamified_dashboard')

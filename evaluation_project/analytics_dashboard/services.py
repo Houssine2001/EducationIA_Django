@@ -506,3 +506,582 @@ class ReportService:
             }
             for trend in trends
         ]
+
+
+# ============================================================
+# 🎮 SYSTÈME GAMIFIÉ - SERVICES
+# ============================================================
+
+class ChallengeService:
+    """Service pour gérer les défis personnalisés"""
+    
+    def generate_daily_challenges(self, student):
+        """
+        Génère 3 défis quotidiens personnalisés basés sur l'IA
+        - 1 défi FACILE (zone de confort)
+        - 1 défi MOYEN (zone d'apprentissage)  
+        - 1 défi DIFFICILE (zone de défi)
+        """
+        from .models import (
+            StudentAnalytics, PerformanceTrend, SubjectAnalytics, 
+            Challenge, StudentProfile
+        )
+        
+        # S'assurer que le profil gamifié existe
+        profile, _ = StudentProfile.objects.get_or_create(user=student)
+        
+        # Récupérer les données de performance
+        analytics = StudentAnalytics.objects.filter(user=student).first()
+        if not analytics:
+            return self._generate_beginner_challenges(student)
+        
+        performance_trends = list(PerformanceTrend.objects.filter(
+            student=student
+        ).order_by('-date')[:10])
+        
+        subject_analytics = SubjectAnalytics.objects.filter(user=student)
+        
+        challenges_data = []
+        
+        # 1. DÉFI FACILE - Renforcer les acquis
+        strong_subjects = subject_analytics.filter(average_test_score__gte=70).order_by('-average_test_score')
+        if strong_subjects.exists():
+            subject = strong_subjects.first()
+            challenge = Challenge.objects.create(
+                student=student,
+                title=f'🌟 Maître de {subject.subject_name}',
+                description=f'Réussir 5 exercices de {subject.subject_name} avec plus de 80%',
+                difficulty='EASY',
+                subject=subject.subject_name,
+                target_data={
+                    'exercises_count': 5,
+                    'min_score': 80,
+                    'time_limit_minutes': 30
+                },
+                xp_reward=50,
+                coins_reward=20,
+                badge_reward='Expert Confirmé',
+                expires_at=timezone.now() + timedelta(days=1),
+                tips=[
+                    'Commencez par réviser les concepts de base',
+                    'Prenez votre temps sur chaque exercice',
+                    'Validez vos réponses avant de soumettre'
+                ]
+            )
+            challenges_data.append(challenge)
+        
+        # 2. DÉFI MOYEN - Zone d'apprentissage
+        medium_subjects = subject_analytics.filter(
+            average_test_score__gte=50,
+            average_test_score__lt=70
+        )
+        if medium_subjects.exists():
+            subject = medium_subjects.first()
+            improvement_target = subject.average_test_score + 10
+            challenge = Challenge.objects.create(
+                student=student,
+                title=f'📚 Progresser en {subject.subject_name}',
+                description=f'Améliorer votre score de 10% en {subject.subject_name}',
+                difficulty='MEDIUM',
+                subject=subject.subject_name,
+                target_data={
+                    'improvement_percentage': 10,
+                    'exercises_count': 7,
+                    'min_score': improvement_target,
+                    'time_limit_minutes': 45
+                },
+                xp_reward=100,
+                coins_reward=50,
+                badge_reward='En Progression',
+                expires_at=timezone.now() + timedelta(days=1),
+                tips=[
+                    'Concentrez-vous sur vos erreurs récentes',
+                    'Utilisez des ressources d\'aide si nécessaire',
+                    'Pratiquez les exercices types'
+                ]
+            )
+            challenges_data.append(challenge)
+        
+        # 3. DÉFI DIFFICILE - Sortir de sa zone de confort
+        weak_subjects = subject_analytics.filter(average_test_score__lt=50).order_by('average_test_score')
+        if weak_subjects.exists():
+            subject = weak_subjects.first()
+            challenge = Challenge.objects.create(
+                student=student,
+                title=f'💪 Défi {subject.subject_name}',
+                description=f'Surmonter vos difficultés en {subject.subject_name}',
+                difficulty='HARD',
+                subject=subject.subject_name,
+                target_data={
+                    'exercises_count': 3,
+                    'min_score': 60,
+                    'allow_help': True,
+                    'time_limit_minutes': 60
+                },
+                xp_reward=200,
+                coins_reward=100,
+                badge_reward='Persévérant',
+                expires_at=timezone.now() + timedelta(days=1),
+                tips=[
+                    'Ne vous découragez pas !',
+                    'Demandez de l\'aide si besoin',
+                    'Chaque erreur est une opportunité d\'apprendre',
+                    'Prenez des pauses entre les exercices'
+                ],
+                motivational_quote=self._get_motivational_quote()
+            )
+            challenges_data.append(challenge)
+        
+        return challenges_data
+    
+    def _generate_beginner_challenges(self, student):
+        """Génère des défis pour débutants"""
+        from .models import Challenge
+        
+        challenges = []
+        
+        # Défi d'initiation
+        challenge = Challenge.objects.create(
+            student=student,
+            title='🎯 Premier Pas',
+            description='Complétez votre premier exercice',
+            difficulty='EASY',
+            target_data={'exercises_count': 1, 'min_score': 50},
+            xp_reward=30,
+            coins_reward=10,
+            badge_reward='Nouveau Venu',
+            expires_at=timezone.now() + timedelta(days=2),
+            tips=['Prenez votre temps', 'Lisez bien les instructions']
+        )
+        challenges.append(challenge)
+        
+        return challenges
+    
+    def _get_motivational_quote(self):
+        """Retourne une citation motivante aléatoire"""
+        quotes = [
+            "Le succès n'est pas final, l'échec n'est pas fatal : c'est le courage de continuer qui compte.",
+            "La seule façon d'apprendre les mathématiques est de faire des mathématiques.",
+            "Chaque expert était autrefois un débutant.",
+            "L'éducation est l'arme la plus puissante pour changer le monde.",
+            "Le génie, c'est 1% d'inspiration et 99% de transpiration.",
+        ]
+        return random.choice(quotes)
+    
+    def update_challenge_progress(self, challenge, exercises_completed, current_score):
+        """Met à jour la progression d'un défi"""
+        target = challenge.target_data
+        
+        # Calculer la progression
+        progress = 0
+        if 'exercises_count' in target:
+            exercises_progress = (exercises_completed / target['exercises_count']) * 100
+            progress = min(exercises_progress, 100)
+        
+        challenge.current_progress = progress
+        challenge.progress_data = {
+            'exercises_completed': exercises_completed,
+            'current_score': current_score,
+            'updated_at': timezone.now().isoformat()
+        }
+        
+        # Vérifier la complétion
+        if challenge.check_completion():
+            self._reward_challenge_completion(challenge)
+        
+        challenge.save()
+        return challenge
+    
+    def _reward_challenge_completion(self, challenge):
+        """Distribue les récompenses d'un défi complété"""
+        from .models import StudentProfile
+        
+        profile = StudentProfile.objects.get(user=challenge.student)
+        
+        # Ajouter XP
+        level_up = profile.add_xp(challenge.xp_reward)
+        
+        # Ajouter coins
+        profile.coins += challenge.coins_reward
+        
+        # Ajouter badge
+        if challenge.badge_reward:
+            profile.add_badge(challenge.badge_reward)
+        
+        # Mettre à jour les stats
+        profile.challenges_completed += 1
+        
+        # Vérifier le streak
+        self._update_streak(profile)
+        
+        profile.save()
+        
+        return {
+            'level_up': level_up,
+            'new_level': profile.level if level_up else None,
+            'xp_earned': challenge.xp_reward,
+            'coins_earned': challenge.coins_reward,
+            'badge_earned': challenge.badge_reward
+        }
+    
+    def _update_streak(self, profile):
+        """Met à jour le streak de l'étudiant"""
+        today = timezone.now().date()
+        last_activity = profile.last_activity.date() if profile.last_activity else None
+        
+        if last_activity:
+            days_diff = (today - last_activity).days
+            
+            if days_diff == 1:
+                # Continuation du streak
+                profile.current_streak += 1
+                if profile.current_streak > profile.longest_streak:
+                    profile.longest_streak = profile.current_streak
+            elif days_diff > 1:
+                # Streak cassé
+                profile.current_streak = 1
+        else:
+            profile.current_streak = 1
+
+
+class WeeklyMissionService:
+    """Service pour gérer les missions hebdomadaires"""
+    
+    def generate_weekly_mission(self, student):
+        """Génère une mission hebdomadaire ambitieuse"""
+        from .models import StudentAnalytics, WeeklyMission
+        
+        analytics = StudentAnalytics.objects.filter(user=student).first()
+        if not analytics:
+            return None
+        
+        # Calculer la semaine actuelle
+        now = timezone.now()
+        week_number = now.isocalendar()[1]
+        year = now.year
+        
+        # Vérifier si une mission existe déjà pour cette semaine
+        existing = WeeklyMission.objects.filter(
+            student=student,
+            week_number=week_number,
+            year=year
+        ).first()
+        
+        if existing:
+            return existing
+        
+        # Calculer l'objectif
+        current_avg = analytics.average_score
+        target_score = min(100, current_avg + 15)  # +15 points en une semaine
+        
+        # Dates de la semaine
+        start_of_week = now - timedelta(days=now.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+        
+        # Créer les jalons
+        milestones = [
+            {
+                'day': 1,
+                'goal': 'Compléter 10 exercices',
+                'target_value': 10,
+                'current_value': 0,
+                'reward': {'xp': 50, 'coins': 25},
+                'completed': False
+            },
+            {
+                'day': 3,
+                'goal': 'Atteindre 70% de réussite',
+                'target_value': 70,
+                'current_value': 0,
+                'reward': {'xp': 100, 'coins': 50},
+                'completed': False
+            },
+            {
+                'day': 5,
+                'goal': 'Améliorer 3 matières faibles',
+                'target_value': 3,
+                'current_value': 0,
+                'reward': {'xp': 150, 'coins': 75},
+                'completed': False
+            },
+            {
+                'day': 7,
+                'goal': f'Atteindre {target_score:.0f}/100',
+                'target_value': target_score,
+                'current_value': current_avg,
+                'reward': {'xp': 300, 'coins': 200, 'badge': 'Champion Hebdomadaire'},
+                'completed': False
+            }
+        ]
+        
+        mission = WeeklyMission.objects.create(
+            student=student,
+            week_number=week_number,
+            year=year,
+            title='🎯 Mission Hebdomadaire : Renaissance Académique',
+            description=f'Augmenter votre moyenne à {target_score:.0f}/100',
+            target_score=target_score,
+            current_score=current_avg,
+            milestones=milestones,
+            start_date=start_of_week.date(),
+            end_date=end_of_week.date(),
+            exclusive_badge='Légende de la Semaine'
+        )
+        
+        return mission
+    
+    def update_mission_progress(self, mission, milestone_index, new_value):
+        """Met à jour la progression d'un jalon de mission"""
+        if 0 <= milestone_index < len(mission.milestones):
+            milestone = mission.milestones[milestone_index]
+            milestone['current_value'] = new_value
+            
+            # Vérifier la complétion
+            if new_value >= milestone['target_value']:
+                milestone['completed'] = True
+                self._reward_milestone(mission.student, milestone['reward'])
+            
+            mission.milestones[milestone_index] = milestone
+            mission.update_progress()
+            mission.save()
+        
+        return mission
+    
+    def _reward_milestone(self, student, reward):
+        """Distribue les récompenses d'un jalon"""
+        from .models import StudentProfile
+        
+        profile = StudentProfile.objects.get(user=student)
+        
+        if 'xp' in reward:
+            profile.add_xp(reward['xp'])
+        
+        if 'coins' in reward:
+            profile.coins += reward['coins']
+        
+        if 'badge' in reward:
+            profile.add_badge(reward['badge'])
+        
+        profile.save()
+
+
+class CompetitionService:
+    """Service pour gérer les compétitions"""
+    
+    def create_daily_competition(self):
+        """Crée une compétition quotidienne"""
+        from .models import Competition
+        
+        today = timezone.now()
+        tomorrow = today + timedelta(days=1)
+        
+        competition = Competition.objects.create(
+            title=f'🏆 Défi Quotidien - {today.strftime("%d %B %Y")}',
+            description='Qui sera le champion du jour ? Complétez un maximum d\'exercices avec le meilleur score !',
+            competition_type='DAILY',
+            rules={
+                'scoring': 'score_moyen * nombre_exercices',
+                'min_exercises': 5,
+                'time_limit_hours': 24
+            },
+            rewards={
+                '1': {'xp': 500, 'coins': 300, 'badge': '🥇 Champion du Jour'},
+                '2': {'xp': 300, 'coins': 200, 'badge': '🥈 Vice-Champion'},
+                '3': {'xp': 200, 'coins': 100, 'badge': '🥉 Podium'},
+                'top10': {'xp': 100, 'coins': 50}
+            },
+            start_date=today,
+            end_date=tomorrow,
+            status='ACTIVE',
+            max_participants=100
+        )
+        
+        return competition
+    
+    def create_weekly_competition(self, subject=None):
+        """Crée une compétition hebdomadaire"""
+        from .models import Competition
+        
+        now = timezone.now()
+        week_end = now + timedelta(days=7)
+        
+        title = f'🏆 Tournoi Hebdomadaire'
+        if subject:
+            title += f' - {subject}'
+        
+        competition = Competition.objects.create(
+            title=title,
+            description='La grande compétition de la semaine ! Montrez vos compétences et grimpez au classement.',
+            competition_type='WEEKLY',
+            subject=subject,
+            rules={
+                'scoring': 'points_totaux + bonus_streak',
+                'min_exercises': 20,
+                'bonus_streak': True
+            },
+            rewards={
+                '1': {'xp': 2000, 'coins': 1000, 'badge': '👑 Roi de la Semaine'},
+                '2': {'xp': 1500, 'coins': 750, 'badge': '⭐ Star Hebdomadaire'},
+                '3': {'xp': 1000, 'coins': 500, 'badge': '💎 Top 3'},
+                'top10': {'xp': 500, 'coins': 250},
+                'top20': {'xp': 250, 'coins': 100}
+            },
+            start_date=now,
+            end_date=week_end,
+            status='ACTIVE',
+            max_participants=200
+        )
+        
+        return competition
+    
+    def join_competition(self, competition, student):
+        """Inscrit un étudiant à une compétition"""
+        from .models import CompetitionParticipant
+        
+        # Vérifier la limite de participants
+        current_count = competition.participants.count()
+        if current_count >= competition.max_participants:
+            return None, "Compétition complète"
+        
+        # Créer la participation
+        participant, created = CompetitionParticipant.objects.get_or_create(
+            competition=competition,
+            student=student
+        )
+        
+        if created:
+            return participant, "Inscription réussie"
+        else:
+            return participant, "Déjà inscrit"
+    
+    def update_competition_score(self, competition, student, score, exercises_completed, time_spent):
+        """Met à jour le score d'un participant"""
+        from .models import CompetitionParticipant
+        
+        participant = CompetitionParticipant.objects.get(
+            competition=competition,
+            student=student
+        )
+        
+        participant.score = score
+        participant.exercises_completed = exercises_completed
+        participant.time_spent = time_spent
+        participant.save()
+        
+        # Mettre à jour les rangs
+        self._update_competition_ranks(competition)
+        
+        return participant
+    
+    def _update_competition_ranks(self, competition):
+        """Recalcule les rangs de tous les participants"""
+        participants = competition.competitionparticipant_set.order_by('-score', 'last_update')
+        
+        for index, participant in enumerate(participants, start=1):
+            participant.rank = index
+            participant.save(update_fields=['rank'])
+    
+    def finalize_competition(self, competition):
+        """Finalise une compétition et distribue les récompenses"""
+        from .models import StudentProfile
+        
+        competition.status = 'FINISHED'
+        competition.save()
+        
+        # Distribuer les récompenses
+        leaderboard = competition.get_leaderboard()
+        
+        for participant in leaderboard:
+            rank_str = str(participant.rank)
+            reward = None
+            
+            if rank_str in competition.rewards:
+                reward = competition.rewards[rank_str]
+            elif participant.rank <= 10 and 'top10' in competition.rewards:
+                reward = competition.rewards['top10']
+            elif participant.rank <= 20 and 'top20' in competition.rewards:
+                reward = competition.rewards['top20']
+            
+            if reward:
+                profile = StudentProfile.objects.get(user=participant.student)
+                
+                if 'xp' in reward:
+                    profile.add_xp(reward['xp'])
+                
+                if 'coins' in reward:
+                    profile.coins += reward['coins']
+                
+                if 'badge' in reward:
+                    profile.add_badge(reward['badge'])
+                
+                profile.save()
+        
+        return leaderboard
+
+
+class BadgeService:
+    """Service pour gérer les badges"""
+    
+    def initialize_badges(self):
+        """Crée les badges de base du système"""
+        from .models import Badge
+        
+        badges_data = [
+            # Badges de démarrage
+            {'name': 'Nouveau Venu', 'icon': '🎯', 'rarity': 'COMMON', 'description': 'Complétez votre premier exercice'},
+            {'name': 'Premier Pas', 'icon': '👣', 'rarity': 'COMMON', 'description': 'Terminez votre premier défi'},
+            
+            # Badges d'expertise
+            {'name': 'Expert Confirmé', 'icon': '🌟', 'rarity': 'RARE', 'description': 'Maîtrisez une matière à 80%+'},
+            {'name': 'Génie', 'icon': '🧠', 'rarity': 'EPIC', 'description': 'Obtenez 100% sur 5 exercices consécutifs'},
+            
+            # Badges de persévérance
+            {'name': 'Persévérant', 'icon': '💪', 'rarity': 'RARE', 'description': 'Surmontez une matière difficile'},
+            {'name': 'Infatigable', 'icon': '🔥', 'rarity': 'EPIC', 'description': 'Maintenez un streak de 30 jours'},
+            
+            # Badges de compétition
+            {'name': 'Champion du Jour', 'icon': '🥇', 'rarity': 'RARE', 'description': '1ère place en compétition quotidienne'},
+            {'name': 'Roi de la Semaine', 'icon': '👑', 'rarity': 'EPIC', 'description': '1ère place en compétition hebdomadaire'},
+            
+            # Badges légendaires
+            {'name': 'Légende', 'icon': '⚡', 'rarity': 'LEGENDARY', 'description': 'Atteignez le niveau 50'},
+            {'name': 'Perfectionniste', 'icon': '💎', 'rarity': 'LEGENDARY', 'description': '100% sur 50 exercices'},
+        ]
+        
+        created_badges = []
+        for badge_data in badges_data:
+            badge, created = Badge.objects.get_or_create(
+                name=badge_data['name'],
+                defaults=badge_data
+            )
+            if created:
+                created_badges.append(badge)
+        
+        return created_badges
+    
+    def award_badge(self, student, badge_name):
+        """Attribue un badge à un étudiant"""
+        from .models import Badge, Achievement, StudentProfile
+        
+        try:
+            badge = Badge.objects.get(name=badge_name)
+            achievement, created = Achievement.objects.get_or_create(
+                student=student,
+                badge=badge
+            )
+            
+            if created:
+                # Mettre à jour le profil
+                profile = StudentProfile.objects.get(user=student)
+                profile.add_badge(badge_name)
+                profile.save()
+                
+                # Mettre à jour les stats du badge
+                badge.times_awarded += 1
+                badge.save()
+                
+                return achievement
+            
+            return None
+        except Badge.DoesNotExist:
+            return None

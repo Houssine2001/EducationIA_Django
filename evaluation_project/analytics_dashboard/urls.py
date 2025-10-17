@@ -59,4 +59,12 @@ urlpatterns = [
     path('api/tracking/dashboard/', api_views.api_get_real_time_dashboard, name='api_get_real_time_dashboard'),
     path('api/tracking/performance-trends/', api_views.api_get_performance_trends, name='api_get_performance_trends'),
     path('api/tracking/engagement-metrics/', api_views.api_get_engagement_metrics, name='api_get_engagement_metrics'),
+    
+    # 🎮 URLs Gamification
+    path('gamified/', views.gamified_dashboard, name='gamified_dashboard'),
+    path('competition/<str:competition_id>/join/', views.join_competition_view, name='join_competition'),
+    path('competition/<str:competition_id>/leaderboard/', views.competition_leaderboard, name='competition_leaderboard'),
+    path('challenges/', views.my_challenges, name='my_challenges'),
+    path('challenges/<str:challenge_id>/start/', views.start_challenge, name='start_challenge'),
+    path('badges/', views.my_badges, name='my_badges'),
 ]
