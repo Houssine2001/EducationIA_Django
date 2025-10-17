@@ -125,15 +125,19 @@ class StudentSubjectProgress(models.Model):
         visit_engagement = self.calculate_visit_engagement()
         test_engagement = self.calculate_test_engagement()
         
-        # Score de base: moyenne des tests
-        base_score = self.average_test_score
-        
-        # Ajustements selon l'engagement
-        visit_bonus = visit_engagement * 10  # Max +10%
-        test_bonus = test_engagement * 10  # Max +10%
-        
-        # Facteur de consistance
-        consistency_bonus = self.consistency_score * 5  # Max +5%
+        # Si pas de tests, baser la prédiction sur les visites et complétions
+        if self.tests_taken == 0:
+            # Prédiction basée uniquement sur l'engagement des visites
+            base_score = visit_engagement * 60  # 0-60% selon les visites
+            visit_bonus = visit_engagement * 20  # +0-20%
+            consistency_bonus = self.consistency_score * 15  # +0-15%
+            test_bonus = 0
+        else:
+            # Prédiction mixte: tests + visites
+            base_score = self.average_test_score * 0.7  # 70% du poids
+            visit_bonus = visit_engagement * 15  # +0-15%
+            test_bonus = test_engagement * 10  # +0-10%
+            consistency_bonus = self.consistency_score * 5  # +0-5%
         
         # Prédiction finale
         predicted = base_score + visit_bonus + test_bonus + consistency_bonus

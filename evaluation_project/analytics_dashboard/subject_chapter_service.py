@@ -58,20 +58,17 @@ class SubjectChapterService:
         progress.total_visits += 1
         progress.total_time_minutes += duration_seconds // 60
         
-        # Compter les chapitres visités uniques
-        visited_chapters = ChapterVisit.objects.filter(
+        # Compter les chapitres visités uniques (conversion en liste pour Djongo)
+        all_visits = list(ChapterVisit.objects.filter(
             student=student,
             chapter__subject=chapter.subject
-        ).values('chapter').distinct().count()
-        progress.chapters_visited = visited_chapters
+        ))
+        visited_chapter_ids = set(v.chapter._id for v in all_visits)
+        progress.chapters_visited = len(visited_chapter_ids)
         
-        # Compter les chapitres complétés
-        completed_chapters = ChapterVisit.objects.filter(
-            student=student,
-            chapter__subject=chapter.subject,
-            completed=True
-        ).values('chapter').distinct().count()
-        progress.chapters_completed = completed_chapters
+        # Compter les chapitres complétés (conversion en liste pour Djongo)
+        completed_chapter_ids = set(v.chapter._id for v in all_visits if v.completed)
+        progress.chapters_completed = len(completed_chapter_ids)
         
         # Calculer la consistance (visites régulières)
         progress.consistency_score = self._calculate_consistency(student, chapter.subject)
