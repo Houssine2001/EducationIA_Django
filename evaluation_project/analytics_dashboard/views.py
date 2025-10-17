@@ -783,13 +783,17 @@ def gamified_dashboard(request):
     
     # Position de l'utilisateur
     user_rank = UserProfile.objects.filter(total_xp__gt=profile.total_xp).count() + 1
-    profile.rank = user_rank
-    profile.save()
     
-    # XP pour prochain niveau
-    next_level_xp = ((profile.level + 1) * 10) ** 2
-    current_level_xp = (profile.level * 10) ** 2
-    xp_progress = ((profile.total_xp - current_level_xp) / (next_level_xp - current_level_xp)) * 100
+    # XP pour prochain niveau (100 XP par niveau)
+    current_level_xp = (profile.level - 1) * 100
+    next_level_xp = profile.level * 100
+    xp_in_current_level = profile.total_xp - current_level_xp
+    xp_needed_for_level = next_level_xp - current_level_xp
+    
+    if xp_needed_for_level > 0:
+        xp_progress = (xp_in_current_level / xp_needed_for_level) * 100
+    else:
+        xp_progress = 0
     
     context = {
         'page_title': 'Dashboard Gamifié',
