@@ -738,10 +738,11 @@ def api_overview_stats(request):
 def gamified_dashboard(request):
     """Dashboard gamifié pour l'étudiant"""
     from .services import ChallengeService, WeeklyMissionService
-    from .models import StudentProfile, Competition, Challenge, WeeklyMission
+    from .models import Competition, Challenge, WeeklyMission
+    from evaluation.models import UserProfile
     
     # Récupérer ou créer le profil gamifié
-    profile, created = StudentProfile.objects.get_or_create(user=request.user)
+    profile, created = UserProfile.objects.get_or_create(user=request.user)
     
     if created:
         messages.success(request, '🎉 Bienvenue dans le système gamifié ! Gagnez des XP et montez de niveau !')
@@ -778,10 +779,10 @@ def gamified_dashboard(request):
     ).order_by('end_date')[:5]
     
     # Classement top 10
-    leaderboard = StudentProfile.objects.all().order_by('-total_xp')[:10]
+    leaderboard = UserProfile.objects.all().order_by('-total_xp')[:10]
     
     # Position de l'utilisateur
-    user_rank = StudentProfile.objects.filter(total_xp__gt=profile.total_xp).count() + 1
+    user_rank = UserProfile.objects.filter(total_xp__gt=profile.total_xp).count() + 1
     profile.rank = user_rank
     profile.save()
     

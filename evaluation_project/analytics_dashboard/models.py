@@ -248,9 +248,9 @@ class PredictionModel(models.Model):
     """Modèle de prédiction IA"""
     _id = models.ObjectIdField(primary_key=True, default=ObjectId)
     student = models.ForeignKey(User, on_delete=models.CASCADE)
-    prediction_type = models.CharField(max_length=50)
-    prediction_value = models.FloatField()
-    confidence = models.FloatField()
+    prediction_type = models.CharField(max_length=50, default='general')
+    prediction_value = models.FloatField(default=0.5)
+    confidence = models.FloatField(default=0.5)
     raw_data = models.JSONField(default=dict)  # Stockage des métriques utilisées
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -775,6 +775,31 @@ class CompetitionParticipant(models.Model):
     
     def __str__(self):
         return f"{self.student.username} - {self.competition.title} (Rang #{self.rank})"
+
+
+class StudentTestResult(models.Model):
+    """Résultat de test pour la gamification - différent de SubjectTestResult"""
+    _id = models.ObjectIdField(primary_key=True, default=ObjectId)
+    
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gamification_test_results')
+    subject = models.CharField(max_length=100)
+    test_name = models.CharField(max_length=200)
+    score = models.FloatField()
+    completed_at = models.DateTimeField(auto_now_add=True)
+    
+    # Métadonnées optionnelles
+    time_spent = models.IntegerField(default=0)  # en minutes
+    test_id = models.CharField(max_length=100, null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-completed_at']
+        indexes = [
+            models.Index(fields=['student', 'subject']),
+            models.Index(fields=['-completed_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.student.username} - {self.test_name} ({self.score}%)"
 
 
 class Badge(models.Model):

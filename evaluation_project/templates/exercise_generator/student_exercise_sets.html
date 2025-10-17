@@ -34,13 +34,21 @@
 
                     <div class="border-t border-gray-200 pt-4">
                         {% if set.id in completed_set_ids %}
-                            <div class="flex items-center justify-between">
-                                <span class="text-green-600 font-semibold">✅ Complété</span>
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-green-600 font-semibold">✅ Complété</span>
+                                    <a 
+                                        href="{% url 'exercise_generator:student_exercise_result' set.id %}" 
+                                        class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700"
+                                    >
+                                        Voir mes résultats
+                                    </a>
+                                </div>
                                 <a 
-                                    href="{% url 'exercise_generator:student_exercise_result' set.id %}" 
-                                    class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700"
+                                    href="{% url 'exercise_generator:student_take_exercise_set' set.id %}" 
+                                    class="block w-full text-center px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 border border-gray-300"
                                 >
-                                    Voir mes résultats
+                                    🔄 Refaire le test
                                 </a>
                             </div>
                         {% else %}
