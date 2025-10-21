@@ -845,3 +845,72 @@ class Achievement(models.Model):
     
     def __str__(self):
         return f"{self.student.username} - {self.badge.name}"
+
+
+class StressReport(models.Model):
+    """Rapport de stress et difficulté de concentration d'un étudiant"""
+    _id = models.ObjectIdField(primary_key=True, default=ObjectId)
+    
+    STRESS_LEVEL_CHOICES = [
+        (1, 'Très faible'),
+        (2, 'Faible'),
+        (3, 'Modéré'),
+        (4, 'Élevé'),
+        (5, 'Très élevé'),
+    ]
+    
+    CONCENTRATION_LEVEL_CHOICES = [
+        (1, 'Excellente'),
+        (2, 'Bonne'),
+        (3, 'Moyenne'),
+        (4, 'Faible'),
+        (5, 'Très faible'),
+    ]
+    
+    # Informations de l'étudiant
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='stress_reports')
+    
+    # Niveau de stress et concentration
+    stress_level = models.IntegerField(choices=STRESS_LEVEL_CHOICES)
+    concentration_level = models.IntegerField(choices=CONCENTRATION_LEVEL_CHOICES)
+    
+    # Causes et symptômes
+    stress_causes = models.JSONField(default=list)  # Liste des causes sélectionnées
+    symptoms = models.JSONField(default=list)  # Symptômes ressentis
+    
+    # Description détaillée
+    description = models.TextField(blank=True)
+    current_situation = models.TextField(blank=True)
+    
+    # Contexte
+    upcoming_exams = models.BooleanField(default=False)
+    sleep_hours = models.FloatField(null=True, blank=True)
+    exercise_frequency = models.CharField(max_length=50, blank=True)
+    
+    # Recommandations IA
+    ai_analysis = models.TextField(blank=True)
+    ai_recommendations = models.JSONField(default=list)
+    priority_actions = models.JSONField(default=list)
+    
+    # Ressources recommandées
+    recommended_exercises = models.JSONField(default=list)
+    relaxation_techniques = models.JSONField(default=list)
+    
+    # Suivi
+    status = models.CharField(max_length=20, default='PENDING')  # PENDING, ANALYZED, RESOLVED
+    followed_recommendations = models.BooleanField(default=False)
+    improvement_rating = models.IntegerField(null=True, blank=True)
+    
+    # Métadonnées
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['student', '-created_at']),
+            models.Index(fields=['status']),
+        ]
+    
+    def __str__(self):
+        return f"{self.student.username} - Stress {self.stress_level}/5 - {self.created_at.strftime('%d/%m/%Y')}"

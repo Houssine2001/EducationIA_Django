@@ -76,4 +76,10 @@ urlpatterns = [
     path('challenges/', views.my_challenges, name='my_challenges'),
     path('challenges/<str:challenge_id>/start/', views.start_challenge, name='start_challenge'),
     path('badges/', views.my_badges, name='my_badges'),
+    
+    # 🧠 Gestion du Stress et Concentration
+    path('stress/', views.stress_report_form, name='stress_report'),
+    path('stress/<str:report_id>/', views.stress_analysis, name='stress_analysis'),
+    path('stress-history/', views.stress_history, name='stress_history'),
+    path('stress/<str:report_id>/feedback/', views.update_stress_feedback, name='stress_feedback'),
 ]

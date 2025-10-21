@@ -1,0 +1,340 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}🧠 Analyse de Stress{% endblock %}
+
+{% block extra_css %}
+<style>
+    .analysis-container {
+        max-width: 1000px;
+        margin: 30px auto;
+        padding: 20px;
+    }
+    
+    .analysis-card {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        margin-bottom: 25px;
+    }
+    
+    .analysis-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .severity-badge {
+        display: inline-block;
+        padding: 10px 30px;
+        border-radius: 25px;
+        font-size: 18px;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    
+    .severity-low {
+        background: #4caf50;
+        color: white;
+    }
+    
+    .severity-medium {
+        background: #ff9800;
+        color: white;
+    }
+    
+    .severity-high {
+        background: #f44336;
+        color: white;
+    }
+    
+    .ai-analysis {
+        background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+        border-left: 4px solid #667eea;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+        white-space: pre-line;
+        line-height: 1.8;
+    }
+    
+    .recommendations-grid {
+        display: grid;
+        gap: 20px;
+        margin: 25px 0;
+    }
+    
+    .recommendation-card {
+        background: white;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 20px;
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+    
+    .recommendation-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+    
+    .recommendation-card.high-impact {
+        border-color: #f44336;
+        background: linear-gradient(135deg, #fff5f5 0%, #ffe0e0 100%);
+    }
+    
+    .recommendation-card.medium-impact {
+        border-color: #ff9800;
+        background: linear-gradient(135deg, #fff8f0 0%, #ffe8d5 100%);
+    }
+    
+    .recommendation-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 10px;
+    }
+    
+    .recommendation-title {
+        font-size: 18px;
+        font-weight: bold;
+        color: #333;
+        flex: 1;
+    }
+    
+    .impact-badge {
+        padding: 5px 15px;
+        border-radius: 15px;
+        font-size: 12px;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+    
+    .impact-critical {
+        background: #f44336;
+        color: white;
+    }
+    
+    .impact-high {
+        background: #ff5722;
+        color: white;
+    }
+    
+    .impact-medium {
+        background: #ff9800;
+        color: white;
+    }
+    
+    .priority-actions {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin: 25px 0;
+    }
+    
+    .priority-actions h3 {
+        color: white;
+        margin-bottom: 20px;
+    }
+    
+    .priority-item {
+        background: rgba(255,255,255,0.2);
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .priority-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .priority-icon {
+        font-size: 24px;
+        margin-right: 10px;
+    }
+    
+    .relaxation-section {
+        margin-top: 30px;
+    }
+    
+    .technique-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .technique-card h4 {
+        color: #667eea;
+        margin-bottom: 15px;
+    }
+    
+    .technique-steps {
+        list-style: none;
+        padding: 0;
+    }
+    
+    .technique-steps li {
+        padding: 8px 0;
+        padding-left: 30px;
+        position: relative;
+    }
+    
+    .technique-steps li:before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        color: #4caf50;
+        font-weight: bold;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 15px;
+        margin-top: 30px;
+    }
+    
+    .btn {
+        flex: 1;
+        padding: 15px 30px;
+        border-radius: 25px;
+        border: none;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: transform 0.3s;
+        text-align: center;
+        text-decoration: none;
+        display: block;
+    }
+    
+    .btn:hover {
+        transform: scale(1.02);
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .btn-secondary {
+        background: white;
+        color: #667eea;
+        border: 2px solid #667eea;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="analysis-container">
+    <!-- En-tête -->
+    <div class="analysis-card">
+        <div class="analysis-header">
+            <h1>🧠 Analyse de votre état mental</h1>
+            <p style="color: #666;">Généré le {{ report.created_at|date:"d/m/Y à H:i" }}</p>
+            
+            {% if report.stress_level >= 4 %}
+            <div class="severity-badge severity-high">⚠️ Niveau de stress élevé</div>
+            {% elif report.stress_level >= 3 %}
+            <div class="severity-badge severity-medium">⚡ Niveau de stress modéré</div>
+            {% else %}
+            <div class="severity-badge severity-low">✅ Niveau de stress gérable</div>
+            {% endif %}
+        </div>
+        
+        <!-- Analyse IA -->
+        <div class="ai-analysis">
+            {{ report.ai_analysis }}
+        </div>
+    </div>
+    
+    <!-- Actions prioritaires -->
+    {% if report.priority_actions %}
+    <div class="priority-actions">
+        <h3>🚨 Actions Prioritaires - À faire MAINTENANT</h3>
+        {% for action in report.priority_actions %}
+        <div class="priority-item">
+            <span class="priority-icon">{{ action.icon }}</span>
+            <strong>{{ action.action }}</strong>
+            <span style="float: right; font-size: 12px;">⏰ {{ action.urgency|upper }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <!-- Recommandations -->
+    <div class="analysis-card">
+        <h2>💡 Recommandations Personnalisées</h2>
+        <p style="color: #666; margin-bottom: 20px;">Voici des stratégies adaptées à votre situation actuelle :</p>
+        
+        <div class="recommendations-grid">
+            {% for rec in report.ai_recommendations %}
+            <div class="recommendation-card {% if rec.impact == 'critical' or rec.impact == 'high' %}high-impact{% elif rec.impact == 'medium' %}medium-impact{% endif %}">
+                <div class="recommendation-header">
+                    <div class="recommendation-title">{{ rec.title }}</div>
+                    <span class="impact-badge impact-{{ rec.impact }}">{{ rec.impact }}</span>
+                </div>
+                <p style="color: #555; margin: 10px 0;">{{ rec.description }}</p>
+                <small style="color: #888;">⏱️ Durée : {{ rec.duration }}</small>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Exercices recommandés -->
+    {% if report.recommended_exercises %}
+    <div class="analysis-card">
+        <h2>📚 Adaptations pour vos études</h2>
+        <div class="recommendations-grid">
+            {% for exercise in report.recommended_exercises %}
+            <div class="recommendation-card">
+                <h4 style="color: #667eea;">{{ exercise.name }}</h4>
+                <p style="color: #555;">{{ exercise.description }}</p>
+                <small style="color: #4caf50;">✓ {{ exercise.benefit }}</small>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Techniques de relaxation -->
+    {% if report.relaxation_techniques %}
+    <div class="analysis-card relaxation-section">
+        <h2>🧘 Techniques de Relaxation</h2>
+        <p style="color: #666; margin-bottom: 20px;">Pratiquez ces techniques pour réduire votre stress :</p>
+        
+        {% for technique in report.relaxation_techniques %}
+        <div class="technique-card">
+            <h4>{{ technique.name }}</h4>
+            <ul class="technique-steps">
+                {% for step in technique.steps %}
+                <li>{{ step }}</li>
+                {% endfor %}
+            </ul>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                <strong>🕐 Quand :</strong> {{ technique.when }}<br>
+                <strong>⏱️ Durée :</strong> {{ technique.duration }}
+                {% if technique.apps %}
+                <br><strong>📱 Applications recommandées :</strong> {{ technique.apps|join:", " }}
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <!-- Boutons d'action -->
+    <div class="action-buttons">
+        <a href="{% url 'analytics_dashboard:stress_report' %}" class="btn btn-secondary">
+            🔄 Nouveau rapport
+        </a>
+        <a href="{% url 'analytics_dashboard:stress_history' %}" class="btn btn-secondary">
+            📊 Voir mon historique
+        </a>
+        <a href="{% url 'analytics_dashboard:gamified_dashboard' %}" class="btn btn-primary">
+            🎮 Retour au Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

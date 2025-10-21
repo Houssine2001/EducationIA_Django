@@ -1085,3 +1085,320 @@ class BadgeService:
             return None
         except Badge.DoesNotExist:
             return None
+
+
+class StressAnalysisService:
+    """Service IA pour analyser le stress et recommander des solutions"""
+    
+    def analyze_stress_report(self, stress_report):
+        """Analyse un rapport de stress et génère des recommandations personnalisées"""
+        
+        # Analyser la gravité globale
+        severity = self._calculate_severity(stress_report)
+        
+        # Générer l'analyse IA
+        analysis = self._generate_ai_analysis(stress_report, severity)
+        
+        # Générer des recommandations
+        recommendations = self._generate_recommendations(stress_report, severity)
+        
+        # Actions prioritaires
+        priority_actions = self._generate_priority_actions(stress_report, severity)
+        
+        # Exercices recommandés
+        exercises = self._recommend_exercises(stress_report)
+        
+        # Techniques de relaxation
+        relaxation = self._recommend_relaxation(stress_report, severity)
+        
+        # Mettre à jour le rapport
+        stress_report.ai_analysis = analysis
+        stress_report.ai_recommendations = recommendations
+        stress_report.priority_actions = priority_actions
+        stress_report.recommended_exercises = exercises
+        stress_report.relaxation_techniques = relaxation
+        stress_report.status = 'ANALYZED'
+        stress_report.save()
+        
+        return stress_report
+    
+    def _calculate_severity(self, report):
+        """Calcule le niveau de gravité global (0-100)"""
+        stress_weight = report.stress_level * 15
+        concentration_weight = report.concentration_level * 15
+        symptoms_count = len(report.symptoms) * 5
+        causes_count = len(report.stress_causes) * 5
+        
+        severity = stress_weight + concentration_weight + symptoms_count + causes_count
+        return min(severity, 100)
+    
+    def _generate_ai_analysis(self, report, severity):
+        """Génère une analyse textuelle du stress"""
+        
+        stress_desc = dict(report.STRESS_LEVEL_CHOICES)[report.stress_level]
+        concentration_desc = dict(report.CONCENTRATION_LEVEL_CHOICES)[report.concentration_level]
+        
+        analysis = f"""🧠 **Analyse de votre état mental**
+
+**Niveau de stress détecté :** {stress_desc} ({report.stress_level}/5)
+**Capacité de concentration :** {concentration_desc} ({report.concentration_level}/5)
+**Score de gravité global :** {severity}/100
+
+"""
+        
+        # Analyse des causes
+        if report.stress_causes:
+            analysis += "**Principales sources de stress identifiées :**\n"
+            for cause in report.stress_causes:
+                analysis += f"• {cause}\n"
+            analysis += "\n"
+        
+        # Analyse des symptômes
+        if report.symptoms:
+            analysis += "**Symptômes ressentis :**\n"
+            for symptom in report.symptoms:
+                analysis += f"• {symptom}\n"
+            analysis += "\n"
+        
+        # Interprétation globale
+        if severity >= 70:
+            analysis += """⚠️ **Niveau critique détecté**
+Votre niveau de stress est très élevé. Il est important d'agir rapidement pour éviter l'épuisement.
+Je vous recommande fortement de consulter un conseiller pédagogique ou un professionnel de santé."""
+        elif severity >= 50:
+            analysis += """⚡ **Niveau modéré à élevé**
+Vous traversez une période de stress important qui affecte votre concentration.
+Des actions immédiates peuvent vous aider à retrouver votre équilibre."""
+        elif severity >= 30:
+            analysis += """💡 **Niveau gérable**
+Vous ressentez un stress modéré. C'est normal dans un parcours étudiant.
+Quelques ajustements peuvent améliorer significativement votre bien-être."""
+        else:
+            analysis += """✅ **Niveau bas**
+Votre stress est gérable. Continuez vos bonnes habitudes et restez vigilant."""
+        
+        return analysis
+    
+    def _generate_recommendations(self, report, severity):
+        """Génère des recommandations personnalisées"""
+        recommendations = []
+        
+        # Recommandations basées sur le niveau de stress
+        if report.stress_level >= 4:
+            recommendations.append({
+                'title': '🌊 Pratiquez la respiration profonde',
+                'description': 'Faites 5 minutes de respiration abdominale 3 fois par jour : inspirez 4 secondes, retenez 4 secondes, expirez 6 secondes.',
+                'impact': 'high',
+                'duration': '5 min'
+            })
+            recommendations.append({
+                'title': '🚶 Faites des pauses actives',
+                'description': 'Toutes les 45 minutes, levez-vous et marchez 5 minutes. Cela oxygène le cerveau.',
+                'impact': 'high',
+                'duration': '5 min'
+            })
+        
+        # Recommandations basées sur la concentration
+        if report.concentration_level >= 4:
+            recommendations.append({
+                'title': '⏰ Technique Pomodoro',
+                'description': 'Travaillez 25 minutes intensément, puis pause de 5 minutes. Après 4 cycles, pause de 15-30 minutes.',
+                'impact': 'high',
+                'duration': '25 min'
+            })
+            recommendations.append({
+                'title': '🎯 Éliminez les distractions',
+                'description': 'Mettez votre téléphone en mode avion, fermez les réseaux sociaux, utilisez des applications de blocage.',
+                'impact': 'high',
+                'duration': 'Permanent'
+            })
+            recommendations.append({
+                'title': '🎵 Musique de concentration',
+                'description': 'Écoutez de la musique binaurale, des sons de la nature ou de la musique instrumentale (lo-fi, classique).',
+                'impact': 'medium',
+                'duration': 'Variable'
+            })
+        
+        # Recommandations liées au sommeil
+        if report.sleep_hours and report.sleep_hours < 7:
+            recommendations.append({
+                'title': '😴 Améliorez votre sommeil',
+                'description': f'Vous dormez seulement {report.sleep_hours}h. Visez 7-9h : couchez-vous à heure fixe, évitez les écrans 1h avant.',
+                'impact': 'critical',
+                'duration': 'Quotidien'
+            })
+        
+        # Recommandations liées à l'exercice
+        if report.exercise_frequency in ['Jamais', 'Rarement']:
+            recommendations.append({
+                'title': '💪 Activité physique régulière',
+                'description': '30 minutes d\'exercice modéré (marche rapide, yoga, vélo) libèrent des endorphines anti-stress.',
+                'impact': 'high',
+                'duration': '30 min/jour'
+            })
+        
+        # Recommandations générales
+        recommendations.extend([
+            {
+                'title': '📝 Planifiez votre journée',
+                'description': 'Chaque soir, listez 3 tâches prioritaires pour demain. Cela réduit l\'anxiété du lendemain.',
+                'impact': 'medium',
+                'duration': '10 min'
+            },
+            {
+                'title': '🙏 Pratiquez la gratitude',
+                'description': 'Notez 3 choses positives chaque jour. Cela recadre votre mental positivement.',
+                'impact': 'medium',
+                'duration': '5 min'
+            },
+            {
+                'title': '👥 Parlez-en',
+                'description': 'Partagez vos difficultés avec un ami, famille ou conseiller. Le simple fait d\'en parler soulage.',
+                'impact': 'high',
+                'duration': 'Variable'
+            }
+        ])
+        
+        return recommendations
+    
+    def _generate_priority_actions(self, report, severity):
+        """Génère 3 actions prioritaires immédiates"""
+        actions = []
+        
+        if report.stress_level >= 4:
+            actions.append({
+                'action': 'Faites 5 minutes de respiration profonde MAINTENANT',
+                'urgency': 'immediate',
+                'icon': '🌊'
+            })
+        
+        if report.concentration_level >= 4:
+            actions.append({
+                'action': 'Utilisez la technique Pomodoro pour votre prochaine session d\'étude',
+                'urgency': 'today',
+                'icon': '⏰'
+            })
+        
+        if report.sleep_hours and report.sleep_hours < 7:
+            actions.append({
+                'action': f'Ce soir, couchez-vous 1h plus tôt (objectif : {report.sleep_hours + 1}h)',
+                'urgency': 'today',
+                'icon': '😴'
+            })
+        else:
+            actions.append({
+                'action': 'Faites une pause de 10 minutes en plein air ou près d\'une fenêtre',
+                'urgency': 'today',
+                'icon': '🌳'
+            })
+        
+        return actions[:3]
+    
+    def _recommend_exercises(self, report):
+        """Recommande des exercices adaptés au niveau de stress"""
+        exercises = []
+        
+        if report.concentration_level >= 3:
+            exercises.extend([
+                {
+                    'name': 'Exercices courts et variés',
+                    'description': 'Alternez entre différentes matières toutes les 20-30 minutes',
+                    'benefit': 'Maintient l\'attention'
+                },
+                {
+                    'name': 'Révisions actives',
+                    'description': 'Faites des quiz, des flashcards ou expliquez à voix haute',
+                    'benefit': 'Meilleure mémorisation'
+                }
+            ])
+        
+        if report.stress_level >= 3:
+            exercises.extend([
+                {
+                    'name': 'Sessions plus courtes',
+                    'description': 'Réduisez vos sessions à 15-20 minutes avec pauses',
+                    'benefit': 'Réduit la pression'
+                },
+                {
+                    'name': 'Matières plaisantes d\'abord',
+                    'description': 'Commencez par ce que vous aimez pour créer de l\'élan',
+                    'benefit': 'Motivation positive'
+                }
+            ])
+        
+        return exercises
+    
+    def _recommend_relaxation(self, report, severity):
+        """Recommande des techniques de relaxation"""
+        techniques = [
+            {
+                'name': '🌊 Respiration 4-7-8',
+                'steps': [
+                    'Inspirez par le nez pendant 4 secondes',
+                    'Retenez votre souffle pendant 7 secondes',
+                    'Expirez lentement par la bouche pendant 8 secondes',
+                    'Répétez 4 fois'
+                ],
+                'when': 'Avant de dormir ou en cas de pic de stress',
+                'duration': '2 minutes'
+            },
+            {
+                'name': '🧘 Méditation guidée',
+                'steps': [
+                    'Asseyez-vous confortablement',
+                    'Fermez les yeux',
+                    'Concentrez-vous sur votre respiration naturelle',
+                    'Laissez passer les pensées sans jugement'
+                ],
+                'when': 'Le matin ou avant une session d\'étude',
+                'duration': '5-10 minutes',
+                'apps': ['Petit Bambou', 'Headspace', 'Calm']
+            },
+            {
+                'name': '💪 Relaxation musculaire progressive',
+                'steps': [
+                    'Tendez chaque groupe musculaire 5 secondes',
+                    'Relâchez complètement',
+                    'Commencez par les pieds, remontez jusqu\'à la tête'
+                ],
+                'when': 'Le soir pour détendre le corps',
+                'duration': '10 minutes'
+            }
+        ]
+        
+        if severity >= 70:
+            techniques.insert(0, {
+                'name': '🆘 Aide professionnelle',
+                'steps': [
+                    'Contactez le service de santé universitaire',
+                    'Parlez à un conseiller pédagogique',
+                    'Envisagez un soutien psychologique'
+                ],
+                'when': 'Dès que possible',
+                'duration': 'Variable'
+            })
+        
+        return techniques
+    
+    def track_improvement(self, student):
+        """Suit l'évolution du stress d'un étudiant"""
+        from .models import StressReport
+        
+        reports = StressReport.objects.filter(student=student).order_by('-created_at')[:5]
+        
+        if len(reports) < 2:
+            return None
+        
+        # Calculer la tendance
+        recent_stress = reports[0].stress_level
+        previous_stress = sum(r.stress_level for r in reports[1:]) / len(reports[1:])
+        
+        improvement = previous_stress - recent_stress
+        
+        return {
+            'current_stress': recent_stress,
+            'previous_average': previous_stress,
+            'improvement': improvement,
+            'trend': 'improving' if improvement > 0 else 'worsening' if improvement < 0 else 'stable',
+            'total_reports': reports.count()
+        }

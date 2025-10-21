@@ -950,3 +950,157 @@ def start_challenge(request, challenge_id):
         messages.error(request, f'❌ Erreur: {str(e)}')
     
     return redirect('analytics_dashboard:gamified_dashboard')
+
+
+@login_required
+def stress_report_form(request):
+    """Formulaire de déclaration de stress"""
+    from .models import StressReport
+    from .services import StressAnalysisService
+    
+    if request.method == 'POST':
+        # Récupérer les données du formulaire
+        stress_level = int(request.POST.get('stress_level'))
+        concentration_level = int(request.POST.get('concentration_level'))
+        
+        # Causes multiples
+        stress_causes = request.POST.getlist('stress_causes')
+        other_cause = request.POST.get('other_cause', '').strip()
+        if other_cause:
+            stress_causes.append(other_cause)
+        
+        # Symptômes multiples
+        symptoms = request.POST.getlist('symptoms')
+        other_symptom = request.POST.get('other_symptom', '').strip()
+        if other_symptom:
+            symptoms.append(other_symptom)
+        
+        # Description
+        description = request.POST.get('description', '').strip()
+        current_situation = request.POST.get('current_situation', '').strip()
+        
+        # Contexte
+        upcoming_exams = request.POST.get('upcoming_exams') == 'on'
+        sleep_hours = request.POST.get('sleep_hours')
+        exercise_frequency = request.POST.get('exercise_frequency', '')
+        
+        # Créer le rapport
+        report = StressReport.objects.create(
+            student=request.user,
+            stress_level=stress_level,
+            concentration_level=concentration_level,
+            stress_causes=stress_causes,
+            symptoms=symptoms,
+            description=description,
+            current_situation=current_situation,
+            upcoming_exams=upcoming_exams,
+            sleep_hours=float(sleep_hours) if sleep_hours else None,
+            exercise_frequency=exercise_frequency
+        )
+        
+        # Analyser avec l'IA
+        service = StressAnalysisService()
+        analyzed_report = service.analyze_stress_report(report)
+        
+        messages.success(request, '✅ Votre rapport a été analysé avec succès !')
+        return redirect('analytics_dashboard:stress_analysis', report_id=str(analyzed_report._id))
+    
+    # Préparer les options pour le formulaire
+    context = {
+        'page_title': 'Gestion du Stress',
+        'stress_causes_options': [
+            'Examens à venir',
+            'Trop de travail',
+            'Difficultés de compréhension',
+            'Problèmes personnels',
+            'Pression familiale',
+            'Manque de temps',
+            'Peur de l\'échec',
+            'Comparaison avec les autres',
+            'Problèmes financiers',
+            'Isolement social'
+        ],
+        'symptoms_options': [
+            'Difficulté à dormir',
+            'Maux de tête',
+            'Fatigue constante',
+            'Irritabilité',
+            'Anxiété',
+            'Perte d\'appétit',
+            'Difficultés de mémoire',
+            'Procrastination',
+            'Pensées négatives',
+            'Tensions musculaires'
+        ],
+        'exercise_frequencies': [
+            'Jamais',
+            'Rarement (1 fois/semaine)',
+            'Occasionnellement (2-3 fois/semaine)',
+            'Régulièrement (4-5 fois/semaine)',
+            'Quotidiennement'
+        ]
+    }
+    
+    return render(request, 'analytics_dashboard/stress_form.html', context)
+
+
+@login_required
+def stress_analysis(request, report_id):
+    """Affiche l'analyse et les recommandations"""
+    from .models import StressReport
+    from bson import ObjectId
+    
+    report = get_object_or_404(StressReport, _id=ObjectId(report_id), student=request.user)
+    
+    context = {
+        'page_title': 'Analyse de Stress',
+        'report': report,
+    }
+    
+    return render(request, 'analytics_dashboard/stress_analysis.html', context)
+
+
+@login_required
+def stress_history(request):
+    """Historique des rapports de stress"""
+    from .models import StressReport
+    from .services import StressAnalysisService
+    
+    reports = StressReport.objects.filter(student=request.user).order_by('-created_at')
+    
+    # Obtenir la tendance
+    service = StressAnalysisService()
+    trend = service.track_improvement(request.user)
+    
+    context = {
+        'page_title': 'Historique de Stress',
+        'reports': reports,
+        'trend': trend,
+    }
+    
+    return render(request, 'analytics_dashboard/stress_history.html', context)
+
+
+@login_required
+def update_stress_feedback(request, report_id):
+    """Met à jour le suivi d'un rapport de stress"""
+    from .models import StressReport
+    from bson import ObjectId
+    
+    if request.method == 'POST':
+        report = get_object_or_404(StressReport, _id=ObjectId(report_id), student=request.user)
+        
+        report.followed_recommendations = request.POST.get('followed') == 'on'
+        improvement = request.POST.get('improvement')
+        if improvement:
+            report.improvement_rating = int(improvement)
+            
+        if report.followed_recommendations and report.improvement_rating:
+            report.status = 'RESOLVED'
+        
+        report.save()
+        
+        messages.success(request, '✅ Merci pour votre retour !')
+        return redirect('analytics_dashboard:stress_history')
+    
+    return redirect('analytics_dashboard:stress_history')

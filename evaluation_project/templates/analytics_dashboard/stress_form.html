@@ -1,0 +1,371 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}🧠 Gestion du Stress{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stress-container {
+        max-width: 900px;
+        margin: 30px auto;
+        padding: 20px;
+    }
+    
+    .stress-card {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        margin-bottom: 25px;
+    }
+    
+    .stress-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .stress-header h1 {
+        color: #667eea;
+        margin-bottom: 10px;
+    }
+    
+    .stress-header p {
+        color: #666;
+        font-size: 16px;
+    }
+    
+    .form-section {
+        margin-bottom: 30px;
+    }
+    
+    .form-section h3 {
+        color: #333;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .rating-scale {
+        display: flex;
+        justify-content: space-between;
+        margin: 20px 0;
+        gap: 10px;
+    }
+    
+    .rating-option {
+        flex: 1;
+        text-align: center;
+    }
+    
+    .rating-option input[type="radio"] {
+        display: none;
+    }
+    
+    .rating-option label {
+        display: block;
+        padding: 20px 10px;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+        background: white;
+    }
+    
+    .rating-option input[type="radio"]:checked + label {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: #667eea;
+        transform: scale(1.05);
+    }
+    
+    .rating-option label:hover {
+        border-color: #667eea;
+    }
+    
+    .rating-emoji {
+        font-size: 32px;
+        display: block;
+        margin-bottom: 5px;
+    }
+    
+    .checkbox-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 10px;
+        margin: 15px 0;
+    }
+    
+    .checkbox-item {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+    
+    .checkbox-item:hover {
+        background: #f8f8f8;
+    }
+    
+    .checkbox-item input[type="checkbox"] {
+        margin-right: 10px;
+        width: 18px;
+        height: 18px;
+    }
+    
+    .checkbox-item input[type="checkbox"]:checked + label {
+        font-weight: bold;
+        color: #667eea;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #333;
+        font-weight: 500;
+    }
+    
+    .form-group input[type="text"],
+    .form-group input[type="number"],
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    
+    .form-group textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+    
+    .submit-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 15px 40px;
+        border-radius: 25px;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        width: 100%;
+        transition: transform 0.3s;
+    }
+    
+    .submit-btn:hover {
+        transform: scale(1.02);
+    }
+    
+    .info-box {
+        background: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 20px 0;
+    }
+    
+    .info-box p {
+        margin: 0;
+        color: #1976d2;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="stress-container">
+    <div class="stress-card">
+        <div class="stress-header">
+            <h1>🧠 Évaluation de votre état mental</h1>
+            <p>Prenez quelques minutes pour nous parler de votre stress et de votre concentration.<br>
+            Notre IA vous proposera des solutions personnalisées.</p>
+        </div>
+        
+        <div class="info-box">
+            <p>💡 <strong>Confidentialité :</strong> Vos réponses sont confidentielles et servent uniquement à vous aider.</p>
+        </div>
+        
+        <form method="post" action="{% url 'analytics_dashboard:stress_report' %}">
+            {% csrf_token %}
+            
+            <!-- Niveau de stress -->
+            <div class="form-section">
+                <h3>📊 Niveau de stress actuel</h3>
+                <p style="color: #666;">Comment évaluez-vous votre niveau de stress en ce moment ?</p>
+                
+                <div class="rating-scale">
+                    <div class="rating-option">
+                        <input type="radio" id="stress1" name="stress_level" value="1" required>
+                        <label for="stress1">
+                            <span class="rating-emoji">😌</span>
+                            <span>Très faible</span>
+                        </label>
+                    </div>
+                    <div class="rating-option">
+                        <input type="radio" id="stress2" name="stress_level" value="2">
+                        <label for="stress2">
+                            <span class="rating-emoji">🙂</span>
+                            <span>Faible</span>
+                        </label>
+                    </div>
+                    <div class="rating-option">
+                        <input type="radio" id="stress3" name="stress_level" value="3">
+                        <label for="stress3">
+                            <span class="rating-emoji">😐</span>
+                            <span>Modéré</span>
+                        </label>
+                    </div>
+                    <div class="rating-option">
+                        <input type="radio" id="stress4" name="stress_level" value="4">
+                        <label for="stress4">
+                            <span class="rating-emoji">😰</span>
+                            <span>Élevé</span>
+                        </label>
+                    </div>
+                    <div class="rating-option">
+                        <input type="radio" id="stress5" name="stress_level" value="5">
+                        <label for="stress5">
+                            <span class="rating-emoji">😫</span>
+                            <span>Très élevé</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Niveau de concentration -->
+            <div class="form-section">
+                <h3>🎯 Capacité de concentration</h3>
+                <p style="color: #666;">Comment évaluez-vous votre capacité à vous concentrer ?</p>
+                
+                <div class="rating-scale">
+                    <div class="rating-option">
+                        <input type="radio" id="conc1" name="concentration_level" value="1" required>
+                        <label for="conc1">
+                            <span class="rating-emoji">🎯</span>
+                            <span>Excellente</span>
+                        </label>
+                    </div>
+                    <div class="rating-option">
+                        <input type="radio" id="conc2" name="concentration_level" value="2">
+                        <label for="conc2">
+                            <span class="rating-emoji">👍</span>
+                            <span>Bonne</span>
+                        </label>
+                    </div>
+                    <div class="rating-option">
+                        <input type="radio" id="conc3" name="concentration_level" value="3">
+                        <label for="conc3">
+                            <span class="rating-emoji">🤔</span>
+                            <span>Moyenne</span>
+                        </label>
+                    </div>
+                    <div class="rating-option">
+                        <input type="radio" id="conc4" name="concentration_level" value="4">
+                        <label for="conc4">
+                            <span class="rating-emoji">😵</span>
+                            <span>Faible</span>
+                        </label>
+                    </div>
+                    <div class="rating-option">
+                        <input type="radio" id="conc5" name="concentration_level" value="5">
+                        <label for="conc5">
+                            <span class="rating-emoji">🤯</span>
+                            <span>Très faible</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Causes du stress -->
+            <div class="form-section">
+                <h3>🔍 Causes principales de votre stress</h3>
+                <p style="color: #666;">Sélectionnez toutes les causes qui s'appliquent :</p>
+                
+                <div class="checkbox-grid">
+                    {% for cause in stress_causes_options %}
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="cause{{ forloop.counter }}" name="stress_causes" value="{{ cause }}">
+                        <label for="cause{{ forloop.counter }}">{{ cause }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="other_cause">Autre cause (précisez) :</label>
+                    <input type="text" id="other_cause" name="other_cause" placeholder="Autre raison...">
+                </div>
+            </div>
+            
+            <!-- Symptômes -->
+            <div class="form-section">
+                <h3>💊 Symptômes ressentis</h3>
+                <p style="color: #666;">Quels symptômes ressentez-vous actuellement ?</p>
+                
+                <div class="checkbox-grid">
+                    {% for symptom in symptoms_options %}
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="symptom{{ forloop.counter }}" name="symptoms" value="{{ symptom }}">
+                        <label for="symptom{{ forloop.counter }}">{{ symptom }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="other_symptom">Autre symptôme (précisez) :</label>
+                    <input type="text" id="other_symptom" name="other_symptom" placeholder="Autre symptôme...">
+                </div>
+            </div>
+            
+            <!-- Description détaillée -->
+            <div class="form-section">
+                <h3>📝 Description de votre situation</h3>
+                
+                <div class="form-group">
+                    <label for="description">Comment vous sentez-vous en ce moment ? (optionnel)</label>
+                    <textarea id="description" name="description" placeholder="Décrivez vos sentiments, vos difficultés..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="current_situation">Qu'est-ce qui vous empêche de vous concentrer ? (optionnel)</label>
+                    <textarea id="current_situation" name="current_situation" placeholder="Décrivez ce qui perturbe votre concentration..."></textarea>
+                </div>
+            </div>
+            
+            <!-- Contexte -->
+            <div class="form-section">
+                <h3>⚙️ Informations complémentaires</h3>
+                
+                <div class="form-group">
+                    <input type="checkbox" id="upcoming_exams" name="upcoming_exams">
+                    <label for="upcoming_exams" style="display: inline;">📚 J'ai des examens importants à venir</label>
+                </div>
+                
+                <div class="form-group">
+                    <label for="sleep_hours">💤 Heures de sommeil par nuit (moyenne) :</label>
+                    <input type="number" id="sleep_hours" name="sleep_hours" min="0" max="24" step="0.5" placeholder="Ex: 6.5">
+                </div>
+                
+                <div class="form-group">
+                    <label for="exercise_frequency">🏃 Fréquence d'activité physique :</label>
+                    <select id="exercise_frequency" name="exercise_frequency">
+                        <option value="">-- Sélectionnez --</option>
+                        {% for freq in exercise_frequencies %}
+                        <option value="{{ freq }}">{{ freq }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <button type="submit" class="submit-btn">
+                ✨ Obtenir mon analyse et mes recommandations
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
