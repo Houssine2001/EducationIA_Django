@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ resource.title }} - Ressource Publique{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 py-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <!-- Bouton retour -->
+        <div class="mb-6">
+            <a href="{% url 'resources:public' %}" 
+               class="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-300 shadow-md hover:shadow-lg">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Retour aux ressources publiques
+            </a>
+        </div>
+
+        <!-- Carte principale -->
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            
+            <!-- En-tête avec gradient -->
+            <div class="bg-gradient-to-r from-purple-600 to-blue-600 px-8 py-6">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-xl font-semibold">
+                                {% if resource.type == 'pdf' %}📄 PDF
+                                {% elif resource.type == 'video' %}🎥 Vidéo
+                                {% elif resource.type == 'text' %}📝 Texte
+                                {% else %}📦 Autre{% endif %}
+                            </span>
+                            <span class="px-4 py-2 bg-green-500/80 backdrop-blur-sm text-white rounded-xl font-medium flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                </svg>
+                                Publique
+                            </span>
+                        </div>
+                        <h1 class="text-3xl font-bold text-white mb-2">
+                            {{ resource.title }}
+                        </h1>
+                        <div class="flex items-center gap-2 text-white/90">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>Par <strong>{{ resource.user.get_full_name|default:resource.user.username }}</strong></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Bouton sauvegarder -->
+                    <button id="saveButton" 
+                            onclick="toggleSave()"
+                            class="px-6 py-3 rounded-xl font-medium transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center gap-2 {% if is_saved %}bg-yellow-400 text-white{% else %}bg-white text-gray-700 hover:bg-yellow-50{% endif %}">
+                        <svg class="w-5 h-5" fill="{% if is_saved %}currentColor{% else %}none{% endif %}" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+                        </svg>
+                        <span id="saveText">{% if is_saved %}Sauvegardé{% else %}Sauvegarder{% endif %}</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Contenu -->
+            <div class="p-8">
+                
+                <!-- Statistiques -->
+                <div class="grid grid-cols-3 gap-4 mb-8">
+                    <div class="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl">
+                        <div class="text-3xl font-bold text-purple-600">{{ resource.views_count }}</div>
+                        <div class="text-sm text-gray-600 mt-1">👁️ Vues</div>
+                    </div>
+                    <div class="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl">
+                        <div class="text-3xl font-bold text-blue-600">{{ resource.downloads_count }}</div>
+                        <div class="text-sm text-gray-600 mt-1">⬇️ Téléchargements</div>
+                    </div>
+                    <div class="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl">
+                        <div class="text-3xl font-bold text-green-600">{{ resource.saves.count }}</div>
+                        <div class="text-sm text-gray-600 mt-1">💾 Sauvegardes</div>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                {% if resource.description %}
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <svg class="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                        </svg>
+                        Description
+                    </h2>
+                    <div class="prose max-w-none text-gray-700 bg-gray-50 p-6 rounded-xl">
+                        {{ resource.description }}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Résumé IA -->
+                {% if resource.summary %}
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <svg class="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z"/>
+                        </svg>
+                        Résumé IA
+                    </h2>
+                    <div class="bg-gradient-to-br from-purple-50 to-blue-50 p-6 rounded-xl border-l-4 border-purple-600">
+                        <p class="text-gray-800 leading-relaxed whitespace-pre-line">{{ resource.summary }}</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Informations -->
+                <div class="grid grid-cols-2 gap-6 mb-8">
+                    <div class="bg-gray-50 p-4 rounded-xl">
+                        <div class="text-sm text-gray-500 mb-1">Date de publication</div>
+                        <div class="font-semibold text-gray-900">{{ resource.created_at|date:"d/m/Y à H:i" }}</div>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-xl">
+                        <div class="text-sm text-gray-500 mb-1">Taille du fichier</div>
+                        <div class="font-semibold text-gray-900">{{ resource.file_size|filesizeformat }}</div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex gap-4">
+                    {% if resource.file %}
+                    <a href="{{ resource.file.url }}" 
+                       target="_blank"
+                       class="flex-1 text-center px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        Voir le fichier
+                    </a>
+                    {% endif %}
+                    
+                    {% if resource.summary %}
+                    <a href="{% url 'resources:download_summary' resource.id %}" 
+                       class="flex-1 text-center px-6 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl font-medium hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+                        </svg>
+                        Télécharger le résumé
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+let isSaved = {{ is_saved|yesno:"true,false" }};
+
+// Fonction pour obtenir le CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function toggleSave() {
+    const url = isSaved ? `/resources/public/{{ resource.id }}/unsave/` : `/resources/public/{{ resource.id }}/save/`;
+    const button = document.getElementById('saveButton');
+    const text = document.getElementById('saveText');
+    const svg = button.querySelector('svg');
+    const csrftoken = getCookie('csrftoken');
+    
+    console.log('Tentative de sauvegarde vers:', url);
+    console.log('CSRF Token:', csrftoken);
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => {
+        console.log('Réponse status:', response.status);
+        // Toujours parser le JSON, même en cas d'erreur
+        return response.json().then(data => ({
+            status: response.status,
+            ok: response.ok,
+            data: data
+        }));
+    })
+    .then(result => {
+        console.log('Data reçue:', result.data);
+        
+        if (result.ok && result.data.success) {
+            isSaved = !isSaved;
+            
+            if (isSaved) {
+                button.classList.add('bg-yellow-400', 'text-white');
+                button.classList.remove('bg-white', 'text-gray-700', 'hover:bg-yellow-50');
+                svg.setAttribute('fill', 'currentColor');
+                text.textContent = 'Sauvegardé';
+            } else {
+                button.classList.remove('bg-yellow-400', 'text-white');
+                button.classList.add('bg-white', 'text-gray-700', 'hover:bg-yellow-50');
+                svg.setAttribute('fill', 'none');
+                text.textContent = 'Sauvegarder';
+            }
+            
+            showToast(result.data.message || 'Opération réussie', 'success');
+        } else {
+            // Afficher le message d'erreur détaillé du serveur
+            const errorMsg = result.data.error || 'Une erreur est survenue';
+            console.error('Erreur serveur:', errorMsg);
+            showToast(errorMsg, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Erreur de connexion: ' + error.message, 'error');
+    });
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 right-4 px-6 py-4 rounded-xl shadow-2xl text-white font-medium z-50 transform transition-all duration-300 ${
+        type === 'success' ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-red-500 to-red-600'
+    }`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+</script>
+{% endblock %}

@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'evaluation.apps.EvaluationConfig',  # Fix pour Djongo
     'exercise_generator',  # Générateur d'exercices IA
     'analytics_dashboard',
+    'resources',  # Espace Apprenant & Publications de Ressources
 ]
 
 MIDDLEWARE = [

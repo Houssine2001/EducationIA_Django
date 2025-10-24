@@ -25,7 +25,7 @@ urlpatterns = [
     path('', include('evaluation.urls')),  # URLs de l'application evaluation
     path('generator/', include('exercise_generator.urls')),  # URLs du générateur d'exercices IA
     path('analytics/', include('analytics_dashboard.urls')),  # VOTRE MODULE
-
+    path('resources/', include('resources.urls')),  # Espace Apprenant & Ressources IA
 ]
 
 # Servir les fichiers media en développement

@@ -1308,17 +1308,13 @@ def student_progress(request):
     # 7. PRÉPARER LES DONNÉES POUR LES GRAPHIQUES (COMBINÉS)
     # Données de progression temporelle (pour Chart.js)
     progression_data_combined = []
-
-    progression = analytics_data.get('progression', {})
-    progression_data = progression.get('progression_data', [])
     
-    
-      # Ajouter tests manuels
-    for p in progression_data:
+    # Ajouter tests manuels
+    for p in analytics_data['progression']['progression_data']:
         progression_data_combined.append({
-            'date': p.get('date', ''),
-            'score': p.get('score', 0),
-            'test_name': p.get('test_name', ''),
+            'date': p['date'],
+            'score': p['score'],
+            'test_name': p['test_name'],
             'type': 'manual'
         })
     
@@ -2359,4 +2355,3 @@ def students_list(request):
     }
     
     return render(request, 'evaluation/teacher/students_list.html', context)
-

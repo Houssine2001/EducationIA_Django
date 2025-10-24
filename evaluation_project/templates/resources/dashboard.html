@@ -1,0 +1,253 @@
+{% extends 'base.html' %}
+
+{% block title %}Mes Ressources - EduIA{% endblock %}
+{% block page_title %}📚 Mes Ressources IA{% endblock %}
+{% block page_subtitle %}Gérez vos documents avec résumés automatiques générés par IA{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Total -->
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white card-hover">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-blue-100 text-sm font-medium mb-1">Total Ressources</p>
+                    <h3 class="text-4xl font-bold">{{ stats.total }}</h3>
+                </div>
+                <div class="bg-white/20 w-16 h-16 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-file-alt text-3xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Traités -->
+        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white card-hover">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-green-100 text-sm font-medium mb-1">Traités avec IA</p>
+                    <h3 class="text-4xl font-bold">{{ stats.processed }}</h3>
+                </div>
+                <div class="bg-white/20 w-16 h-16 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-check-circle text-3xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- En attente -->
+        <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-2xl p-6 text-white card-hover">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-yellow-100 text-sm font-medium mb-1">En attente</p>
+                    <h3 class="text-4xl font-bold">{{ stats.pending }}</h3>
+                </div>
+                <div class="bg-white/20 w-16 h-16 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-clock text-3xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- En cours -->
+        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white card-hover">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-purple-100 text-sm font-medium mb-1">En traitement</p>
+                    <h3 class="text-4xl font-bold">{{ stats.processing }}</h3>
+                </div>
+                <div class="bg-white/20 w-16 h-16 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-spinner fa-spin text-3xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions Bar -->
+    <div class="bg-white rounded-2xl shadow-sm p-6">
+        <div class="flex flex-col lg:flex-row items-center justify-between gap-4">
+            <a href="{% url 'resources:upload' %}" class="w-full lg:w-auto inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg transform hover:-translate-y-1 transition-all-300">
+                <i class="fas fa-plus-circle mr-2"></i>
+                Ajouter une ressource
+            </a>
+            
+            <!-- Filtres -->
+            <form method="get" class="flex flex-wrap items-center gap-3 flex-1">
+                <div class="flex-1 min-w-[200px]">
+                    {{ filter_form.search }}
+                </div>
+                <div class="w-40">
+                    {{ filter_form.type }}
+                </div>
+                <div class="w-40">
+                    {{ filter_form.status }}
+                </div>
+                <div class="w-48">
+                    {{ filter_form.order_by }}
+                </div>
+                <button type="submit" class="px-6 py-3 bg-gray-800 text-white rounded-xl hover:bg-gray-700 transition-all-300">
+                    <i class="fas fa-filter mr-2"></i>
+                    Filtrer
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Resources Grid -->
+    {% if page_obj %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for resource in page_obj %}
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden card-hover border border-gray-100">
+            <!-- Header -->
+            <div class="p-6 pb-4 border-b border-gray-100">
+                <div class="flex items-start justify-between mb-3">
+                    <h3 class="text-lg font-bold text-gray-800 flex-1 line-clamp-2">{{ resource.title }}</h3>
+                    <span class="ml-2 px-3 py-1 rounded-lg text-xs font-semibold
+                        {% if resource.type == 'pdf' %}bg-red-100 text-red-700
+                        {% elif resource.type == 'video' %}bg-purple-100 text-purple-700
+                        {% else %}bg-blue-100 text-blue-700{% endif %}">
+                        {% if resource.type == 'pdf' %}
+                            <i class="fas fa-file-pdf mr-1"></i>PDF
+                        {% elif resource.type == 'video' %}
+                            <i class="fas fa-video mr-1"></i>Vidéo
+                        {% else %}
+                            <i class="fas fa-file-alt mr-1"></i>Texte
+                        {% endif %}
+                    </span>
+                </div>
+
+                <!-- Status Badge -->
+                {% if resource.processing_status == 'completed' %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                        <i class="fas fa-check-circle mr-1"></i> Traité
+                    </span>
+                {% elif resource.processing_status == 'processing' %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                        <i class="fas fa-spinner fa-spin mr-1"></i> Traitement...
+                    </span>
+                {% elif resource.processing_status == 'pending' %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                        <i class="fas fa-clock mr-1"></i> En attente
+                    </span>
+                {% else %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                        <i class="fas fa-times-circle mr-1"></i> Échec
+                    </span>
+                {% endif %}
+            </div>
+
+            <!-- Body -->
+            <div class="p-6">
+                {% if resource.description %}
+                <p class="text-gray-600 text-sm mb-4 line-clamp-2">{{ resource.description }}</p>
+                {% endif %}
+
+                {% if resource.has_summary %}
+                <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 mb-4 border-l-4 border-blue-500">
+                    <p class="text-xs text-gray-600 mb-1">
+                        <i class="fas fa-magic mr-1 text-purple-500"></i>
+                        <strong>Résumé IA :</strong>
+                    </p>
+                    <p class="text-sm text-gray-700 line-clamp-3">{{ resource.summary }}</p>
+                </div>
+                {% endif %}
+
+                <!-- Meta Info -->
+                <div class="grid grid-cols-2 gap-3 text-sm text-gray-600 mb-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-calendar text-gray-400 mr-2"></i>
+                        <span>{{ resource.created_at|date:"d/m/Y" }}</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-hdd text-gray-400 mr-2"></i>
+                        <span>{{ resource.file_size_mb }} MB</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-eye text-gray-400 mr-2"></i>
+                        <span>{{ resource.views_count }} vues</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-download text-gray-400 mr-2"></i>
+                        <span>{{ resource.downloads_count }} DL</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center gap-2">
+                <a href="{% url 'resources:detail' resource.id %}" 
+                   class="flex-1 text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all-300 text-sm font-medium">
+                    <i class="fas fa-eye mr-1"></i> Voir
+                </a>
+                {% if resource.has_summary %}
+                <a href="{% url 'resources:download_summary' resource.id %}" 
+                   class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all-300 text-sm">
+                    <i class="fas fa-download"></i>
+                </a>
+                {% endif %}
+                <form method="post" action="{% url 'resources:delete' resource.id %}" 
+                      onsubmit="return confirm('Supprimer cette ressource ?');">
+                    {% csrf_token %}
+                    <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all-300 text-sm">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="flex items-center justify-center space-x-2 mt-8">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" 
+           class="px-4 py-2 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-all-300">
+            <i class="fas fa-chevron-left"></i>
+        </a>
+        {% endif %}
+
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <span class="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium">{{ num }}</span>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+            <a href="?page={{ num }}" 
+               class="px-4 py-2 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-all-300">
+                {{ num }}
+            </a>
+            {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" 
+           class="px-4 py-2 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-all-300">
+            <i class="fas fa-chevron-right"></i>
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="bg-white rounded-2xl shadow-sm p-12 text-center">
+        <div class="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i class="fas fa-folder-open text-5xl text-blue-500"></i>
+        </div>
+        <h3 class="text-2xl font-bold text-gray-800 mb-3">Aucune ressource</h3>
+        <p class="text-gray-600 mb-6 max-w-md mx-auto">
+            Commencez par ajouter votre première ressource pour générer des résumés automatiques avec notre IA.
+        </p>
+        <a href="{% url 'resources:upload' %}" 
+           class="inline-flex items-center px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg transform hover:-translate-y-1 transition-all-300">
+            <i class="fas fa-plus-circle mr-2"></i>
+            Ajouter ma première ressource
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Auto-refresh pour les ressources en cours de traitement
+{% if stats.processing > 0 or stats.pending > 0 %}
+setTimeout(() => location.reload(), 10000); // Rafraîchir toutes les 10s
+{% endif %}
+</script>
+{% endblock %}

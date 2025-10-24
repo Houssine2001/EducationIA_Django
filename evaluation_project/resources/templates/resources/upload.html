@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Uploader une Ressource - Espace Apprenant{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 py-8">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <!-- Bouton retour -->
+        <div class="mb-6">
+            <a href="{% url 'resources:dashboard' %}" 
+               class="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-300 shadow-md hover:shadow-lg">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Retour au tableau de bord
+            </a>
+        </div>
+
+        <!-- Carte principale -->
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            
+            <!-- En-tête -->
+            <div class="bg-gradient-to-r from-purple-600 to-blue-600 px-8 py-6">
+                <h1 class="text-3xl font-bold text-white flex items-center gap-3">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                    Uploader une Ressource
+                </h1>
+                <p class="text-white/90 mt-2">Ajoutez un document et obtenez un résumé IA automatique</p>
+            </div>
+
+            <!-- Formulaire -->
+            <div class="p-8">
+                <form method="post" enctype="multipart/form-data" class="space-y-6">
+                    {% csrf_token %}
+                    
+                    <!-- Messages d'erreur -->
+                    {% if form.errors %}
+                    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+                        <div class="flex items-center gap-3 mb-2">
+                            <svg class="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                            </svg>
+                            <p class="font-medium text-red-800">Des erreurs ont été détectées :</p>
+                        </div>
+                        <ul class="list-disc list-inside text-red-700 space-y-1">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ field }} : {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <!-- Titre -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Titre <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.title }}
+                        {% if form.title.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.title.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Description
+                        </label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.description.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Type de fichier -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Type de fichier <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.type }}
+                        {% if form.type.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.type.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Upload de fichier -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Fichier <span class="text-red-500">*</span>
+                        </label>
+                        <div class="mt-2">
+                            <label for="file-upload" class="cursor-pointer">
+                                <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-purple-500 transition-all duration-300 bg-gray-50 hover:bg-purple-50">
+                                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                    </svg>
+                                    <p class="mt-2 text-sm text-gray-600">
+                                        <span class="font-semibold text-purple-600">Cliquez pour choisir</span> ou glissez-déposez un fichier
+                                    </p>
+                                    <p class="text-xs text-gray-500 mt-1">PDF, Vidéo, Texte (Max. 100MB)</p>
+                                    <p id="file-name" class="mt-3 text-sm font-medium text-gray-900"></p>
+                                </div>
+                            </label>
+                            {{ form.file }}
+                        </div>
+                        {% if form.file.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.file.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Ressource publique - NOUVEAU -->
+                    <div class="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-6">
+                        <div class="flex items-start gap-4">
+                            <div class="flex items-center h-5">
+                                {{ form.is_public }}
+                            </div>
+                            <div class="flex-1">
+                                <label for="{{ form.is_public.id_for_label }}" class="font-medium text-gray-900 cursor-pointer flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                                        <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                                    </svg>
+                                    Rendre cette ressource publique
+                                </label>
+                                <p class="text-sm text-gray-600 mt-2">
+                                    ✨ En cochant cette case, votre ressource sera visible par tous les autres utilisateurs. 
+                                    Ils pourront la consulter, lire le résumé IA et la sauvegarder dans leur bibliothèque personnelle.
+                                </p>
+                                <div class="mt-3 flex items-center gap-2 text-sm text-green-700 bg-green-100 px-3 py-2 rounded-lg">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <span>Les ressources publiques apparaissent dans l'onglet "Ressources Publiques"</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Boutons d'action -->
+                    <div class="flex gap-4 pt-4">
+                        <button type="submit" 
+                                class="flex-1 px-6 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-medium hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                            </svg>
+                            Uploader et Générer le Résumé IA
+                        </button>
+                        
+                        <a href="{% url 'resources:dashboard' %}" 
+                           class="px-6 py-4 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300 transition-all duration-300 flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            Annuler
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Information supplémentaire -->
+        <div class="mt-6 bg-blue-50 border-l-4 border-blue-500 p-6 rounded-lg">
+            <div class="flex items-start gap-3">
+                <svg class="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                </svg>
+                <div>
+                    <h3 class="font-semibold text-blue-900 mb-2">💡 Comment ça marche ?</h3>
+                    <ul class="space-y-2 text-sm text-blue-800">
+                        <li class="flex items-start gap-2">
+                            <span class="font-bold">1.</span>
+                            <span>Uploadez votre document (PDF, vidéo, ou fichier texte)</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="font-bold">2.</span>
+                            <span>Notre IA analyse le contenu et génère un résumé intelligent</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="font-bold">3.</span>
+                            <span>Si vous cochez "Ressource publique", elle sera visible par tous les utilisateurs</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="font-bold">4.</span>
+                            <span>Les autres pourront la consulter et la sauvegarder dans leur bibliothèque</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// Gestion du drag & drop et affichage du nom de fichier
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-upload');
+const fileName = document.getElementById('file-name');
+
+fileInput.addEventListener('change', function(e) {
+    if (this.files && this.files[0]) {
+        fileName.textContent = '📎 ' + this.files[0].name;
+        dropZone.classList.add('border-purple-500', 'bg-purple-50');
+    }
+});
+
+dropZone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    this.classList.add('border-purple-500', 'bg-purple-100');
+});
+
+dropZone.addEventListener('dragleave', function(e) {
+    e.preventDefault();
+    this.classList.remove('border-purple-500', 'bg-purple-100');
+});
+
+dropZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    this.classList.remove('border-purple-500', 'bg-purple-100');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        fileInput.files = files;
+        fileName.textContent = '📎 ' + files[0].name;
+        this.classList.add('border-purple-500', 'bg-purple-50');
+    }
+});
+</script>
+{% endblock %}

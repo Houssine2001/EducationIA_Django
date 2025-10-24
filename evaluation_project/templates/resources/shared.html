@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ resource.title }} - Ressource Partagée - EduIA{% endblock %}
+{% block page_title %}🔗 Ressource Partagée{% endblock %}
+{% block page_subtitle %}Cette ressource a été partagée avec vous{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Info Card -->
+    <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 mb-6 border-2 border-blue-200">
+        <div class="flex items-center space-x-4">
+            <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center text-white">
+                <i class="fas fa-share-alt text-3xl"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold text-gray-800">Ressource publique</h2>
+                <p class="text-gray-600">Partagée par {{ resource.user.get_full_name|default:resource.user.username }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Card -->
+    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-6 text-white">
+            <h1 class="text-3xl font-bold mb-3">{{ resource.title }}</h1>
+            <span class="inline-flex items-center px-4 py-2 bg-white/20 rounded-xl text-sm font-semibold backdrop-blur-sm">
+                {% if resource.type == 'pdf' %}
+                    <i class="fas fa-file-pdf mr-2"></i>PDF Document
+                {% elif resource.type == 'video' %}
+                    <i class="fas fa-video mr-2"></i>Vidéo
+                {% else %}
+                    <i class="fas fa-file-alt mr-2"></i>Fichier Texte
+                {% endif %}
+            </span>
+        </div>
+
+        <!-- Body -->
+        <div class="p-8">
+            {% if resource.description %}
+            <div class="mb-8">
+                <h3 class="text-lg font-bold text-gray-800 mb-3">Description</h3>
+                <p class="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-xl">{{ resource.description }}</p>
+            </div>
+            {% endif %}
+
+            {% if resource.has_summary %}
+            <div class="mb-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-magic text-purple-600 mr-2"></i>
+                    Résumé généré par IA
+                </h3>
+                <div class="bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 rounded-2xl p-6 border-l-4 border-purple-500 shadow-sm">
+                    <p class="text-gray-800 leading-relaxed text-lg">{{ resource.summary }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="text-sm text-gray-500 flex items-center">
+                <i class="fas fa-info-circle mr-2"></i>
+                Partagée le {{ resource.created_at|date:"d/m/Y à H:i" }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
