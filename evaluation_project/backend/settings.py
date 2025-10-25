@@ -157,6 +157,12 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Authentication backends - Permet la connexion avec email
+AUTHENTICATION_BACKENDS = [
+    'evaluation.auth_backends.EmailBackend',  # Backend personnalisé (email ou username)
+    'django.contrib.auth.backends.ModelBackend',  # Backend par défaut (fallback)
+]
+
 
 # Internationalization
 LANGUAGE_CODE = 'fr-fr'

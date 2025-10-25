@@ -8,6 +8,11 @@ app_name = 'evaluation'
 
 urlpatterns = [
     # ============================================
+    # Authentification
+    # ============================================
+    path('signup/', views.signup, name='signup'),
+    
+    # ============================================
     # URLs Enseignants
     # ============================================
     path('teacher/', views.teacher_dashboard, name='teacher_dashboard'),

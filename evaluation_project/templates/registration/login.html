@@ -43,11 +43,11 @@
                 <!-- Champ Username -->
                 <div>
                     <label for="id_username" class="block text-sm font-medium text-gray-700">
-                        Nom d'utilisateur
+                        Email ou nom d'utilisateur
                     </label>
                     <div class="mt-1 relative rounded-md shadow-sm">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <i class="fas fa-user text-gray-400"></i>
+                            <i class="fas fa-envelope text-gray-400"></i>
                         </div>
                         <input 
                             type="text" 
@@ -55,7 +55,7 @@
                             id="id_username"
                             required
                             class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition"
-                            placeholder="etudiant1"
+                            placeholder="email@example.com"
                             autocomplete="username"
                         >
                     </div>
@@ -114,36 +114,15 @@
 
             <!-- Comptes de Test -->
             <div class="mt-6 border-t border-gray-200 pt-6">
-                <p class="text-sm text-gray-600 text-center mb-3">
-                    <i class="fas fa-info-circle text-primary-500"></i>
-                    Comptes de test disponibles :
+                <p class="text-center text-sm text-gray-600 mb-4">
+                    Pas encore de compte ?
+                    <a href="{% url 'evaluation:signup' %}" class="font-medium text-primary-600 hover:text-primary-500 transition">
+                        Créer un compte
+                    </a>
                 </p>
-                <div class="grid grid-cols-1 gap-2 text-xs">
-                    <div class="bg-gray-50 rounded p-2 flex justify-between items-center">
-                        <span class="font-medium text-gray-700">
-                            <i class="fas fa-user-graduate text-primary-500"></i> Étudiant 1
-                        </span>
-                        <code class="bg-white px-2 py-1 rounded text-gray-600">etudiant1 / pass123</code>
-                    </div>
-                    <div class="bg-gray-50 rounded p-2 flex justify-between items-center">
-                        <span class="font-medium text-gray-700">
-                            <i class="fas fa-user-graduate text-primary-500"></i> Étudiant 2
-                        </span>
-                        <code class="bg-white px-2 py-1 rounded text-gray-600">etudiant2 / pass123</code>
-                    </div>
-                    <div class="bg-gray-50 rounded p-2 flex justify-between items-center">
-                        <span class="font-medium text-gray-700">
-                            <i class="fas fa-user-graduate text-primary-500"></i> Étudiant 3
-                        </span>
-                        <code class="bg-white px-2 py-1 rounded text-gray-600">etudiant3 / pass123</code>
-                    </div>
-                    <div class="bg-gray-50 rounded p-2 flex justify-between items-center">
-                        <span class="font-medium text-gray-700">
-                            <i class="fas fa-chalkboard-teacher text-purple-500"></i> Professeur
-                        </span>
-                        <code class="bg-white px-2 py-1 rounded text-gray-600">prof1 / pass123</code>
-                    </div>
-                </div>
+                
+              
+               
             </div>
         </div>
 

@@ -2355,3 +2355,104 @@ def students_list(request):
     }
     
     return render(request, 'evaluation/teacher/students_list.html', context)
+
+
+# ============================================
+# Vue d'inscription (Sign Up)
+# ============================================
+
+def signup(request):
+    """
+    Vue d'inscription pour les nouveaux utilisateurs
+    Professeur si is_staff=True, Étudiant sinon
+    """
+    if request.user.is_authenticated:
+        return redirect('evaluation:student_dashboard')
+    
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        password_confirm = request.POST.get('password_confirm')
+        first_name = request.POST.get('first_name')
+        last_name = request.POST.get('last_name')
+        user_type = request.POST.get('user_type', 'student')  # 'student' ou 'teacher'
+        
+        # Validation
+        from django.contrib.auth.models import User
+        
+        if password != password_confirm:
+            messages.error(request, "Les mots de passe ne correspondent pas.")
+            return render(request, 'registration/signup.html')
+        
+        if len(password) < 6:
+            messages.error(request, "Le mot de passe doit contenir au moins 6 caractères.")
+            return render(request, 'registration/signup.html')
+        
+        if User.objects.filter(username=username).exists():
+            messages.error(request, "Ce nom d'utilisateur existe déjà.")
+            return render(request, 'registration/signup.html')
+        
+        if email and User.objects.filter(email=email).exists():
+            messages.error(request, "Cette adresse email est déjà utilisée.")
+            return render(request, 'registration/signup.html')
+        
+        try:
+            from pymongo import MongoClient
+            from django.conf import settings
+            from bson import ObjectId
+            from django.utils import timezone as django_timezone
+            
+            # Connexion MongoDB
+            client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+            db = client[settings.MONGO_DB_NAME]
+            
+            # Obtenir le prochain ID pour auth_user
+            last_user = db.auth_user.find_one(sort=[('id', -1)])
+            next_id = (last_user['id'] + 1) if last_user else 1
+            
+            # Hasher le mot de passe
+            from django.contrib.auth.hashers import make_password
+            hashed_password = make_password(password)
+            
+            # Créer l'utilisateur directement dans MongoDB
+            user_data = {
+                '_id': ObjectId(),
+                'id': next_id,
+                'username': username,
+                'email': email,
+                'password': hashed_password,
+                'first_name': first_name,
+                'last_name': last_name,
+                'is_staff': (user_type == 'teacher'),
+                'is_active': True,
+                'is_superuser': False,
+                'date_joined': django_timezone.now(),
+                'last_login': None
+            }
+            
+            db.auth_user.insert_one(user_data)
+            
+            # Créer le profil utilisateur seulement s'il n'existe pas
+            existing_profile = db.evaluation_userprofile.find_one({'user_id': next_id})
+            if not existing_profile:
+                profile_data = {
+                    '_id': ObjectId(),
+                    'user_id': next_id,
+                    'role': 'teacher' if user_type == 'teacher' else 'student'
+                }
+                db.evaluation_userprofile.insert_one(profile_data)
+            
+            messages.success(request, f"Compte créé avec succès ! Vous pouvez maintenant vous connecter avec vos identifiants.")
+            
+            # Redirection vers la page de connexion
+            return redirect('login')
+                
+        except Exception as e:
+            import traceback
+            error_detail = traceback.format_exc()
+            print(f"Erreur d'inscription: {error_detail}")
+            messages.error(request, f"Erreur lors de la création du compte : {str(e)}")
+            return render(request, 'registration/signup.html')
+    
+    return render(request, 'registration/signup.html')
