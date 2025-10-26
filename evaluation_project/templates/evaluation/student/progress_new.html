@@ -4,241 +4,432 @@
 
 {% block extra_css %}
 <style>
+    :root {
+        --primary: #667eea;
+        --primary-dark: #5568d3;
+        --secondary: #764ba2;
+        --success: #38ef7d;
+        --danger: #e74c3c;
+        --warning: #f7971e;
+        --info: #4299e1;
+    }
+
+    body {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+    }
+
+    .container {
+        max-width: 1400px;
+    }
+
+    /* Hero Section Modernisé */
     .progress-hero {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
         border-radius: 20px;
-        padding: 40px;
+        padding: 30px 40px;
         color: white;
         margin-bottom: 30px;
-        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 20px 60px rgba(102, 126, 234, 0.4);
+        position: relative;
+        overflow: hidden;
     }
-    
+
+    .progress-hero::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 300px;
+        height: 300px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        animation: float 6s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-20px); }
+    }
+
+    .progress-hero h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .progress-hero p {
+        font-size: 1rem;
+        opacity: 0.95;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Stats Cards Ultra Modernes */
     .stat-card {
         background: white;
-        border-radius: 15px;
-        padding: 25px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-        transition: all 0.3s ease;
-        border-left: 4px solid transparent;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        position: relative;
+        overflow: hidden;
     }
-    
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, var(--primary), var(--secondary));
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
     .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
     }
-    
-    .stat-card.blue { border-left-color: #667eea; }
-    .stat-card.green { border-left-color: #38ef7d; }
-    .stat-card.purple { border-left-color: #9d50bb; }
-    .stat-card.orange { border-left-color: #f7971e; }
-    .stat-card.red { border-left-color: #e74c3c; }
-    
+
+    .stat-card:hover::before {
+        opacity: 1;
+    }
+
     .stat-icon {
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 24px;
-        margin-bottom: 15px;
+        font-size: 22px;
+        margin-bottom: 12px;
+        transition: transform 0.3s ease;
     }
-    
+
+    .stat-card:hover .stat-icon {
+        transform: scale(1.1) rotate(5deg);
+    }
+
+    .stat-card h3 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 5px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .stat-card p {
+        color: #64748b;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0;
+    }
+
+    .stat-card small {
+        color: #94a3b8;
+        font-size: 0.75rem;
+    }
+
+    /* Chart Cards Élégantes */
     .chart-card {
         background: white;
         border-radius: 20px;
-        padding: 30px;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        padding: 25px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
         margin-bottom: 30px;
-        max-height: 500px;
-        overflow-y: auto;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
     }
-    
+
+    .chart-card:hover {
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+        transform: translateY(-2px);
+    }
+
+    .chart-card h4 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
     .chart-container {
         position: relative;
         height: 280px;
         max-height: 280px;
         width: 100%;
     }
-    
-    .chart-container canvas {
-        max-height: 280px !important;
-    }
-    
+
+    /* Analysis Cards avec Glassmorphism */
     .analysis-card {
-        background: white;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
         border-radius: 20px;
-        padding: 30px;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        padding: 25px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         margin-bottom: 30px;
-        max-height: 550px;
-        overflow-y: auto;
+        border: 1px solid rgba(255, 255, 255, 0.3);
     }
-    
+
+    /* Weakness Cards Modernisées */
     .weakness-card {
-        background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
-        border-left: 4px solid #e74c3c;
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 10px;
+        background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+        border-left: 4px solid var(--danger);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
         transition: all 0.3s ease;
+        cursor: pointer;
     }
-    
+
     .weakness-card:hover {
-        transform: translateX(5px);
-        box-shadow: 0 5px 15px rgba(231, 76, 60, 0.2);
+        transform: translateX(8px);
+        box-shadow: 0 8px 24px rgba(231, 76, 60, 0.25);
+        background: linear-gradient(135deg, #ffe5e5 0%, #ffcccc 100%);
     }
-    
+
+    /* Strength Cards Modernisées */
     .strength-card {
         background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
-        border-left: 4px solid #38a169;
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 10px;
+        border-left: 4px solid var(--success);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
         transition: all 0.3s ease;
+        cursor: pointer;
     }
-    
+
     .strength-card:hover {
-        transform: translateX(5px);
-        box-shadow: 0 5px 15px rgba(56, 161, 105, 0.2);
+        transform: translateX(8px);
+        box-shadow: 0 8px 24px rgba(56, 161, 105, 0.25);
+        background: linear-gradient(135deg, #c6f6d5 0%, #9ae6b4 100%);
     }
-    
+
+    /* Recommendation Cards Élégantes */
     .recommendation-card {
         background: linear-gradient(135deg, #ebf8ff 0%, #bee3f8 100%);
-        border-left: 4px solid #4299e1;
-        border-radius: 10px;
+        border-left: 4px solid var(--info);
+        border-radius: 12px;
         padding: 20px;
         margin-bottom: 15px;
+        transition: all 0.3s ease;
     }
-    
+
+    .recommendation-card:hover {
+        transform: scale(1.02);
+        box-shadow: 0 8px 24px rgba(66, 153, 225, 0.2);
+    }
+
+    /* Table Ultra Moderne */
+    .table-container {
+        max-height: 500px;
+        overflow-y: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+
     .table-modern {
         border-collapse: separate;
         border-spacing: 0;
+        width: 100%;
     }
-    
+
     .table-modern thead th {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
         color: white;
-        padding: 15px;
+        padding: 12px 16px;
         font-weight: 600;
         text-transform: uppercase;
-        font-size: 0.85rem;
+        font-size: 0.75rem;
         letter-spacing: 0.5px;
         position: sticky;
         top: 0;
         z-index: 10;
+        border: none;
     }
-    
-    .table-container {
-        max-height: 600px;
-        overflow-y: auto;
-        border-radius: 10px;
-    }
-    
+
     .table-modern thead th:first-child {
-        border-top-left-radius: 10px;
+        border-top-left-radius: 12px;
     }
-    
+
     .table-modern thead th:last-child {
-        border-top-right-radius: 10px;
+        border-top-right-radius: 12px;
     }
-    
+
     .table-modern tbody tr {
         transition: all 0.3s ease;
+        background: white;
     }
-    
+
     .table-modern tbody tr:hover {
-        background: #f7fafc;
+        background: linear-gradient(90deg, rgba(102, 126, 234, 0.05) 0%, white 100%);
         transform: scale(1.01);
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     }
-    
+
     .table-modern tbody td {
-        padding: 15px;
-        border-bottom: 1px solid #e2e8f0;
+        padding: 12px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.875rem;
     }
-    
+
+    /* Score Badges avec Gradients */
     .score-badge {
         display: inline-block;
-        padding: 8px 16px;
+        padding: 6px 14px;
         border-radius: 20px;
         font-weight: 600;
-        font-size: 0.9rem;
+        font-size: 0.875rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     }
-    
+
     .score-excellent {
         background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%);
         color: white;
     }
-    
+
     .score-good {
         background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
         color: white;
     }
-    
+
     .score-average {
         background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
         color: white;
     }
-    
+
     .score-poor {
         background: linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%);
         color: white;
     }
-    
-    /* Badges IA/Manuel */
+
+    /* Badges IA/Manuel Améliorés */
     .badge-ai {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
         color: white;
-        padding: 4px 10px;
+        padding: 5px 12px;
         border-radius: 20px;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         font-weight: 600;
         display: inline-flex;
         align-items: center;
         gap: 5px;
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-        animation: pulse-ai 2s infinite;
+        box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
     }
-    
-    @keyframes pulse-ai {
-        0%, 100% { box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3); }
-        50% { box-shadow: 0 2px 15px rgba(102, 126, 234, 0.5); }
-    }
-    
+
     .badge-manual {
-        background: #6c757d;
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
         color: white;
-        padding: 4px 10px;
+        padding: 5px 12px;
         border-radius: 20px;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         font-weight: 600;
         display: inline-flex;
         align-items: center;
         gap: 5px;
+        box-shadow: 0 3px 10px rgba(108, 117, 125, 0.3);
     }
-    
+
     .test-row-ai {
-        border-left: 4px solid #667eea !important;
-        background: linear-gradient(90deg, rgba(102, 126, 234, 0.05) 0%, rgba(255, 255, 255, 1) 5%);
+        border-left: 4px solid var(--primary) !important;
+        background: linear-gradient(90deg, rgba(102, 126, 234, 0.03) 0%, white 100%);
     }
-    
-    .test-row-ai:hover {
-        background: linear-gradient(90deg, rgba(102, 126, 234, 0.1) 0%, rgba(247, 250, 252, 1) 5%);
+
+    /* Subject Concept Section */
+    .subject-concept-section {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s ease;
     }
-    
+
+    .subject-concept-section:hover {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        transform: translateY(-2px);
+    }
+
+    .concept-strengths-box, .concept-weaknesses-box {
+        transition: all 0.3s ease;
+    }
+
+    .concept-strengths-box:hover, .concept-weaknesses-box:hover {
+        transform: scale(1.02);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    /* AI Test Analysis */
+    .ai-test-analysis {
+        transition: all 0.3s ease;
+    }
+
+    .ai-test-analysis:hover {
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        transform: scale(1.01);
+    }
+
+    /* Animations */
     .fade-in {
-        animation: fadeIn 0.6s ease-in;
+        animation: fadeInUp 0.6s ease-out;
     }
-    
-    @keyframes fadeIn {
+
+    @keyframes fadeInUp {
         from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(30px);
         }
         to {
             opacity: 1;
             transform: translateY(0);
+        }
+    }
+
+    /* Scrollbar personnalisée */
+    .table-container::-webkit-scrollbar,
+    .chart-card::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .table-container::-webkit-scrollbar-track,
+    .chart-card::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 10px;
+    }
+
+    .table-container::-webkit-scrollbar-thumb,
+    .chart-card::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        border-radius: 10px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .progress-hero {
+            padding: 20px;
+        }
+
+        .progress-hero h1 {
+            font-size: 1.5rem;
+        }
+
+        .stat-card {
+            margin-bottom: 15px;
+        }
+
+        .chart-container {
+            height: 220px;
         }
     }
 </style>
@@ -249,15 +440,15 @@
     <!-- Hero Section -->
     <div class="progress-hero">
         <div class="row align-items-center">
-            <div class="col-md-8">
-                <h1 class="display-5 fw-bold mb-3">
-                    <i class="fas fa-chart-line me-3"></i>
+            <div class="col-md-9">
+                <h1>
+                    <i class="fas fa-chart-line me-2"></i>
                     Ma Progression
                 </h1>
-                <p class="lead mb-0">Suivez votre évolution et identifiez vos axes d'amélioration</p>
+                <p class="mb-0">Suivez votre évolution et identifiez vos axes d'amélioration avec l'IA</p>
             </div>
-            <div class="col-md-4 text-end">
-                <div class="display-3">
+            <div class="col-md-3 text-end d-none d-md-block">
+                <div style="font-size: 4rem; opacity: 0.3;">
                     <i class="fas fa-graduation-cap"></i>
                 </div>
             </div>
@@ -266,24 +457,24 @@
 
     <!-- Statistiques Rapides -->
     <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-            <div class="stat-card blue">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="stat-card">
                 <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
                     <i class="fas fa-percent"></i>
                 </div>
-                <h3 class="mb-1" style="font-size: 2rem; font-weight: 700;">{{ analytics.overview.average_score|default:0|floatformat:1 }}%</h3>
-                <p class="text-muted mb-0">Score Moyen Global</p>
+                <h3>{{ analytics.overview.average_score|default:0|floatformat:1 }}%</h3>
+                <p>Score Moyen Global</p>
             </div>
         </div>
         
-        <div class="col-md-3 mb-3">
-            <div class="stat-card green">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="stat-card">
                 <div class="stat-icon" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
                     <i class="fas fa-clipboard-check"></i>
                 </div>
-                <h3 class="mb-1" style="font-size: 2rem; font-weight: 700;">{{ total_tests }}</h3>
-                <p class="text-muted mb-0">Tests Complétés</p>
-                <small class="text-muted">
+                <h3>{{ total_tests }}</h3>
+                <p>Tests Complétés</p>
+                <small>
                     <i class="fas fa-user-tie"></i> {{ manual_tests_count }} manuels
                     {% if ai_tests_count > 0 %}
                     • <i class="fas fa-robot"></i> {{ ai_tests_count }} IA
@@ -292,25 +483,25 @@
             </div>
         </div>
         
-        <div class="col-md-3 mb-3">
-            <div class="stat-card purple">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="stat-card">
                 <div class="stat-icon" style="background: linear-gradient(135deg, #9d50bb 0%, #6e48aa 100%); color: white;">
                     <i class="fas fa-clock"></i>
                 </div>
-                <h3 class="mb-1" style="font-size: 2rem; font-weight: 700;">{{ analytics.study_time.total_hours|default:0|floatformat:1 }}h</h3>
-                <p class="text-muted mb-0">Heures d'Étude</p>
+                <h3>{{ analytics.study_time.total_hours|default:0|floatformat:1 }}h</h3>
+                <p>Heures d'Étude</p>
             </div>
         </div>
         
-        <div class="col-md-3 mb-3">
-            <div class="stat-card {% if analytics.progression.trend == 'improving' %}green{% elif analytics.progression.trend == 'declining' %}red{% else %}orange{% endif %}">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="stat-card">
                 <div class="stat-icon" style="background: linear-gradient(135deg, 
-                    {% if analytics.progression.trend == 'improving' %}#11998e 0%, #38ef7d 100%
-                    {% elif analytics.progression.trend == 'declining' %}#fc4a1a 0%, #f7b733 100%
-                    {% else %}#f7971e 0%, #ffd200 100%{% endif %}); color: white;">
+                    {% if analytics.progression.trend == 'improving' %}#11998e, #38ef7d
+                    {% elif analytics.progression.trend == 'declining' %}#fc4a1a, #f7b733
+                    {% else %}#f7971e, #ffd200{% endif %}); color: white;">
                     <i class="fas fa-trending-{% if analytics.progression.trend == 'improving' %}up{% elif analytics.progression.trend == 'declining' %}down{% else %}right{% endif %}"></i>
                 </div>
-                <h3 class="mb-1" style="font-size: 1.5rem; font-weight: 700;">
+                <h3>
                     {% if analytics.progression.trend == 'improving' %}
                         +{{ analytics.progression.improvement|default:0|floatformat:1 }}%
                     {% elif analytics.progression.trend == 'declining' %}
@@ -319,17 +510,17 @@
                         Stable
                     {% endif %}
                 </h3>
-                <p class="text-muted mb-0">Tendance</p>
+                <p>Tendance</p>
             </div>
         </div>
     </div>
 
     <!-- Graphiques -->
     <div class="row mb-4">
-        <div class="col-md-6 mb-4">
+        <div class="col-lg-6 mb-4">
             <div class="chart-card">
-                <h4 class="mb-4">
-                    <i class="fas fa-chart-area text-primary me-2"></i>
+                <h4>
+                    <i class="fas fa-chart-area text-primary"></i>
                     Évolution des Scores
                 </h4>
                 <div class="chart-container">
@@ -338,10 +529,10 @@
             </div>
         </div>
         
-        <div class="col-md-6 mb-4">
+        <div class="col-lg-6 mb-4">
             <div class="chart-card">
-                <h4 class="mb-4">
-                    <i class="fas fa-chart-pie text-success me-2"></i>
+                <h4>
+                    <i class="fas fa-chart-pie text-success"></i>
                     Performance par Matière
                 </h4>
                 <div class="chart-container">
@@ -351,38 +542,38 @@
         </div>
     </div>
 
-    <!-- NOUVELLE SECTION: Analyse Détaillée par Concepts -->
+    <!-- Analyse Détaillée par Concepts -->
     {% if concept_insights %}
     <div class="chart-card mb-4">
-        <h4 class="mb-4">
-            <i class="fas fa-microscope text-info me-2"></i>
+        <h4>
+            <i class="fas fa-microscope text-info"></i>
             Analyse Détaillée par Concepts
-            <small class="text-muted" style="font-size: 0.85rem; font-weight: 400;">
+            <small class="text-muted" style="font-size: 0.8rem; font-weight: 400;">
                 (Basée sur vos réponses aux tests)
             </small>
         </h4>
         
         {% for subject, insights in concept_insights.items %}
-        <div class="subject-concept-section mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-3" style="border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">
+        <div class="subject-concept-section">
+            <div class="d-flex justify-content-between align-items-center mb-3" style="border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
                 <h5 style="color: #2d3748; font-weight: 600; margin: 0;">
                     <i class="fas fa-book me-2"></i>
                     {{ subject }}
                 </h5>
                 <div>
-                    <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 0.9rem;">
+                    <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 0.875rem; padding: 6px 12px;">
                         {{ insights.overall_success_rate }}% de réussite
                     </span>
-                    <span class="badge bg-secondary ms-2">
+                    <span class="badge bg-secondary ms-2" style="padding: 6px 12px;">
                         {{ insights.total_questions }} questions
                     </span>
                 </div>
             </div>
             
             <div class="row">
-                <!-- Points Forts du Concept -->
+                <!-- Points Forts -->
                 <div class="col-md-6 mb-3">
-                    <div class="concept-strengths-box" style="background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%); border-left: 4px solid #38a169; padding: 20px; border-radius: 8px;">
+                    <div class="concept-strengths-box" style="background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%); border-left: 4px solid #38a169; padding: 20px; border-radius: 10px;">
                         <h6 style="color: #22543d; font-weight: 600; margin-bottom: 15px;">
                             <i class="fas fa-check-circle me-2"></i>
                             Points Forts (Concepts Maîtrisés)
@@ -391,7 +582,7 @@
                         {% if insights.strengths %}
                             <ul style="list-style: none; padding-left: 0;">
                                 {% for strength in insights.strengths %}
-                                <li class="mb-2" style="padding: 8px; background: white; border-radius: 6px; border: 1px solid #9ae6b4;">
+                                <li class="mb-2" style="padding: 10px; background: white; border-radius: 8px; border: 1px solid #9ae6b4;">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div style="flex: 1;">
                                             <strong style="color: #276749;">{{ strength.concept }}</strong>
@@ -403,8 +594,8 @@
                                                 {% endif %}
                                             </div>
                                         </div>
-                                        <div class="text-end" style="margin-left: 10px;">
-                                            <div class="badge bg-success" style="font-size: 0.85rem;">
+                                        <div class="text-end" style="margin-left: 12px;">
+                                            <div class="badge bg-success" style="font-size: 0.875rem; padding: 6px 10px;">
                                                 {{ strength.success_rate }}%
                                             </div>
                                         </div>
@@ -413,7 +604,7 @@
                                 {% endfor %}
                             </ul>
                         {% else %}
-                            <p class="small text-muted mb-0">
+                            <p class="small text-muted mb-0" style="padding: 12px; background: white; border-radius: 8px;">
                                 <i class="fas fa-info-circle me-1"></i>
                                 Pas encore de concepts maîtrisés. Continuez à pratiquer !
                             </p>
@@ -421,9 +612,9 @@
                     </div>
                 </div>
                 
-                <!-- Points Faibles du Concept -->
+                <!-- Points Faibles -->
                 <div class="col-md-6 mb-3">
-                    <div class="concept-weaknesses-box" style="background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%); border-left: 4px solid #e53e3e; padding: 20px; border-radius: 8px;">
+                    <div class="concept-weaknesses-box" style="background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%); border-left: 4px solid #e53e3e; padding: 20px; border-radius: 10px;">
                         <h6 style="color: #742a2a; font-weight: 600; margin-bottom: 15px;">
                             <i class="fas fa-exclamation-circle me-2"></i>
                             Points Faibles (À Améliorer)
@@ -432,7 +623,7 @@
                         {% if insights.weaknesses %}
                             <ul style="list-style: none; padding-left: 0;">
                                 {% for weakness in insights.weaknesses %}
-                                <li class="mb-2" style="padding: 8px; background: white; border-radius: 6px; border: 1px solid #fc8181;">
+                                <li class="mb-2" style="padding: 10px; background: white; border-radius: 8px; border: 1px solid #fc8181;">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div style="flex: 1;">
                                             <strong style="color: #9b2c2c;">{{ weakness.concept }}</strong>
@@ -444,8 +635,8 @@
                                                 {% endif %}
                                             </div>
                                         </div>
-                                        <div class="text-end" style="margin-left: 10px;">
-                                            <div class="badge bg-danger" style="font-size: 0.85rem;">
+                                        <div class="text-end" style="margin-left: 12px;">
+                                            <div class="badge bg-danger" style="font-size: 0.875rem; padding: 6px 10px;">
                                                 {{ weakness.success_rate }}%
                                             </div>
                                         </div>
@@ -454,7 +645,7 @@
                                 {% endfor %}
                             </ul>
                         {% else %}
-                            <p class="small text-success mb-0">
+                            <p class="small text-success mb-0" style="padding: 12px; background: white; border-radius: 8px;">
                                 <i class="fas fa-check-circle me-1"></i>
                                 Aucune faiblesse majeure détectée !
                             </p>
@@ -463,16 +654,16 @@
                 </div>
             </div>
             
-            <!-- Recommandations Spécifiques -->
+            <!-- Recommandations -->
             {% if insights.recommendations %}
-            <div class="concept-recommendations mt-3" style="background: linear-gradient(135deg, #fffaf0 0%, #feebc8 100%); border-left: 4px solid #ed8936; padding: 15px; border-radius: 8px;">
-                <h6 style="color: #7c2d12; font-weight: 600; margin-bottom: 10px;">
+            <div class="concept-recommendations mt-3" style="background: linear-gradient(135deg, #fffaf0 0%, #feebc8 100%); border-left: 4px solid #ed8936; padding: 16px; border-radius: 10px;">
+                <h6 style="color: #7c2d12; font-weight: 600; margin-bottom: 12px;">
                     <i class="fas fa-lightbulb me-2"></i>
                     Recommandations pour {{ subject }}
                 </h6>
-                <ul class="mb-0" style="padding-left: 20px;">
+                <ul class="mb-0" style="padding-left: 24px;">
                     {% for recommendation in insights.recommendations %}
-                    <li class="small mb-1" style="color: #744210;">
+                    <li class="small mb-2" style="color: #744210;">
                         {{ recommendation|safe }}
                     </li>
                     {% endfor %}
@@ -484,43 +675,43 @@
     </div>
     {% endif %}
 
-    <!-- NOUVELLE SECTION: Analyse SÉPARÉE Tests Manuels et IA -->
+    <!-- Tests Manuels et IA -->
     <div class="row mb-4">
         <!-- Tests Manuels -->
         <div class="col-lg-6 mb-4">
             {% if manual_concept_insights %}
             <div class="chart-card" style="border-left: 4px solid #3182ce;">
-                <h4 class="mb-4" style="color: #2c5282;">
-                    <i class="fas fa-clipboard-check me-2"></i>
+                <h4 style="color: #2c5282;">
+                    <i class="fas fa-clipboard-check"></i>
                     📝 Tests Manuels - Analyse Détaillée
-                    <span class="badge bg-primary ms-2">{{ manual_tests_count }} test{{ manual_tests_count|pluralize }}</span>
+                    <span class="badge bg-primary ms-2" style="font-size: 0.75rem;">{{ manual_tests_count }}</span>
                 </h4>
                 
                 {% for subject, insights in manual_concept_insights.items %}
-                <div class="mb-4 p-3" style="background: #f7fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <div class="mb-3 p-3" style="background: #f7fafc; border-radius: 10px; border: 1px solid #e2e8f0;">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0" style="color: #2d3748; font-weight: 600;">
+                        <h6 class="mb-0" style="color: #2d3748; font-weight: 600;">
                             <i class="fas fa-book-open me-2"></i>{{ subject }}
-                        </h5>
-                        <span class="badge" style="background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);">
+                        </h6>
+                        <span class="badge" style="background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%); padding: 5px 10px;">
                             {{ insights.overall_success_rate }}%
                         </span>
                     </div>
                     
-                    <!-- ANALYSE IA DÉTAILLÉE PAR TEST -->
                     {% if manual_ai_analysis %}
                         {% for test_key, ai_analysis in manual_ai_analysis.items %}
-                        <div class="ai-test-analysis mb-3 p-3" style="background: white; border-radius: 6px; border: 1px solid #bee3f8;">
+                        {% if ai_analysis.subject == subject %}
+                        <div class="ai-test-analysis mb-3 p-3" style="background: white; border-radius: 8px; border: 1px solid #bee3f8;">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h6 class="mb-0" style="color: #2c5282;">
+                                <h6 class="mb-0" style="color: #2c5282; font-size: 0.95rem;">
                                     <i class="fas fa-flask me-1"></i>
-                                    {{ test_key }}
+                                    {{ ai_analysis.test_name|default:test_key }}
                                 </h6>
-                                <span class="badge bg-info">Score: {{ ai_analysis.score|floatformat:0 }}%</span>
+                                <span class="badge bg-info" style="padding: 4px 10px;">{{ ai_analysis.score|floatformat:0 }}%</span>
                             </div>
                             
                             {% if ai_analysis.detailed_feedback %}
-                            <div class="alert alert-light mb-2" style="border-left: 3px solid #4299e1; font-size: 0.85rem;">
+                            <div class="alert alert-light mb-2" style="border-left: 3px solid #4299e1; font-size: 0.8rem; padding: 8px 12px;">
                                 <i class="fas fa-comment-dots text-info me-1"></i>
                                 {{ ai_analysis.detailed_feedback }}
                             </div>
@@ -538,7 +729,7 @@
                                             {% endfor %}
                                         </ul>
                                     {% else %}
-                                        <p class="small text-muted mb-1">Aucun point fort identifié.</p>
+                                        <p class="small text-muted mb-1">Continuez à pratiquer.</p>
                                     {% endif %}
                                 </div>
                                 
@@ -553,7 +744,7 @@
                                             {% endfor %}
                                         </ul>
                                     {% else %}
-                                        <p class="small text-success mb-1">Aucune faiblesse majeure détectée !</p>
+                                        <p class="small text-success mb-1">Aucune faiblesse détectée !</p>
                                     {% endif %}
                                 </div>
                                 
@@ -571,69 +762,21 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
                         {% endfor %}
-                    {% else %}
-                        <!-- Fallback à l'analyse statistique -->
-                        <div class="row">
-                            <div class="col-12 mb-2">
-                                <div class="small text-muted">
-                                    <i class="fas fa-check-circle text-success me-1"></i>
-                                    <strong>Points forts:</strong>
-                                </div>
-                                {% if insights.strengths %}
-                                    <ul class="small mb-2" style="padding-left: 20px;">
-                                        {% for strength in insights.strengths|slice:":3" %}
-                                        <li style="color: #2f855a;">{{ strength.concept }} ({{ strength.success_rate }}%)</li>
-                                        {% endfor %}
-                                    </ul>
-                                {% else %}
-                                    <p class="small text-muted mb-2">Continuez à pratiquer pour identifier vos points forts.</p>
-                                {% endif %}
-                            </div>
-                            
-                            <div class="col-12 mb-2">
-                                <div class="small text-muted">
-                                    <i class="fas fa-exclamation-circle text-warning me-1"></i>
-                                    <strong>Points faibles:</strong>
-                                </div>
-                                {% if insights.weaknesses %}
-                                    <ul class="small mb-2" style="padding-left: 20px;">
-                                        {% for weakness in insights.weaknesses|slice:":3" %}
-                                        <li style="color: #c53030;">{{ weakness.concept }} ({{ weakness.success_rate }}%)</li>
-                                        {% endfor %}
-                                    </ul>
-                                {% else %}
-                                    <p class="small text-success mb-2">Aucune faiblesse majeure détectée !</p>
-                                {% endif %}
-                            </div>
-                            
-                            <div class="col-12">
-                                <div class="small text-muted">
-                                    <i class="fas fa-lightbulb text-warning me-1"></i>
-                                    <strong>Recommandations:</strong>
-                                </div>
-                                {% if insights.recommendations %}
-                                    <ul class="small mb-0" style="padding-left: 20px;">
-                                        {% for rec in insights.recommendations|slice:":2" %}
-                                        <li style="color: #744210;">{{ rec|safe|truncatewords:15 }}</li>
-                                        {% endfor %}
-                                    </ul>
-                                {% endif %}
-                            </div>
-                        </div>
                     {% endif %}
                 </div>
                 {% endfor %}
             </div>
             {% else %}
             <div class="chart-card" style="border-left: 4px solid #cbd5e0;">
-                <h4 class="mb-3" style="color: #718096;">
-                    <i class="fas fa-clipboard-check me-2"></i>
+                <h4 style="color: #718096;">
+                    <i class="fas fa-clipboard-check"></i>
                     📝 Tests Manuels
                 </h4>
                 <div class="alert alert-info mb-0">
                     <i class="fas fa-info-circle me-2"></i>
-                    Aucun test manuel complété. Passez des tests pour voir votre analyse !
+                    Aucun test manuel complété.
                 </div>
             </div>
             {% endif %}
@@ -643,38 +786,38 @@
         <div class="col-lg-6 mb-4">
             {% if ai_concept_insights %}
             <div class="chart-card" style="border-left: 4px solid #805ad5;">
-                <h4 class="mb-4" style="color: #553c9a;">
-                    <i class="fas fa-robot me-2"></i>
-                    🤖 Tests Générés par IA - Analyse Détaillée
-                    <span class="badge bg-purple ms-2" style="background: #805ad5;">{{ ai_tests_count }} test{{ ai_tests_count|pluralize }}</span>
+                <h4 style="color: #553c9a;">
+                    <i class="fas fa-robot"></i>
+                    🤖 Tests IA - Analyse Détaillée
+                    <span class="badge ms-2" style="background: #805ad5; font-size: 0.75rem;">{{ ai_tests_count }}</span>
                 </h4>
                 
                 {% for subject, insights in ai_concept_insights.items %}
-                <div class="mb-4 p-3" style="background: #faf5ff; border-radius: 8px; border: 1px solid #e9d8fd;">
+                <div class="mb-3 p-3" style="background: #faf5ff; border-radius: 10px; border: 1px solid #e9d8fd;">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0" style="color: #553c9a; font-weight: 600;">
+                        <h6 class="mb-0" style="color: #553c9a; font-weight: 600;">
                             <i class="fas fa-microchip me-2"></i>{{ subject }}
-                        </h5>
-                        <span class="badge" style="background: linear-gradient(135deg, #9f7aea 0%, #805ad5 100%);">
+                        </h6>
+                        <span class="badge" style="background: linear-gradient(135deg, #9f7aea 0%, #805ad5 100%); padding: 5px 10px;">
                             {{ insights.overall_success_rate }}%
                         </span>
                     </div>
                     
-                    <!-- ANALYSE IA DÉTAILLÉE PAR TEST -->
                     {% if ai_tests_ai_analysis %}
                         {% for test_key, ai_analysis in ai_tests_ai_analysis.items %}
-                        <div class="ai-test-analysis mb-3 p-3" style="background: white; border-radius: 6px; border: 1px solid #d6bcfa;">
+                        {% if ai_analysis.subject == subject %}
+                        <div class="ai-test-analysis mb-3 p-3" style="background: white; border-radius: 8px; border: 1px solid #d6bcfa;">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h6 class="mb-0" style="color: #553c9a;">
+                                <h6 class="mb-0" style="color: #553c9a; font-size: 0.95rem;">
                                     <i class="fas fa-brain me-1"></i>
-                                    {{ test_key }}
+                                    {{ ai_analysis.test_name|default:test_key }}
                                 </h6>
-                                <span class="badge" style="background: #805ad5;">Score: {{ ai_analysis.score|floatformat:0 }}%</span>
+                                <span class="badge" style="background: #805ad5; padding: 4px 10px;">{{ ai_analysis.score|floatformat:0 }}%</span>
                             </div>
                             
                             {% if ai_analysis.detailed_feedback %}
-                            <div class="alert alert-light mb-2" style="border-left: 3px solid #805ad5; font-size: 0.85rem;">
-                                <i class="fas fa-comment-dots text-purple me-1"></i>
+                            <div class="alert alert-light mb-2" style="border-left: 3px solid #805ad5; font-size: 0.8rem; padding: 8px 12px;">
+                                <i class="fas fa-comment-dots me-1" style="color: #805ad5;"></i>
                                 {{ ai_analysis.detailed_feedback }}
                             </div>
                             {% endif %}
@@ -691,7 +834,7 @@
                                             {% endfor %}
                                         </ul>
                                     {% else %}
-                                        <p class="small text-muted mb-1">Aucun point fort identifié.</p>
+                                        <p class="small text-muted mb-1">Continuez à pratiquer.</p>
                                     {% endif %}
                                 </div>
                                 
@@ -706,7 +849,7 @@
                                             {% endfor %}
                                         </ul>
                                     {% else %}
-                                        <p class="small text-success mb-1">Aucune faiblesse majeure détectée !</p>
+                                        <p class="small text-success mb-1">Aucune faiblesse détectée !</p>
                                     {% endif %}
                                 </div>
                                 
@@ -724,81 +867,33 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
                         {% endfor %}
-                    {% else %}
-                        <!-- Fallback à l'analyse statistique -->
-                        <div class="row">
-                            <div class="col-12 mb-2">
-                                <div class="small text-muted">
-                                    <i class="fas fa-check-circle text-success me-1"></i>
-                                    <strong>Points forts:</strong>
-                                </div>
-                                {% if insights.strengths %}
-                                    <ul class="small mb-2" style="padding-left: 20px;">
-                                        {% for strength in insights.strengths|slice:":3" %}
-                                        <li style="color: #2f855a;">{{ strength.concept }} ({{ strength.success_rate }}%)</li>
-                                        {% endfor %}
-                                    </ul>
-                                {% else %}
-                                    <p class="small text-muted mb-2">Continuez à pratiquer pour identifier vos points forts.</p>
-                                {% endif %}
-                            </div>
-                            
-                            <div class="col-12 mb-2">
-                                <div class="small text-muted">
-                                    <i class="fas fa-exclamation-circle text-warning me-1"></i>
-                                    <strong>Points faibles:</strong>
-                                </div>
-                                {% if insights.weaknesses %}
-                                    <ul class="small mb-2" style="padding-left: 20px;">
-                                        {% for weakness in insights.weaknesses|slice:":3" %}
-                                        <li style="color: #c53030;">{{ weakness.concept }} ({{ weakness.success_rate }}%)</li>
-                                        {% endfor %}
-                                    </ul>
-                                {% else %}
-                                    <p class="small text-success mb-2">Aucune faiblesse majeure détectée !</p>
-                                {% endif %}
-                            </div>
-                            
-                            <div class="col-12">
-                                <div class="small text-muted">
-                                    <i class="fas fa-lightbulb text-warning me-1"></i>
-                                    <strong>Recommandations:</strong>
-                                </div>
-                                {% if insights.recommendations %}
-                                    <ul class="small mb-0" style="padding-left: 20px;">
-                                        {% for rec in insights.recommendations|slice:":2" %}
-                                        <li style="color: #744210;">{{ rec|safe|truncatewords:15 }}</li>
-                                        {% endfor %}
-                                    </ul>
-                                {% endif %}
-                            </div>
-                        </div>
                     {% endif %}
                 </div>
                 {% endfor %}
             </div>
             {% else %}
             <div class="chart-card" style="border-left: 4px solid #cbd5e0;">
-                <h4 class="mb-3" style="color: #718096;">
-                    <i class="fas fa-robot me-2"></i>
-                    🤖 Tests Générés par IA
+                <h4 style="color: #718096;">
+                    <i class="fas fa-robot"></i>
+                    🤖 Tests IA
                 </h4>
                 <div class="alert alert-info mb-0">
                     <i class="fas fa-info-circle me-2"></i>
-                    Aucun test IA complété. Essayez les tests générés par IA pour une analyse personnalisée !
+                    Aucun test IA complété.
                 </div>
             </div>
             {% endif %}
         </div>
     </div>
 
-    <!-- Analyse IA -->
+    <!-- Points à Améliorer et Points Forts -->
     <div class="row mb-4">
-        <div class="col-md-6 mb-4">
+        <div class="col-lg-6 mb-4">
             <div class="analysis-card">
-                <h4 class="mb-4" style="color: #e74c3c;">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
+                <h4 style="color: #e74c3c;">
+                    <i class="fas fa-exclamation-triangle"></i>
                     Points à Améliorer
                 </h4>
                 
@@ -818,36 +913,36 @@
                                         </p>
                                     {% else %}
                                         <p class="text-muted small mb-2">
-                                            Score actuel: {{ data.score|floatformat:0 }}% 
-                                            ({{ data.correct }}/{{ data.total }} questions)
+                                            Score: {{ data.score|floatformat:0 }}% 
+                                            ({{ data.correct }}/{{ data.total }})
                                         </p>
                                         <p class="small mb-0" style="color: #744210;">
                                             <i class="fas fa-lightbulb me-1"></i>
-                                            Objectif: Atteindre 70% de réussite
+                                            Objectif: Atteindre 70%
                                         </p>
                                     {% endif %}
                                 </div>
                                 <div class="text-end">
-                                    <div class="progress" style="width: 100px; height: 8px;">
-                                        <div class="progress-bar bg-danger" style="width: {{ data.score }}%"></div>
+                                    <div class="progress" style="width: 100px; height: 8px; background: #fee;">
+                                        <div class="progress-bar" style="width: {{ data.score }}%; background: linear-gradient(90deg, #fc4a1a, #f7b733);"></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     {% endfor %}
                 {% else %}
-                    <div class="alert alert-success">
+                    <div class="alert alert-success" style="border-radius: 12px;">
                         <i class="fas fa-check-circle me-2"></i>
-                        Aucune lacune majeure détectée ! Continuez votre excellent travail.
+                        Aucune lacune majeure détectée !
                     </div>
                 {% endif %}
             </div>
         </div>
         
-        <div class="col-md-6 mb-4">
+        <div class="col-lg-6 mb-4">
             <div class="analysis-card">
-                <h4 class="mb-4" style="color: #38a169;">
-                    <i class="fas fa-star me-2"></i>
+                <h4 style="color: #38a169;">
+                    <i class="fas fa-star"></i>
                     Vos Points Forts
                 </h4>
                 
@@ -867,8 +962,8 @@
                                         </p>
                                     {% else %}
                                         <p class="text-muted small mb-2">
-                                            Score actuel: {{ data.score|floatformat:0 }}% 
-                                            ({{ data.correct }}/{{ data.total }} questions)
+                                            Score: {{ data.score|floatformat:0 }}% 
+                                            ({{ data.correct }}/{{ data.total }})
                                         </p>
                                         <p class="small mb-0" style="color: #22543d;">
                                             <i class="fas fa-trophy me-1"></i>
@@ -877,15 +972,15 @@
                                     {% endif %}
                                 </div>
                                 <div class="text-end">
-                                    <div class="progress" style="width: 100px; height: 8px;">
-                                        <div class="progress-bar bg-success" style="width: {{ data.score }}%"></div>
+                                    <div class="progress" style="width: 100px; height: 8px; background: #e6ffee;">
+                                        <div class="progress-bar" style="width: {{ data.score }}%; background: linear-gradient(90deg, #11998e, #38ef7d);"></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     {% endfor %}
                 {% else %}
-                    <div class="alert alert-info">
+                    <div class="alert alert-info" style="border-radius: 12px;">
                         <i class="fas fa-info-circle me-2"></i>
                         Passez plus de tests pour identifier vos points forts.
                     </div>
@@ -897,8 +992,8 @@
     <!-- Recommandations IA -->
     {% if profile.ai_recommendations %}
     <div class="chart-card mb-4">
-        <h4 class="mb-4">
-            <i class="fas fa-brain text-primary me-2"></i>
+        <h4>
+            <i class="fas fa-brain text-primary"></i>
             Recommandations Personnalisées par l'IA
         </h4>
         
@@ -918,7 +1013,7 @@
                                     Conseil d'apprentissage
                                 {% endif %}
                             </h6>
-                            <p class="mb-2 small" style="color: #2d3748; line-height: 1.6;">
+                            <p class="mb-2 small" style="color: #2d3748;">
                                 {% if recommendation.description %}
                                     {{ recommendation.description }}
                                 {% elif recommendation.message %}
@@ -927,22 +1022,12 @@
                                     {{ recommendation }}
                                 {% endif %}
                             </p>
-                            {% if recommendation.actions %}
-                            <div class="mt-3">
-                                <strong class="small text-muted">Actions recommandées :</strong>
-                                <ul class="small mb-0 mt-2" style="color: #4a5568;">
-                                    {% for action in recommendation.actions %}
-                                    <li>{{ action }}</li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                            {% endif %}
                             {% if recommendation.priority %}
                             <span class="badge mt-2" style="background: 
                                 {% if recommendation.priority == 'high' %}linear-gradient(135deg, #e74c3c, #c0392b)
                                 {% elif recommendation.priority == 'medium' %}linear-gradient(135deg, #f7971e, #ffd200)
-                                {% else %}linear-gradient(135deg, #4299e1, #63b3ed){% endif %}; color: white; font-size: 0.75rem;">
-                                Priorité {{ recommendation.priority|upper }}
+                                {% else %}linear-gradient(135deg, #4299e1, #63b3ed){% endif %}; font-size: 0.7rem; padding: 4px 10px;">
+                                {{ recommendation.priority|upper }}
                             </span>
                             {% endif %}
                         </div>
@@ -956,8 +1041,8 @@
 
     <!-- Historique des Tests -->
     <div class="chart-card">
-        <h4 class="mb-4">
-            <i class="fas fa-history text-secondary me-2"></i>
+        <h4>
+            <i class="fas fa-history text-secondary"></i>
             Historique Complet des Tests
         </h4>
         
@@ -969,7 +1054,7 @@
                         <th>Test</th>
                         <th>Matière</th>
                         <th>Score</th>
-                        <th>Pourcentage</th>
+                        <th>%</th>
                         <th>Note</th>
                         <th>Actions</th>
                     </tr>
@@ -982,7 +1067,7 @@
                             {{ result.date|date:"d/m/Y" }}
                         </td>
                         <td>
-                            <strong>{{ result.title|truncatewords:8 }}</strong>
+                            <strong style="font-size: 0.875rem;">{{ result.title|truncatewords:6 }}</strong>
                             {% if result.type == 'ai' %}
                             <span class="badge-ai ms-2">
                                 <i class="fas fa-robot"></i> IA
@@ -994,13 +1079,13 @@
                             {% endif %}
                         </td>
                         <td>
-                            <span class="badge bg-secondary">{{ result.subject }}</span>
+                            <span class="badge bg-secondary" style="font-size: 0.75rem;">{{ result.subject }}</span>
                         </td>
                         <td>
                             {% if result.type == 'manual' %}
-                            <strong>{{ result.result_obj.total_score|floatformat:1 }}</strong> / {{ result.result_obj.test.total_points|floatformat:1 }} pts
+                            <strong>{{ result.result_obj.total_score|floatformat:1 }}</strong> / {{ result.result_obj.test.total_points|floatformat:1 }}
                             {% else %}
-                            <strong>{{ result.total_score|floatformat:1 }}</strong> / {{ result.total_points|floatformat:1 }} pts
+                            <strong>{{ result.total_score|floatformat:1 }}</strong> / {{ result.total_points|floatformat:1 }}
                             {% endif %}
                         </td>
                         <td>
@@ -1010,25 +1095,22 @@
                         </td>
                         <td>
                             {% if result.type == 'manual' %}
-                            <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 1rem; padding: 8px 15px;">
+                            <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 6px 12px;">
                                 {{ result.result_obj.grade }}
                             </span>
                             {% else %}
-                            <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 1rem; padding: 8px 15px;">
+                            <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 6px 12px;">
                                 {{ result.grade }}
                             </span>
                             {% endif %}
                         </td>
                         <td>
                             {% if result.type == 'manual' %}
-                            <a href="{% url 'evaluation:view_result' result.result_obj.id %}" class="btn btn-sm btn-primary">
+                            <a href="{% url 'evaluation:view_result' result.result_obj.id %}" class="btn btn-sm btn-primary" style="padding: 4px 10px; font-size: 0.8rem;">
                                 <i class="fas fa-eye me-1"></i> Détails
                             </a>
-                            <a href="{% url 'evaluation:test_history' result.test_id %}" class="btn btn-sm btn-outline-secondary">
-                                <i class="fas fa-history me-1"></i> Historique
-                            </a>
                             {% else %}
-                            <a href="{% url 'exercise_generator:student_exercise_result' result.set_id %}" class="btn btn-sm btn-primary">
+                            <a href="{% url 'exercise_generator:student_exercise_result' result.set_id %}" class="btn btn-sm btn-primary" style="padding: 4px 10px; font-size: 0.8rem;">
                                 <i class="fas fa-eye me-1"></i> Détails
                             </a>
                             {% endif %}
@@ -1038,9 +1120,9 @@
                     <tr>
                         <td colspan="7" class="text-center py-5">
                             <i class="fas fa-inbox text-muted" style="font-size: 3rem;"></i>
-                            <p class="text-muted mt-3">Aucun test complété pour le moment</p>
+                            <p class="text-muted mt-3">Aucun test complété</p>
                             <a href="{% url 'evaluation:student_dashboard' %}" class="btn btn-primary">
-                                <i class="fas fa-play me-2"></i> Commencer un test
+                                <i class="fas fa-play me-2"></i> Commencer
                             </a>
                         </td>
                     </tr>
@@ -1054,9 +1136,9 @@
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Configuration commune pour tous les graphiques
 Chart.defaults.responsive = true;
 Chart.defaults.maintainAspectRatio = false;
+Chart.defaults.font.family = "'Inter', sans-serif";
 
 // Graphique de progression
 const progressionCtx = document.getElementById('progressionChart');
@@ -1073,8 +1155,11 @@ if (progressionCtx && {{ progression_chart_data.scores|safe|length }} > 0) {
                 borderWidth: 3,
                 tension: 0.4,
                 fill: true,
-                pointRadius: 6,
-                pointHoverRadius: 8
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                pointBackgroundColor: '#667eea',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2
             }, {
                 label: 'Moyenne mobile',
                 data: {{ progression_chart_data.moving_average|safe }},
@@ -1082,7 +1167,8 @@ if (progressionCtx && {{ progression_chart_data.scores|safe|length }} > 0) {
                 borderWidth: 2,
                 borderDash: [5, 5],
                 pointRadius: 3,
-                fill: false
+                fill: false,
+                tension: 0.4
             }]
         },
         options: {
@@ -1094,11 +1180,16 @@ if (progressionCtx && {{ progression_chart_data.scores|safe|length }} > 0) {
                     position: 'top',
                     labels: {
                         boxWidth: 12,
-                        padding: 10,
-                        font: {
-                            size: 11
-                        }
+                        padding: 15,
+                        font: { size: 12, weight: '600' }
                     }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: { size: 13, weight: '600' },
+                    bodyFont: { size: 12 },
+                    cornerRadius: 8
                 }
             },
             scales: {
@@ -1106,21 +1197,21 @@ if (progressionCtx && {{ progression_chart_data.scores|safe|length }} > 0) {
                     beginAtZero: true,
                     max: 100,
                     ticks: {
-                        callback: function(value) {
-                            return value + '%';
-                        },
-                        font: {
-                            size: 10
-                        }
+                        callback: value => value + '%',
+                        font: { size: 11 }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
                     }
                 },
                 x: {
                     ticks: {
-                        font: {
-                            size: 10
-                        },
+                        font: { size: 10 },
                         maxRotation: 45,
                         minRotation: 45
+                    },
+                    grid: {
+                        display: false
                     }
                 }
             }
@@ -1140,15 +1231,24 @@ if (subjectsCtx && {{ subjects_chart_data.subjects|safe|length }} > 0) {
                 data: {{ subjects_chart_data.averages|safe }},
                 backgroundColor: {{ subjects_chart_data.colors|safe }},
                 borderWidth: 0,
-                borderRadius: 8
+                borderRadius: 8,
+                barThickness: 40
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: {
-                    display: false
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: { size: 13, weight: '600' },
+                    bodyFont: { size: 12 },
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: ctx => 'Score: ' + ctx.parsed.y.toFixed(1) + '%'
+                    }
                 }
             },
             scales: {
@@ -1156,19 +1256,19 @@ if (subjectsCtx && {{ subjects_chart_data.subjects|safe|length }} > 0) {
                     beginAtZero: true,
                     max: 100,
                     ticks: {
-                        callback: function(value) {
-                            return value + '%';
-                        },
-                        font: {
-                            size: 10
-                        }
+                        callback: value => value + '%',
+                        font: { size: 11 }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
                     }
                 },
                 x: {
                     ticks: {
-                        font: {
-                            size: 10
-                        }
+                        font: { size: 10 }
+                    },
+                    grid: {
+                        display: false
                     }
                 }
             }

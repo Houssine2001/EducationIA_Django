@@ -14,6 +14,94 @@ from .models import Test, Question, Submission, Result, UserProfile
 from .services import TestService, AutoGrading, ResultService
 from ai_modules.ai_services import get_ai_services
 from .ai_concept_analyzer import AIConceptAnalyzer
+import re
+
+
+
+
+# ============================================
+# Fonctions Utilitaires
+# ============================================
+
+def _extract_concept_from_question(question_text, subject='Général'):
+    """
+    Extrait le concept principal d'une question en se basant sur des mots-clés
+    """
+    question_lower = question_text.lower()
+    
+    # Dictionnaire de mots-clés par domaine
+    concept_keywords = {
+        # Programmation
+        'React': ['react', 'jsx', 'component', 'props', 'state', 'hook', 'usestate', 'useeffect', 'virtual dom'],
+        'Components': ['component', 'composant', 'props', 'children'],
+        'State Management': ['state', 'état', 'usestate', 'setstate', 'redux', 'context'],
+        'Hooks': ['hook', 'usestate', 'useeffect', 'usememo', 'usecallback', 'useref', 'usecontext'],
+        'Props': ['props', 'propriété', 'properties', 'propstype'],
+        'Lifecycle': ['lifecycle', 'cycle de vie', 'componentdidmount', 'useeffect', 'cleanup'],
+        'Events': ['event', 'événement', 'onclick', 'onchange', 'handler', 'gestionnaire'],
+        'Routing': ['router', 'route', 'navigation', 'link', 'redirect'],
+        'API Calls': ['axios', 'fetch', 'api', 'http', 'request', 'promise', 'async', 'await'],
+        'Forms': ['form', 'formulaire', 'input', 'validation', 'submit'],
+        
+        # JavaScript
+        'JavaScript': ['javascript', 'js', 'ecmascript'],
+        'Arrays': ['array', 'tableau', 'map', 'filter', 'reduce', 'foreach'],
+        'Functions': ['function', 'fonction', 'arrow', 'callback', 'closure'],
+        'Promises': ['promise', 'async', 'await', 'then', 'catch'],
+        'Objects': ['object', 'objet', 'class', 'constructor', 'prototype'],
+        
+        # Python
+        'Python': ['python', 'py'],
+        'Lists': ['list', 'liste', 'append', 'extend', 'pop'],
+        'Dictionaries': ['dict', 'dictionnaire', 'key', 'value', 'items'],
+        'Classes': ['class', 'classe', '__init__', 'self', 'method'],
+        'Loops': ['loop', 'boucle', 'for', 'while', 'iteration'],
+        
+        # Mathématiques
+        'Algèbre': ['algèbre', 'algebra', 'équation', 'equation', 'variable', 'polynôme'],
+        'Géométrie': ['géométrie', 'geometry', 'triangle', 'cercle', 'angle', 'surface', 'périmètre'],
+        'Analyse': ['analyse', 'calculus', 'dérivée', 'derivative', 'intégrale', 'integral', 'limite', 'limit'],
+        'Probabilités': ['probabilité', 'probability', 'chance', 'aléatoire', 'random'],
+        'Statistiques': ['statistique', 'statistic', 'moyenne', 'mean', 'médiane', 'median', 'écart-type'],
+        'Trigonométrie': ['trigonométrie', 'trigonometry', 'sinus', 'cosinus', 'tangente', 'sin', 'cos', 'tan'],
+        
+        # Physique
+        'Mécanique': ['mécanique', 'mechanics', 'force', 'masse', 'accélération', 'vitesse'],
+        'Électricité': ['électricité', 'electricity', 'courant', 'voltage', 'résistance', 'circuit'],
+        'Optique': ['optique', 'optics', 'lumière', 'light', 'réflexion', 'réfraction'],
+        
+        # Bases de données
+        'SQL': ['sql', 'select', 'insert', 'update', 'delete', 'join', 'query'],
+        'MongoDB': ['mongodb', 'nosql', 'document', 'collection', 'aggregate'],
+        'Database Design': ['database', 'schema', 'table', 'relation', 'foreign key', 'primary key'],
+    }
+    
+    # Chercher les mots-clés dans la question
+    matched_concepts = []
+    for concept, keywords in concept_keywords.items():
+        for keyword in keywords:
+            if keyword in question_lower:
+                matched_concepts.append((concept, len(keyword)))  # Stocker avec la longueur du mot-clé
+                break  # Un seul match par concept suffit
+    
+    # Retourner le concept avec le mot-clé le plus long (plus spécifique)
+    if matched_concepts:
+        matched_concepts.sort(key=lambda x: x[1], reverse=True)
+        return matched_concepts[0][0]
+    
+    # Si aucun mot-clé trouvé, essayer d'extraire les noms propres ou termes techniques
+    # Chercher les mots en majuscules ou entre guillemets
+    technical_terms = re.findall(r'\b[A-Z][a-z]+\b|"([^"]+)"', question_text)
+    if technical_terms:
+        # Nettoyer et retourner le premier terme trouvé
+        for term in technical_terms:
+            if isinstance(term, tuple):
+                term = term[0] if term[0] else term[1] if len(term) > 1 else ''
+            if term and len(term) > 2:
+                return term.strip()
+    
+    # Fallback sur le subject
+    return subject
 
 
 # ============================================
@@ -376,10 +464,30 @@ def student_dashboard(request):
     from .gamification import GamificationService
     
     # 1. RÉCUPÉRER OU CRÉER LE PROFIL
-    profile, created = UserProfile.objects.get_or_create(
-        user=request.user,
-        defaults={'role': 'student'}
-    )
+    try:
+        # Essayer de récupérer le profil existant
+        profile = UserProfile.objects.filter(user=request.user).first()
+        
+        if not profile:
+            # Créer un nouveau profil s'il n'existe pas
+            profile = UserProfile.objects.create(
+                user=request.user,
+                role='student'
+            )
+            created = True
+            print(f"✅ Nouveau profil créé pour {request.user.username}")
+        else:
+            created = False
+            print(f"✅ Profil existant trouvé pour {request.user.username}")
+            
+    except Exception as e:
+        print(f"❌ Erreur lors de la récupération/création du profil: {e}")
+        # Créer un profil de secours
+        profile = UserProfile.objects.create(
+            user=request.user,
+            role='student'
+        )
+        created = True
     
     # 2. GÉNÉRATION DES ANALYTICS COMPLÈTES
     # Service d'analytics pour statistiques détaillées
@@ -1058,12 +1166,67 @@ def student_progress(request):
                     except:
                         pass
                 
+                # 🔥 NOUVEAU : Récupérer les détails des questions pour l'analyse
+                questions_details = []
+                try:
+                    # Récupérer les IDs des exercices du set
+                    exercise_ids = list(db.exercise_generator_exerciseset_exercises.find({
+                        'exerciseset_id': str(set_id)
+                    }))
+                    exercise_id_list = [ex['generatedexercise_id'] for ex in exercise_ids]
+                    
+                    # Récupérer les exercices complets
+                    exercises_data = list(db.generated_exercises.find({
+                        '_id': {'$in': [ObjectId(eid) if isinstance(eid, str) else eid for eid in exercise_id_list]}
+                    }))
+                    
+                    # Récupérer les réponses de l'étudiant
+                    answers = submission.get('answers', {})
+                    
+                    # Créer les détails pour chaque question
+                    for ex_data in exercises_data:
+                        exercise_id = str(ex_data['_id'])
+                        
+                        # Extraire le concept/topic
+                        concept = ex_data.get('concept') or ex_data.get('topic') or subject or 'Général'
+                        
+                        # Si le concept est trop générique, essayer d'extraire du texte de la question
+                        if concept in ['Général', 'General', '']:
+                            question_text = ex_data.get('question_text', '')
+                            concept = _extract_concept_from_question(question_text, subject)
+                        
+                        # Vérifier si la réponse est correcte
+                        student_answer = answers.get(exercise_id)
+                        options_data = ex_data.get('options_data', {})
+                        correct_answer = options_data.get('correct')
+                        exercise_type = ex_data.get('exercise_type')
+                        
+                        is_correct = False
+                        if exercise_type == 'true_false':
+                            student_bool = (student_answer == 'True' or student_answer == 'true')
+                            is_correct = (correct_answer == student_bool)
+                        else:
+                            is_correct = (str(student_answer) == str(correct_answer)) if correct_answer else False
+                        
+                        # Ajouter les détails de la question
+                        questions_details.append({
+                            'topic': concept,  # ⭐ Topic précis pour l'analyse
+                            'difficulty': ex_data.get('difficulty', 'medium'),
+                            'is_correct': is_correct,
+                            'question_type': exercise_type or 'multiple_choice',
+                            'question_text': ex_data.get('question_text', '')[:100]
+                        })
+                except Exception as e:
+                    print(f"Erreur récupération questions_details pour set {set_id}: {e}")
+                
                 ai_results_with_details.append({
                     'submission': submission,
                     'set_data': set_data,
                     'score': submission.get('score', 0),
                     'submitted_at': submission.get('submitted_at'),
-                    'subject': subject
+                    'subject': subject,
+                    'questions_details': questions_details,  # ⭐ AJOUTÉ
+                    'exercise_set_name': set_data.get('title', 'Test IA')  # ⭐ AJOUTÉ
                 })
     
     # NE PAS FERMER LE CLIENT ICI - il sera utilisé plus tard pour l'analyse par concepts
@@ -1222,7 +1385,7 @@ def student_progress(request):
     
     # Préparer les données pour l'analyse IA des tests manuels
     manual_tests_for_ai = []
-    for result in all_manual_results[:10]:  # Top 10 tests récents
+    for idx, result in enumerate(all_manual_results[:10]):  # Top 10 tests récents
         try:
             test = result.test
             submission = result.submission
@@ -1234,19 +1397,46 @@ def student_progress(request):
                 for question_id, answer_info in answers_data.items():
                     try:
                         question = Question.objects.get(id=int(question_id))
-                        is_correct = answer_info.get('is_correct', False)
+                        
+                        # Déterminer si la réponse est correcte
+                        # answer_info peut être un dict ou une string
+                        if isinstance(answer_info, dict):
+                            is_correct = answer_info.get('is_correct', False)
+                        else:
+                            # Si c'est une string, vérifier si c'est la bonne réponse
+                            is_correct = (str(answer_info) == str(question.correct_answer))
+                        
+                        # Extraire le concept de manière intelligente
+                        concept = None
+                        
+                        # 1. Essayer d'abord les skills de la question
+                        if question.skills and isinstance(question.skills, list) and len(question.skills) > 0:
+                            concept = question.skills[0]  # Prendre le premier skill
+                        
+                        # 2. Si pas de skills, extraire du texte de la question
+                        if not concept:
+                            concept = _extract_concept_from_question(question.question_text, test.subject or 'Général')
+                        
+                        # 3. Fallback sur le topic du test puis le subject
+                        if not concept or concept == 'Général':
+                            concept = test.topic or test.subject or 'Général'
                         
                         questions_data.append({
-                            'concept': question.concept or question.topic or test.subject or 'Général',
+                            'concept': concept,
                             'difficulty': question.difficulty_level or 'medium',
                             'is_correct': is_correct,
-                            'question_type': question.question_type or 'mcq'
+                            'question_type': question.question_type or 'mcq',
+                            'question_text': question.question_text[:100]  # Pour debug
                         })
-                    except (Question.DoesNotExist, ValueError):
+                    except (Question.DoesNotExist, ValueError) as e:
+                        print(f"Erreur question {question_id}: {e}")
                         continue
                 
                 if questions_data:  # Only add if we have valid questions
+                    # Utiliser result.id ou test.id comme test_id unique
+                    test_id = str(result.id) if result.id else f"manual_test_{idx}"
                     manual_tests_for_ai.append({
+                        'test_id': test_id,  # ✅ IMPORTANT: Ajouter test_id unique
                         'test_name': test.title,
                         'subject': test.subject or 'Sans matière',
                         'score': result.percentage_score or 0,
@@ -1258,7 +1448,7 @@ def student_progress(request):
     
     # Préparer les données pour l'analyse IA des tests IA
     ai_tests_for_ai = []
-    for ai_result in ai_results_with_details[:10]:  # Top 10 tests récents
+    for idx, ai_result in enumerate(ai_results_with_details[:10]):  # Top 10 tests récents
         try:
             questions_data = []
             for q in ai_result.get('questions_details', []):
@@ -1270,7 +1460,10 @@ def student_progress(request):
                 })
             
             if questions_data:  # Seulement si on a des questions
+                # Utiliser submission_id ou générer un ID unique
+                test_id = ai_result.get('submission_id') or f"ai_test_{idx}"
                 ai_tests_for_ai.append({
+                    'test_id': test_id,  # ✅ IMPORTANT: Ajouter test_id unique
                     'test_name': ai_result.get('exercise_set_name', 'Test IA'),
                     'subject': ai_result.get('subject', 'IA'),
                     'score': ai_result.get('score', 0),
@@ -1286,22 +1479,60 @@ def student_progress(request):
     
     try:
         if manual_tests_for_ai:
+            print(f"🔍 DEBUG: Analyse de {len(manual_tests_for_ai)} tests manuels")
+            for test in manual_tests_for_ai:
+                print(f"  - Test ID: {test.get('test_id')}, Name: {test.get('test_name')}, Subject: {test.get('subject')}, Score: {test.get('score')}")
+            
             manual_ai_analysis = ai_analyzer.batch_analyze_tests(manual_tests_for_ai)
             print(f"✅ Analyse IA de {len(manual_ai_analysis)} tests manuels réussie")
+            print(f"🔍 DEBUG: manual_ai_analysis keys = {list(manual_ai_analysis.keys())}")
     except Exception as e:
         print(f"❌ Erreur analyse IA tests manuels: {e}")
+        import traceback
+        traceback.print_exc()
         manual_ai_analysis = {}
     
     try:
         if ai_tests_for_ai:
+            print(f"🔍 DEBUG: Analyse de {len(ai_tests_for_ai)} tests IA")
+            for test in ai_tests_for_ai:
+                print(f"  - Test ID: {test.get('test_id')}, Name: {test.get('test_name')}, Subject: {test.get('subject')}, Score: {test.get('score')}")
+            
             ai_tests_ai_analysis = ai_analyzer.batch_analyze_tests(ai_tests_for_ai)
             print(f"✅ Analyse IA de {len(ai_tests_ai_analysis)} tests IA réussie")
+            print(f"🔍 DEBUG: ai_tests_ai_analysis keys = {list(ai_tests_ai_analysis.keys())}")
+            
+            # Afficher le contenu de chaque analyse
+            for test_id, analysis in ai_tests_ai_analysis.items():
+                print(f"  - Test ID {test_id}: subject={analysis.get('subject')}, score={analysis.get('score')}")
     except Exception as e:
         print(f"❌ Erreur analyse IA tests IA: {e}")
+        import traceback
+        traceback.print_exc()
         ai_tests_ai_analysis = {}
     
     # 6. GAMIFICATION
     gamification_service = GamificationService(profile)
+    
+    # ✅ VÉRIFIER ET ATTRIBUER LES BADGES
+    try:
+        new_badges = gamification_service.check_and_award_badges()
+        if new_badges:
+            print(f"🎉 Nouveaux badges obtenus: {[b['name'] for b in new_badges]}")
+    except Exception as e:
+        print(f"❌ Erreur attribution badges: {e}")
+        new_badges = []
+    
+    # ✅ OBTENIR LA PROGRESSION DE TOUS LES BADGES
+    try:
+        badge_progress_data = gamification_service.get_badge_progress()
+    except Exception as e:
+        print(f"❌ Erreur progression badges: {e}")
+        badge_progress_data = {
+            'earned_badges': [],
+            'available_badges': []
+        }
+    
     level_info = gamification_service.get_level_info()
     student_rank = gamification_service.get_student_rank(period='all_time')
     
@@ -1513,6 +1744,8 @@ def student_progress(request):
         'level_info': level_info,
         'student_rank': student_rank,
         'badges': profile.badges or [],
+        'new_badges': new_badges,  # Nouveaux badges obtenus
+        'badge_progress': badge_progress_data,  # ✅ Progression de tous les badges
         
         # Données pour graphiques (Chart.js) - COMBINÉES
         'progression_chart_data': progression_chart_data,
@@ -2110,50 +2343,79 @@ def my_badges(request):
     # Service de gamification
     gamification_service = GamificationService(profile)
     
-    # Récupérer tous les badges disponibles depuis le service
-    all_badges_definitions = [
-        {'id': key, **value, 'category': 'achievement', 'xp_reward': value.get('points', 50)}
-        for key, value in GamificationService.BADGES.items()
-    ]
+    # ✅ VÉRIFIER ET ATTRIBUER LES NOUVEAUX BADGES
+    try:
+        new_badges = gamification_service.check_and_award_badges()
+        if new_badges:
+            print(f"🎉 Nouveaux badges obtenus dans my_badges: {[b['name'] for b in new_badges]}")
+    except Exception as e:
+        print(f"❌ Erreur attribution badges: {e}")
+        import traceback
+        traceback.print_exc()
     
-    # Récupérer les badges obtenus (depuis le champ badges JSON)
-    earned_badge_ids = profile.badges if isinstance(profile.badges, list) else []
+    # ✅ OBTENIR LA PROGRESSION RÉELLE DE TOUS LES BADGES
+    try:
+        badge_progress_data = gamification_service.get_badge_progress()
+        earned_badges_data = badge_progress_data['earned_badges']
+        available_badges_data = badge_progress_data['available_badges']
+    except Exception as e:
+        print(f"❌ Erreur get_badge_progress: {e}")
+        import traceback
+        traceback.print_exc()
+        earned_badges_data = []
+        available_badges_data = []
     
-    # Préparer les données des badges
+    # Préparer les données des badges pour le template
     badges = []
     category_counts = Counter()
     
-    for badge_def in all_badges_definitions:
-        badge_id = badge_def['id']
-        earned = badge_id in earned_badge_ids
-        
-        # La progression est à 0 si non obtenu, 100 si obtenu
-        progress = 100 if earned else 0
-        
-        badge_data = {
-            'id': badge_id,
-            'name': badge_def['name'],
-            'description': badge_def['description'],
-            'category': badge_def['category'],
-            'icon': badge_def['icon'],
-            'color': badge_def.get('color', '#667eea'),
-            'xp_reward': badge_def['xp_reward'],
-            'earned': earned,
-            'earned_date': profile.created_at if earned else None,  # Simplification
-            'progress': progress,
-            'requirement': badge_def.get('requirement_text', 'Complétez les objectifs')
+    # Ajouter les badges obtenus
+    for badge_data in earned_badges_data:
+        badge_info = {
+            'id': badge_data['badge_id'],
+            'name': badge_data['name'],
+            'description': badge_data['description'],
+            'category': 'achievement',  # Catégorie par défaut
+            'icon': badge_data['icon'],
+            'color': badge_data.get('color', '#667eea'),
+            'xp_reward': badge_data['points'],
+            'earned': True,
+            'earned_date': badge_data.get('earned_at', profile.created_at),
+            'progress': 100,
+            'requirement': 'Complété !'
         }
+        badges.append(badge_info)
+        category_counts['achievement'] += 1
+    
+    # Ajouter les badges disponibles (non obtenus)
+    for badge_data in available_badges_data:
+        progress = badge_data.get('progress_percentage', 0)
+        current = badge_data.get('progress', 0)
+        target = badge_data.get('target', 1)
         
-        badges.append(badge_data)
-        category_counts[badge_def['category']] += 1
+        badge_info = {
+            'id': badge_data['badge_id'],
+            'name': badge_data['name'],
+            'description': badge_data['description'],
+            'category': 'progress' if progress > 0 else 'locked',
+            'icon': badge_data['icon'],
+            'color': badge_data.get('color', '#667eea'),
+            'xp_reward': badge_data['points'],
+            'earned': False,
+            'earned_date': None,
+            'progress': progress,
+            'requirement': f"Progression {current}/{target} - Complétez les objectifs"
+        }
+        badges.append(badge_info)
+        category_counts['progress' if progress > 0 else 'locked'] += 1
     
     # Statistiques
-    total_earned = len(earned_badge_ids)
-    total_available = len(all_badges_definitions)
+    total_earned = len(earned_badges_data)
+    total_available = len(badges)
     completion_rate = (total_earned / total_available * 100) if total_available > 0 else 0
     
     # Compter les badges rares (ceux avec un XP élevé)
-    rarest_owned = sum(1 for b in badges if b['earned'] and b['xp_reward'] >= 200)
+    rarest_owned = sum(1 for b in badges if b['earned'] and b['xp_reward'] >= 80)
     
     stats = {
         'total_earned': total_earned,
@@ -2353,10 +2615,13 @@ def students_list(request):
         'students': students_data,
         'stats': stats
     }
+
+
+
     
     return render(request, 'evaluation/teacher/students_list.html', context)
 
-
+    
 # ============================================
 # Vue d'inscription (Sign Up)
 # ============================================

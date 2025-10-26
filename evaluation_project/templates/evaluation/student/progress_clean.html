@@ -1,0 +1,537 @@
+{% extends 'base.html' %}
+
+{% block title %}Ma Progression - Étudiant{% endblock %}
+
+{% block page_title %}Ma Progression{% endblock %}
+{% block page_subtitle %}Analysez vos performances et suivez votre évolution{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-container-custom {
+        position: relative;
+        height: 350px;
+        width: 100%;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Vue d'ensemble: Statistiques rapides -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+    <!-- Score Moyen -->
+    <div class="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-600">Score Moyen</p>
+                <h3 class="text-2xl font-bold text-gray-800">{{ average_score|floatformat:1 }}%</h3>
+            </div>
+            <i class="fas fa-chart-line text-blue-500 text-3xl"></i>
+        </div>
+    </div>
+
+    <!-- Tests Complétés -->
+    <div class="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-600">Tests Complétés</p>
+                <h3 class="text-2xl font-bold text-gray-800">{{ total_tests }}</h3>
+            </div>
+            <i class="fas fa-clipboard-check text-green-500 text-3xl"></i>
+        </div>
+    </div>
+
+    <!-- Heures d'Étude -->
+    <div class="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-600">Heures d'Étude</p>
+                <h3 class="text-2xl font-bold text-gray-800">{{ total_study_hours|floatformat:1 }}h</h3>
+            </div>
+            <i class="fas fa-clock text-purple-500 text-3xl"></i>
+        </div>
+    </div>
+
+    <!-- Tendance -->
+    <div class="bg-white rounded-lg shadow p-4 border-l-4 {% if improvement_trend == 'improving' %}border-green-500{% elif improvement_trend == 'declining' %}border-red-500{% else %}border-gray-400{% endif %}">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-600">Tendance</p>
+                <h3 class="text-lg font-bold {% if improvement_trend == 'improving' %}text-green-600{% elif improvement_trend == 'declining' %}text-red-600{% else %}text-gray-600{% endif %}">
+                    {% if improvement_trend == 'improving' %}
+                    <i class="fas fa-arrow-up"></i> +{{ improvement_percentage|floatformat:1 }}%
+                    {% elif improvement_trend == 'declining' %}
+                    <i class="fas fa-arrow-down"></i> {{ improvement_percentage|floatformat:1 }}%
+                    {% else %}
+                    <i class="fas fa-minus"></i> Stable
+                    {% endif %}
+                </h3>
+            </div>
+            <i class="fas fa-trending-up {% if improvement_trend == 'improving' %}text-green-500{% elif improvement_trend == 'declining' %}text-red-500{% else %}text-gray-400{% endif %} text-3xl"></i>
+        </div>
+    </div>
+
+    <!-- Niveau & Classement -->
+    <div class="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-600">Classement</p>
+                <h3 class="text-2xl font-bold text-gray-800">#{{ student_rank.rank }}</h3>
+            </div>
+            <i class="fas fa-crown text-yellow-500 text-3xl"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Graphiques principaux -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+    
+    <!-- Graphique de Progression Temporelle -->
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">
+            <i class="fas fa-chart-area text-blue-600 mr-2"></i>
+            Progression dans le Temps
+        </h2>
+        <div class="chart-container-custom">
+            <canvas id="progressionChart"></canvas>
+        </div>
+        <div class="mt-4 text-sm text-gray-600">
+            <p><i class="fas fa-info-circle mr-1"></i> La ligne bleue montre vos scores, la ligne orange votre moyenne mobile.</p>
+        </div>
+    </div>
+
+    <!-- Graphique par Matière -->
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">
+            <i class="fas fa-chart-bar text-green-600 mr-2"></i>
+            Performances par Matière
+        </h2>
+        <div class="chart-container-custom">
+            <canvas id="subjectsChart"></canvas>
+        </div>
+        <div class="mt-4 text-sm text-gray-600">
+            <p><i class="fas fa-info-circle mr-1"></i> Comparez vos performances entre les différentes matières.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Graphique du temps d'étude -->
+<div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+    <h2 class="text-xl font-bold text-gray-800 mb-4">
+        <i class="fas fa-calendar-week text-purple-600 mr-2"></i>
+        Temps d'Étude Hebdomadaire
+    </h2>
+    <div class="chart-container-custom">
+        <canvas id="studyTimeChart"></canvas>
+    </div>
+    <div class="mt-4 text-sm text-gray-600">
+        <p><i class="fas fa-info-circle mr-1"></i> Suivez votre régularité et le temps consacré à vos études chaque semaine.</p>
+    </div>
+</div>
+
+<!-- Détails par Matière -->
+{% if has_multiple_subjects and performance_by_subject %}
+<div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+    <h2 class="text-xl font-bold text-gray-800 mb-6">
+        <i class="fas fa-book-open text-blue-600 mr-2"></i>
+        Analyse Détaillée par Matière
+    </h2>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for subject, data in performance_by_subject.items %}
+        <div class="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
+            <!-- En-tête de la carte -->
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-gray-800">{{ subject }}</h3>
+                <span class="text-xs font-medium px-3 py-1 rounded-full {% if data.trend == 'improving' %}bg-green-100 text-green-700{% elif data.trend == 'declining' %}bg-red-100 text-red-700{% else %}bg-gray-100 text-gray-700{% endif %}">
+                    {% if data.trend == 'improving' %}
+                    <i class="fas fa-arrow-up"></i> En hausse
+                    {% elif data.trend == 'declining' %}
+                    <i class="fas fa-arrow-down"></i> En baisse
+                    {% else %}
+                    <i class="fas fa-minus"></i> Stable
+                    {% endif %}
+                </span>
+            </div>
+
+            <!-- Score moyen -->
+            <div class="mb-4">
+                <div class="flex items-end justify-between mb-2">
+                    <span class="text-sm text-gray-600">Moyenne</span>
+                    <span class="text-3xl font-bold {% if data.avg_score >= 75 %}text-green-600{% elif data.avg_score >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                        {{ data.avg_score|floatformat:1 }}%
+                    </span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div class="{% if data.avg_score >= 75 %}bg-green-500{% elif data.avg_score >= 60 %}bg-yellow-500{% else %}bg-red-500{% endif %} h-3 rounded-full transition-all duration-500" style="width: {{ data.avg_score }}%"></div>
+                </div>
+            </div>
+
+            <!-- Statistiques -->
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Tests complétés</span>
+                    <span class="font-semibold text-gray-800">{{ data.count }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Dernier score</span>
+                    <span class="font-semibold {% if data.last_score >= 75 %}text-green-600{% elif data.last_score >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                        {{ data.last_score|floatformat:1 }}%
+                    </span>
+                </div>
+            </div>
+
+            <!-- Mini graphique des scores -->
+            <div class="mt-4 pt-4 border-t border-gray-200">
+                <p class="text-xs text-gray-500 mb-2">Historique des scores</p>
+                <div class="flex items-end justify-between h-16 gap-1">
+                    {% for test in data.tests|slice:":8" %}
+                    <div class="flex-1 bg-gray-200 rounded-t relative group">
+                        <div class="{% if test.score >= 75 %}bg-green-500{% elif test.score >= 60 %}bg-yellow-500{% else %}bg-red-500{% endif %} rounded-t absolute bottom-0 w-full transition-all duration-300" style="height: {{ test.score }}%"></div>
+                        <span class="hidden group-hover:block absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                            {{ test.score|floatformat:0 }}%
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Analyse des Faiblesses par IA -->
+{% if weaknesses_analysis %}
+<div class="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl shadow-lg p-6 mb-8 border border-purple-100">
+    <div class="flex items-center mb-6">
+        <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center mr-4">
+            <i class="fas fa-brain text-white text-2xl"></i>
+        </div>
+        <div>
+            <h2 class="text-xl font-bold text-gray-800">Analyse IA des Faiblesses</h2>
+            <p class="text-sm text-gray-600">Recommandations personnalisées basées sur vos résultats</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Points faibles -->
+        {% if weaknesses_analysis.weaknesses %}
+        <div class="bg-white rounded-lg p-5 shadow-sm">
+            <h3 class="text-lg font-semibold text-red-700 mb-4">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                Points à Améliorer
+            </h3>
+            <ul class="space-y-3">
+                {% for weakness in weaknesses_analysis.weaknesses|slice:":5" %}
+                <li class="flex items-start space-x-3 p-3 bg-red-50 rounded-lg border-l-4 border-red-500">
+                    <i class="fas fa-circle-xmark text-red-600 mt-1"></i>
+                    <span class="text-sm text-gray-800">{{ weakness }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Points forts -->
+        {% if weaknesses_analysis.strengths %}
+        <div class="bg-white rounded-lg p-5 shadow-sm">
+            <h3 class="text-lg font-semibold text-green-700 mb-4">
+                <i class="fas fa-check-circle mr-2"></i>
+                Vos Points Forts
+            </h3>
+            <ul class="space-y-3">
+                {% for strength in weaknesses_analysis.strengths|slice:":5" %}
+                <li class="flex items-start space-x-3 p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
+                    <i class="fas fa-circle-check text-green-600 mt-1"></i>
+                    <span class="text-sm text-gray-800">{{ strength }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Recommandations -->
+    {% if weaknesses_analysis.recommendations %}
+    <div class="mt-6 bg-white rounded-lg p-5 shadow-sm">
+        <h3 class="text-lg font-semibold text-blue-700 mb-4">
+            <i class="fas fa-lightbulb mr-2"></i>
+            Recommandations
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for rec in weaknesses_analysis.recommendations %}
+            <div class="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg">
+                <i class="fas fa-arrow-right text-blue-600 mt-1"></i>
+                <div>
+                    <p class="text-sm font-medium text-gray-800">{{ rec.title }}</p>
+                    <p class="text-xs text-gray-600 mt-1">{{ rec.message }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Historique complet des résultats -->
+{% if results %}
+<div class="bg-white rounded-xl shadow-lg p-6">
+    <h2 class="text-xl font-bold text-gray-800 mb-6">
+        <i class="fas fa-history text-gray-600 mr-2"></i>
+        Historique Complet
+    </h2>
+    
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Test</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matière</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temps</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for result in results %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ result.created_at|date:"d/m/Y" }}
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm font-medium text-gray-900">{{ result.test.title|truncatewords:6 }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                            {{ result.test.subject }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <span class="px-3 py-1 text-sm font-semibold rounded-full {% if result.score >= 75 %}bg-green-100 text-green-800{% elif result.score >= 60 %}bg-yellow-100 text-yellow-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                {{ result.score|floatformat:1 }}%
+                            </span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {% if result.time_spent %}
+                        <i class="fas fa-clock mr-1"></i>{{ result.time_spent }} min
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <a href="{% url 'evaluation:view_result' result.id %}" class="text-blue-600 hover:text-blue-800 font-medium">
+                            Détails <i class="fas fa-arrow-right ml-1"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Graphique de Progression Temporelle
+const progressionCtx = document.getElementById('progressionChart');
+if (progressionCtx) {
+    new Chart(progressionCtx, {
+        type: 'line',
+        data: {
+            labels: {{ progression_chart_data.labels|safe }},
+            datasets: [
+                {
+                    label: 'Scores',
+                    data: {{ progression_chart_data.scores|safe }},
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: '#3b82f6',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                },
+                {
+                    label: 'Moyenne Mobile',
+                    data: {{ progression_chart_data.moving_average|safe }},
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.05)',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    borderDash: [5, 5],
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += context.parsed.y.toFixed(1) + '%';
+                            return label;
+                        },
+                        title: function(context) {
+                            return {{ progression_chart_data.test_names|safe }}[context[0].dataIndex];
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)',
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false,
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Graphique par Matière
+const subjectsCtx = document.getElementById('subjectsChart');
+if (subjectsCtx) {
+    new Chart(subjectsCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ subjects_chart_data.subjects|safe }},
+            datasets: [{
+                label: 'Score Moyen (%)',
+                data: {{ subjects_chart_data.averages|safe }},
+                backgroundColor: {{ subjects_chart_data.colors|safe }},
+                borderRadius: 8,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false,
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Moyenne: ' + context.parsed.y.toFixed(1) + '%';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)',
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false,
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Graphique du Temps d'Étude
+const studyTimeCtx = document.getElementById('studyTimeChart');
+if (studyTimeCtx) {
+    new Chart(studyTimeCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ study_time_chart_data.weeks|safe }},
+            datasets: [{
+                label: 'Heures d\'étude',
+                data: {{ study_time_chart_data.hours|safe }},
+                backgroundColor: 'rgba(147, 51, 234, 0.7)',
+                borderColor: '#9333ea',
+                borderWidth: 2,
+                borderRadius: 8,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false,
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.parsed.y.toFixed(2) + ' heures';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value + 'h';
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)',
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false,
+                    }
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}
+

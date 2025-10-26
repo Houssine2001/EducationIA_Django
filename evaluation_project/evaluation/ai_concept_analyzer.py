@@ -74,15 +74,33 @@ class AIConceptAnalyzer:
                 
                 # Parser la réponse de l'IA
                 analysis = self._parse_ai_response(generated_text)
-                return analysis
+                # Valider et nettoyer l'analyse
+                cleaned_analysis = self._validate_and_clean_analysis(analysis, questions_data, subject)
+                # Ajouter les métadonnées du test
+                cleaned_analysis['test_name'] = test_name
+                cleaned_analysis['subject'] = subject
+                cleaned_analysis['score'] = score
+                return cleaned_analysis
             else:
                 # Fallback en cas d'erreur API
-                return self._generate_basic_analysis(questions_data, score, subject)
+                analysis = self._generate_basic_analysis(questions_data, score, subject)
+                cleaned_analysis = self._validate_and_clean_analysis(analysis, questions_data, subject)
+                # Ajouter les métadonnées du test
+                cleaned_analysis['test_name'] = test_name
+                cleaned_analysis['subject'] = subject
+                cleaned_analysis['score'] = score
+                return cleaned_analysis
         
         except Exception as e:
             print(f"Erreur appel IA: {e}")
             # Fallback en cas d'erreur
-            return self._generate_basic_analysis(questions_data, score, subject)
+            analysis = self._generate_basic_analysis(questions_data, score, subject)
+            cleaned_analysis = self._validate_and_clean_analysis(analysis, questions_data, subject)
+            # Ajouter les métadonnées du test
+            cleaned_analysis['test_name'] = test_name
+            cleaned_analysis['subject'] = subject
+            cleaned_analysis['score'] = score
+            return cleaned_analysis
     
     def _build_analysis_prompt(self, test_name: str, subject: str, 
                                questions_data: List[Dict], score: float) -> str:
@@ -217,14 +235,17 @@ Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire. [/INST]
     def _generate_basic_analysis(self, questions_data: List[Dict], score: float, subject: str) -> Dict:
         """
         Génère une analyse basique si l'IA n'est pas disponible
+        TOUJOURS génère des points forts et lacunes spécifiques
         """
         from collections import Counter
         
         correct_concepts = []
         incorrect_concepts = []
+        all_concepts = []
         
         for q in questions_data:
             concept = q.get('concept', 'Général')
+            all_concepts.append(concept)
             if q.get('is_correct'):
                 correct_concepts.append(concept)
             else:
@@ -232,47 +253,113 @@ Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire. [/INST]
         
         correct_counts = Counter(correct_concepts)
         incorrect_counts = Counter(incorrect_concepts)
+        all_concepts_counts = Counter(all_concepts)
         
-        # Points forts
+        # Points forts - TOUJOURS générer
         strengths = []
-        for concept, count in correct_counts.most_common(3):
-            strengths.append(f"Bonne maîtrise de {concept} ({count} réponses correctes)")
         
-        if not strengths:
-            strengths = ["Continuez vos efforts pour identifier vos points forts"]
+        # Si l'étudiant a des réponses correctes, lister les concepts maîtrisés
+        if correct_counts:
+            for concept, count in correct_counts.most_common(5):
+                total_concept = all_concepts_counts.get(concept, count)
+                percentage = (count / total_concept * 100) if total_concept > 0 else 0
+                strengths.append(f"Bonne maîtrise de {concept} ({count}/{total_concept} correctes - {percentage:.0f}%)")
         
-        # Points faibles
+        # Si pas assez de points forts, analyser les concepts proches de la réussite
+        if len(strengths) < 3:
+            # Chercher des concepts avec au moins 1 bonne réponse
+            for concept in set(all_concepts):
+                if concept not in [s.split('Bonne maîtrise de ')[1].split(' (')[0] for s in strengths if 'Bonne maîtrise de' in s]:
+                    correct = correct_counts.get(concept, 0)
+                    total = all_concepts_counts.get(concept, 0)
+                    if correct > 0 and len(strengths) < 5:
+                        strengths.append(f"Compréhension partielle de {concept} ({correct}/{total} correctes)")
+        
+        # Si toujours pas assez, ajouter des points forts basés sur l'effort
+        if len(strengths) < 3:
+            if score > 0:
+                strengths.append(f"Engagement démontré avec un score de {score:.1f}%")
+                strengths.append(f"Participation active au test sur {subject}")
+                strengths.append(f"Capacité à compléter l'ensemble du test")
+        
+        # Minimum 3 points forts
+        while len(strengths) < 3:
+            strengths.append(f"Effort fourni sur les questions de {subject}")
+        
+        # Points faibles - TOUJOURS générer des lacunes spécifiques
         weaknesses = []
-        for concept, count in incorrect_counts.most_common(3):
-            weaknesses.append(f"Difficultés avec {concept} ({count} erreurs)")
         
-        if not weaknesses:
-            weaknesses = ["Excellente performance, aucune faiblesse majeure détectée !"]
+        # Si l'étudiant a des erreurs, lister les concepts à améliorer
+        if incorrect_counts:
+            for concept, count in incorrect_counts.most_common(5):
+                total_concept = all_concepts_counts.get(concept, count)
+                percentage = (count / total_concept * 100) if total_concept > 0 else 0
+                weaknesses.append(f"À renforcer : {concept} ({count}/{total_concept} incorrectes - {percentage:.0f}%)")
         
-        # Recommandations
+        # Si pas d'erreurs (score parfait), identifier des axes d'amélioration potentiels
+        if len(weaknesses) == 0:
+            # Analyser les concepts pour suggérer des améliorations
+            if all_concepts_counts:
+                for concept in list(all_concepts_counts.keys())[:3]:
+                    weaknesses.append(f"Approfondir davantage {concept} pour maîtrise experte")
+            
+            # Ajouter des suggestions d'amélioration générale
+            if len(weaknesses) < 3:
+                weaknesses.append(f"Chercher des exercices plus avancés en {subject}")
+                weaknesses.append(f"Travailler la rapidité d'exécution")
+                weaknesses.append(f"Explorer des concepts connexes à {subject}")
+        
+        # Minimum 3 points faibles
+        while len(weaknesses) < 3:
+            weaknesses.append(f"Pratiquer régulièrement pour maintenir le niveau en {subject}")
+        
+        # Recommandations - TOUJOURS spécifiques
         recommendations = []
-        for concept, _ in incorrect_counts.most_common(3):
-            recommendations.append(f"Pratiquer davantage les exercices sur {concept}")
         
-        if not recommendations:
-            recommendations = [
-                f"Maintenir le niveau actuel de {score:.0f}%",
-                "Explorer des exercices plus avancés",
-                "Aider les autres étudiants pour renforcer vos connaissances"
-            ]
+        # Recommandations basées sur les erreurs
+        for concept, count in incorrect_counts.most_common(3):
+            recommendations.append(f"Réviser et pratiquer davantage {concept}")
         
-        # Feedback
-        if score >= 80:
-            feedback = f"Excellente performance en {subject} avec {score:.1f}% ! Vous maîtrisez bien les concepts clés."
+        # Recommandations basées sur les réussites
+        for concept, count in correct_counts.most_common(2):
+            if len(recommendations) < 5:
+                recommendations.append(f"Approfondir {concept} avec des exercices avancés")
+        
+        # Recommandations générales si besoin
+        if len(recommendations) < 3:
+            if score >= 80:
+                recommendations.append(f"Explorer des sujets avancés en {subject}")
+                recommendations.append("Aider d'autres étudiants pour renforcer vos connaissances")
+                recommendations.append("Participer à des projets pratiques")
+            elif score >= 60:
+                recommendations.append(f"Revoir les bases de {subject}")
+                recommendations.append("Pratiquer régulièrement avec des exercices variés")
+                recommendations.append("Demander de l'aide sur les concepts difficiles")
+            else:
+                recommendations.append(f"Revoir en profondeur les fondamentaux de {subject}")
+                recommendations.append("Pratiquer quotidiennement avec des exercices simples")
+                recommendations.append("Consulter un tuteur ou former un groupe d'étude")
+        
+        # Minimum 3 recommandations
+        while len(recommendations) < 3:
+            recommendations.append(f"Continuer à pratiquer régulièrement {subject}")
+        
+        # Feedback détaillé
+        if score >= 90:
+            feedback = f"Excellente performance en {subject} avec {score:.1f}% ! Vous maîtrisez très bien les concepts clés. Continuez ainsi et explorez des sujets plus avancés."
+        elif score >= 75:
+            feedback = f"Très bonne performance en {subject} avec {score:.1f}%. Vous avez une bonne compréhension globale avec quelques points à perfectionner."
         elif score >= 60:
-            feedback = f"Bonne performance en {subject} avec {score:.1f}%. Quelques points à améliorer pour atteindre l'excellence."
+            feedback = f"Performance satisfaisante en {subject} avec {score:.1f}%. Vous avez acquis les bases, mais des efforts supplémentaires permettront d'atteindre l'excellence."
+        elif score >= 40:
+            feedback = f"Performance de {score:.1f}% en {subject}. Des lacunes importantes sont identifiées. Concentrez-vous sur les concepts fondamentaux."
         else:
-            feedback = f"Performance de {score:.1f}% en {subject}. Des efforts supplémentaires sont nécessaires pour progresser."
+            feedback = f"Performance de {score:.1f}% en {subject}. Une révision approfondie est nécessaire. N'hésitez pas à demander de l'aide."
         
         return {
-            'strengths': strengths,
-            'weaknesses': weaknesses,
-            'recommendations': recommendations,
+            'strengths': strengths[:5],  # Maximum 5 points forts
+            'weaknesses': weaknesses[:5],  # Maximum 5 points faibles
+            'recommendations': recommendations[:5],  # Maximum 5 recommandations
             'detailed_feedback': feedback
         }
     
@@ -300,3 +387,59 @@ Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire. [/INST]
             analyses[test_id] = analysis
         
         return analyses
+
+    def _validate_and_clean_analysis(self, analysis: Dict, questions_data: List[Dict], subject: str) -> Dict:
+        """
+        Valide et nettoie l'analyse pour éviter les messages génériques
+        Force la génération de concepts spécifiques
+        """
+        from collections import Counter
+        
+        # Extraire tous les concepts
+        all_concepts = [q.get('concept', subject) for q in questions_data]
+        concepts_counter = Counter(all_concepts)
+        
+        # Messages génériques à éviter absolument
+        GENERIC_MESSAGES = [
+            "Pas encore de concepts maîtrisés",
+            "Continuez vos efforts",
+            "Aucune faiblesse majeure détectée",
+            "Aucune lacune",
+        ]
+        
+        # Nettoyer les points forts
+        cleaned_strengths = []
+        for strength in analysis.get('strengths', []):
+            # Vérifier si c'est un message générique
+            is_generic = any(gen_msg.lower() in strength.lower() for gen_msg in GENERIC_MESSAGES)
+            if not is_generic:
+                cleaned_strengths.append(strength)
+        
+        # Si pas assez de points forts spécifiques, en générer
+        if len(cleaned_strengths) < 3:
+            # Générer des points forts basés sur les concepts réels
+            for concept in list(concepts_counter.keys())[:3]:
+                if len(cleaned_strengths) < 3:
+                    cleaned_strengths.append(f"Travail effectué sur {concept}")
+        
+        # Nettoyer les points faibles
+        cleaned_weaknesses = []
+        for weakness in analysis.get('weaknesses', []):
+            # Vérifier si c'est un message générique
+            is_generic = any(gen_msg.lower() in weakness.lower() for gen_msg in GENERIC_MESSAGES)
+            if not is_generic:
+                cleaned_weaknesses.append(weakness)
+        
+        # Si pas assez de points faibles spécifiques, en générer
+        if len(cleaned_weaknesses) < 3:
+            # Générer des suggestions d'amélioration basées sur les concepts
+            for concept in list(concepts_counter.keys())[:3]:
+                if len(cleaned_weaknesses) < 3:
+                    cleaned_weaknesses.append(f"Approfondir les connaissances en {concept}")
+        
+        return {
+            'strengths': cleaned_strengths[:5],
+            'weaknesses': cleaned_weaknesses[:5],
+            'recommendations': analysis.get('recommendations', [])[:5],
+            'detailed_feedback': analysis.get('detailed_feedback', '')
+        }

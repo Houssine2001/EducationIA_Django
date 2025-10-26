@@ -238,15 +238,15 @@ class GamificationService:
             if self._check_comeback(results):
                 new_badges.append(self._award_badge('comeback_king'))
         
-        # 9. Daily Streak 7 jours
-        if 'daily_streak_7' not in current_badge_ids:
-            if self.profile.current_streak >= 7:
-                new_badges.append(self._award_badge('daily_streak_7'))
+        # 9. Daily Streak 7 jours - DÉSACTIVÉ (nécessite current_streak dans UserProfile)
+        # if 'daily_streak_7' not in current_badge_ids:
+        #     if self.profile.current_streak >= 7:
+        #         new_badges.append(self._award_badge('daily_streak_7'))
         
-        # 10. Daily Streak 30 jours
-        if 'daily_streak_30' not in current_badge_ids:
-            if self.profile.current_streak >= 30:
-                new_badges.append(self._award_badge('daily_streak_30'))
+        # 10. Daily Streak 30 jours - DÉSACTIVÉ (nécessite current_streak dans UserProfile)
+        # if 'daily_streak_30' not in current_badge_ids:
+        #     if self.profile.current_streak >= 30:
+        #         new_badges.append(self._award_badge('daily_streak_30'))
         
         # 11. Subject Master (>90% dans une matière)
         if 'subject_master' not in current_badge_ids:
@@ -333,9 +333,10 @@ class GamificationService:
     
     def _check_consecutive_scores(self, results, min_score, count):
         """Vérifier si l'étudiant a eu X scores consécutifs >= min_score."""
-        ordered_results = results.order_by('-created_at')[:count]
+        # Convertir en liste pour éviter les problèmes avec djongo count() après slicing
+        ordered_results = list(results.order_by('-created_at')[:count])
         
-        if ordered_results.count() < count:
+        if len(ordered_results) < count:
             return False
         
         return all(r.percentage_score >= min_score for r in ordered_results)
@@ -352,8 +353,9 @@ class GamificationService:
         if not recent.count() > 0 or not older.count() > 0:
             return False
         
-        recent_avg = recent.aggregate(Avg('percentage'))['percentage_score__avg']
-        older_avg = older.aggregate(Avg('percentage'))['percentage_score__avg']
+        # Correction: utiliser percentage_score au lieu de percentage
+        recent_avg = recent.aggregate(Avg('percentage_score'))['percentage_score__avg']
+        older_avg = older.aggregate(Avg('percentage_score'))['percentage_score__avg']
         
         if recent_avg and older_avg:
             return (recent_avg - older_avg) >= 20
@@ -384,10 +386,10 @@ class GamificationService:
         from django.db.models import Avg
         
         subjects = results.values('test__subject').annotate(
-            avg_score=Avg('percentage')
+            avg_score=Avg('percentage_score')
         )
         
-        return any(s['avg_score'] >= 90 for s in subjects)
+        return any(s.get('avg_score', 0) >= 90 for s in subjects)
     
     
     def _check_all_rounder(self, results):
@@ -395,10 +397,10 @@ class GamificationService:
         from django.db.models import Avg
         
         subjects = results.values('test__subject').annotate(
-            avg_score=Avg('percentage')
+            avg_score=Avg('percentage_score')
         )
         
-        high_subjects = [s for s in subjects if s['avg_score'] >= 75]
+        high_subjects = [s for s in subjects if s.get('avg_score', 0) >= 75]
         
         return len(high_subjects) >= 5
     
@@ -495,3 +497,169 @@ class GamificationService:
                 }
         
         return None
+
+
+    def get_badge_progress(self):
+        """
+        Obtenir la progression de TOUS les badges (obtenus et non obtenus).
+        
+        Returns:
+            dict: {
+                'earned_badges': [...],  # Badges obtenus
+                'available_badges': [...] # Badges disponibles avec progression
+            }
+        """
+        from evaluation.models import Result, Submission
+        
+        # Récupérer les badges déjà obtenus
+        current_badges = self.profile.badges or []
+        current_badge_ids = [b['badge_id'] for b in current_badges]
+        
+        # Récupérer les données nécessaires
+        results = Result.objects.filter(student=self.user)
+        submissions = Submission.objects.filter(student=self.user, status='completed')
+        
+        # Liste des badges disponibles avec progression
+        available_badges = []
+        
+        for badge_id, badge_data in self.BADGES.items():
+            # Vérifier si le badge est déjà obtenu
+            is_earned = badge_id in current_badge_ids
+            
+            # Calculer la progression
+            progress = self._calculate_badge_progress(badge_id, results, submissions)
+            
+            badge_info = {
+                'badge_id': badge_id,
+                'name': badge_data['name'],
+                'description': badge_data['description'],
+                'icon': badge_data['icon'],
+                'color': badge_data['color'],
+                'rarity': badge_data['rarity'],
+                'points': badge_data['points'],
+                'is_earned': is_earned,
+                'progress': progress['current'],
+                'target': progress['target'],
+                'progress_percentage': progress['percentage']
+            }
+            
+            if is_earned:
+                # Trouver la date d'obtention
+                earned_badge = next((b for b in current_badges if b['badge_id'] == badge_id), None)
+                if earned_badge:
+                    badge_info['earned_at'] = earned_badge.get('earned_at')
+            
+            available_badges.append(badge_info)
+        
+        return {
+            'earned_badges': [b for b in available_badges if b['is_earned']],
+            'available_badges': [b for b in available_badges if not b['is_earned']]
+        }
+    
+    
+    def _calculate_badge_progress(self, badge_id, results, submissions):
+        """
+        Calculer la progression d'un badge spécifique.
+        
+        Returns:
+            dict: {'current': int, 'target': int, 'percentage': float}
+        """
+        current = 0
+        target = 1
+        
+        # Calculer selon le type de badge
+        if badge_id == 'first_test':
+            current = min(results.count(), 1)
+            target = 1
+        
+        elif badge_id == 'perfect_score':
+            current = min(results.filter(percentage_score=100).count(), 1)
+            target = 1
+        
+        elif badge_id == 'high_achiever':
+            current = results.filter(percentage_score__gte=90).count()
+            target = 5
+        
+        elif badge_id == 'consistent_performer':
+            # Vérifier les 10 derniers tests
+            recent_10 = results.order_by('-created_at')[:10]
+            current = sum(1 for r in recent_10 if r.percentage_score >= 70)
+            target = 10
+        
+        elif badge_id == 'dedicated_student':
+            current = results.count()
+            target = 20
+        
+        elif badge_id == 'marathon_runner':
+            current = results.count()
+            target = 50
+        
+        elif badge_id == 'fast_learner':
+            # Vérifier amélioration
+            if self._check_fast_improvement(results):
+                current = 1
+            target = 1
+        
+        elif badge_id == 'comeback_king':
+            # Vérifier comeback
+            if self._check_comeback(results):
+                current = 1
+            target = 1
+        
+        elif badge_id == 'daily_streak_7':
+            # DÉSACTIVÉ - nécessite current_streak dans UserProfile
+            current = 0
+            target = 7
+        
+        elif badge_id == 'daily_streak_30':
+            # DÉSACTIVÉ - nécessite current_streak dans UserProfile
+            current = 0
+            target = 30
+        
+        elif badge_id == 'subject_master':
+            # Vérifier >90% dans une matière
+            from django.db.models import Avg
+            subjects = results.values('test__subject').annotate(
+                avg_score=Avg('percentage_score')
+            )
+            high_subjects = [s for s in subjects if s.get('avg_score', 0) >= 90]
+            current = min(len(high_subjects), 1)
+            target = 1
+        
+        elif badge_id == 'all_rounder':
+            # Vérifier >75% dans 5 matières
+            from django.db.models import Avg
+            subjects = results.values('test__subject').annotate(
+                avg_score=Avg('percentage_score')
+            )
+            high_subjects = [s for s in subjects if s.get('avg_score', 0) >= 75]
+            current = len(high_subjects)
+            target = 5
+        
+        elif badge_id == 'speed_demon':
+            # Vérifier vitesse
+            if self._check_speed_demon(submissions):
+                current = 1
+            target = 1
+        
+        elif badge_id == 'ai_master':
+            # Vérifier >90% sur 5 questions IA
+            ai_correct = 0
+            for sub in submissions:
+                if hasattr(sub, 'answers') and sub.answers:
+                    answers = sub.answers if isinstance(sub.answers, dict) else {}
+                    for ans_info in answers.values():
+                        if isinstance(ans_info, dict) and ans_info.get('is_correct'):
+                            ai_correct += 1
+            current = min(ai_correct, 5)
+            target = 5
+        
+        # Calculer le pourcentage
+        percentage = (current / target * 100) if target > 0 else 0
+        percentage = min(percentage, 100)  # Max 100%
+        
+        return {
+            'current': current,
+            'target': target,
+            'percentage': round(percentage, 1)
+        }

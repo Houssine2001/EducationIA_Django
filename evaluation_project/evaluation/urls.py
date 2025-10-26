@@ -10,8 +10,7 @@ urlpatterns = [
     # ============================================
     # Authentification
     # ============================================
-    path('signup/', views.signup, name='signup'),
-    
+   path('signup/', views.signup, name='signup'),    
     # ============================================
     # URLs Enseignants
     # ============================================
