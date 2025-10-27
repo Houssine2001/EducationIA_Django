@@ -1,0 +1,4 @@
+-r requirements.txt
+dnspython>=2.3.0
+whitenoise>=6.4.0
+pymongo>=4.0.0

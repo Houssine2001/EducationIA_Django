@@ -10,12 +10,14 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-2ydi0(zc%3jtz!8pyqjp&g352lbs1g^i2kl*hh(w51g!j^y(n7')
+# Support multiple env var names and safer production defaults
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', os.getenv('SECRET_KEY', 'django-insecure-2ydi0(zc%3jtz!8pyqjp&g352lbs1g^i2kl*hh(w51g!j^y(n7'))
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DJANGO_DEBUG', os.getenv('DEBUG', 'False')).lower() in ('1', 'true', 'yes')
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver']
+# Allow configuring hosts via an env var (comma-separated)
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
 # CSRF Configuration for localhost
 CSRF_TRUSTED_ORIGINS = [
@@ -60,6 +62,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'backend.djongo_fix_middleware.DjongoFixMiddleware',  # FIX DJONGO EN PREMIER !
     'django.middleware.security.SecurityMiddleware',
+    # WhiteNoise for serving static files on platforms like Azure App Service
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -100,6 +104,9 @@ MONGO_DB_NAME = os.getenv('MONGO_DB_NAME', 'django_education')
 MONGO_USERNAME = os.getenv('MONGO_USERNAME', '')
 MONGO_PASSWORD = os.getenv('MONGO_PASSWORD', '')
 
+# Full MongoDB URI (Atlas). If provided, prefer this for SRV connections.
+MONGO_URI = os.getenv('MONGO_URI', '').strip()
+
 # Configuration de la base de données
 # Le projet utilise Djongo/MongoDB en production. Pour faciliter la dockerisation
 # en développement (et éviter des conflits de versions dans l'image), on permet
@@ -107,22 +114,30 @@ MONGO_PASSWORD = os.getenv('MONGO_PASSWORD', '')
 USE_MONGO = os.getenv('USE_MONGO', '0') == '1'
 
 if USE_MONGO:
+    # Prefer a full MONGO_URI (mongodb+srv://...) when present (required for Atlas SRV)
+    client = {}
+    if MONGO_URI:
+        client['host'] = MONGO_URI
+    else:
+        # Fallback to host/port style (useful when running a local mongo container)
+        client.update({
+            'host': MONGO_HOST,
+            'port': MONGO_PORT,
+            'serverSelectionTimeoutMS': 5000,
+            'connectTimeoutMS': 30000,
+            'socketTimeoutMS': None,
+            'maxPoolSize': 50,
+            'minPoolSize': 10,
+            'maxIdleTimeMS': None,
+        })
+
     DATABASES = {
         'default': {
             'ENGINE': 'djongo',
             'NAME': MONGO_DB_NAME,
-            'ENFORCE_SCHEMA': False,  # Permet schema flexible
-            'CONN_MAX_AGE': None,  # Garder la connexion ouverte
-            'CLIENT': {
-                'host': MONGO_HOST,
-                'port': MONGO_PORT,
-                'serverSelectionTimeoutMS': 5000,
-                'connectTimeoutMS': 30000,
-                'socketTimeoutMS': None,  # Pas de timeout
-                'maxPoolSize': 50,
-                'minPoolSize': 10,
-                'maxIdleTimeMS': None,  # Jamais expirer
-            },
+            'ENFORCE_SCHEMA': False,
+            'CONN_MAX_AGE': None,
+            'CLIENT': client,
         }
     }
 else:
