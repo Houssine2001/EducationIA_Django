@@ -31,6 +31,134 @@ def track_student_login(sender, request, user, **kwargs):
         except Exception as e:
             print(f"Erreur lors du tracking de connexion pour {user.username}: {e}")
 
+# ============================================================
+# 🎮 SIGNAL POUR PROGRESSION AUTOMATIQUE DES DÉFIS
+# ============================================================
+
+@receiver(post_save)
+def update_challenge_progress_on_exercise_completion(sender, instance, created, **kwargs):
+    """
+    Signal pour mettre à jour la progression des défis quand un exercice est complété
+    Fonctionne avec MongoDB (exercise_generator) et Django ORM (evaluation)
+    """
+    try:
+        # Vérifier si c'est une soumission d'exercice IA complétée
+        if sender.__name__ == 'StudentExerciseSubmission' and created:
+            print(f"✅ Signal déclenché pour exercice IA: {instance}")
+            
+            # Récupérer l'utilisateur
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            
+            if hasattr(instance, 'student_id'):
+                user = User.objects.get(id=instance.student_id)
+            elif hasattr(instance, 'student'):
+                user = instance.student
+            else:
+                return
+            
+            print(f"👤 Utilisateur: {user.username}")
+            
+            # Récupérer le profil et ajouter XP
+            from evaluation.models import UserProfile
+            profile, created = UserProfile.objects.get_or_create(user=user)
+            
+            # Ajouter des XP pour l'exercice complété
+            xp_gained = 10  # XP de base
+            if hasattr(instance, 'score') and instance.score:
+                xp_gained += int(instance.score / 10)  # Bonus basé sur le score
+            
+            profile.total_xp += xp_gained
+            profile.save()
+            print(f"💫 {xp_gained} XP ajoutés. Total: {profile.total_xp}")
+            
+            # Mettre à jour les défis actifs
+            from .models import Challenge
+            active_challenges = Challenge.objects.filter(
+                student=user,
+                status='ACTIVE',
+                expires_at__gte=timezone.now()
+            )
+            
+            print(f"🎯 {active_challenges.count()} défis actifs trouvés")
+            
+            for challenge in active_challenges:
+                if 'exercice' in challenge.title.lower() or challenge.subject:
+                    try:
+                        from pymongo import MongoClient
+                        from django.conf import settings
+                        
+                        # Connexion MongoDB
+                        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+                        db = client[settings.MONGO_DB_NAME]
+                        
+                        # Compter les exercices complétés depuis le début du défi
+                        completed_count = db.student_exercise_submissions.count_documents({
+                            'student_id': user.id,
+                            'status': 'completed',
+                            'submitted_at': {'$gte': challenge.created_at}
+                        })
+                        
+                        # Calculer la nouvelle progression
+                        target_value = challenge.target_data.get('target_value', 5)
+                        old_progress = challenge.current_progress
+                        new_progress = min(100, (completed_count / target_value) * 100)
+                        
+                        print(f"🎯 Défi '{challenge.title}': {completed_count}/{target_value} exercices")
+                        print(f"📊 Progression: {old_progress}% -> {new_progress}%")
+                        
+                        # Mettre à jour la progression
+                        challenge.current_progress = new_progress
+                        
+                        # Vérifier si le défi est complété
+                        if new_progress >= 100 and challenge.status != 'COMPLETED':
+                            challenge.status = 'COMPLETED'
+                            challenge.completed_at = timezone.now()
+                            
+                            # Ajouter les récompenses
+                            profile.total_xp += challenge.xp_reward
+                            profile.coins += challenge.coins_reward
+                            profile.save()
+                            
+                            print(f"🎉 DÉFI COMPLÉTÉ! +{challenge.xp_reward} XP, +{challenge.coins_reward} coins")
+                        
+                        challenge.save()
+                        client.close()
+                        
+                    except Exception as e:
+                        print(f"❌ Erreur MongoDB pour défi '{challenge.title}': {e}")
+        
+        # Gérer les soumissions de tests Django normaux
+        elif sender.__name__ in ['TestSubmission', 'Result'] and created:
+            print(f"✅ Signal déclenché pour test Django: {instance}")
+            
+            if hasattr(instance, 'student'):
+                user = instance.student
+            elif hasattr(instance, 'user'):
+                user = instance.user
+            else:
+                return
+            
+            # Même logique pour les tests Django
+            from evaluation.models import UserProfile
+            profile, created = UserProfile.objects.get_or_create(user=user)
+            
+            # XP pour test complété
+            xp_gained = 15
+            if hasattr(instance, 'score') and instance.score:
+                xp_gained += int(instance.score / 5)
+            elif hasattr(instance, 'percentage_score') and instance.percentage_score:
+                xp_gained += int(instance.percentage_score / 5)
+            
+            profile.total_xp += xp_gained
+            profile.save()
+            print(f"💫 {xp_gained} XP ajoutés pour test Django. Total: {profile.total_xp}")
+    
+    except Exception as e:
+        print(f"❌ Erreur signal challenge progress: {e}")
+        import traceback
+        traceback.print_exc()
+
 if EVALUATION_AVAILABLE and TestSubmission:
     @receiver(post_save, sender=TestSubmission)
     def track_test_submission(sender, instance, created, **kwargs):

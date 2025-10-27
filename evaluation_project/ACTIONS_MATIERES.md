@@ -81,7 +81,7 @@ Allez sur: **http://127.0.0.1:8000/analytics/matieres/**
 
 ## 🎯 Test Rapide
 
-### Test 1: Voir les matières
+### Test 1: les matières
 1. Connexion comme `etudiant2`
 2. Aller sur `/analytics/matieres/`
 3. **Résultat attendu**: 4 matières affichées

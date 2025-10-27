@@ -747,13 +747,61 @@ def gamified_dashboard(request):
     if created:
         messages.success(request, '🎉 Bienvenue dans le système gamifié ! Gagnez des XP et montez de niveau !')
     
-    # Défis du jour
+    # Défis du jour avec MISE À JOUR DE PROGRESSION
     challenge_service = ChallengeService()
     daily_challenges = Challenge.objects.filter(
         student=request.user,
         status='ACTIVE',
         expires_at__gte=timezone.now()
     ).order_by('difficulty')
+    
+    # Mettre à jour la progression des défis existants
+    for challenge in daily_challenges:
+        try:
+            # Calculer la progression basée sur les exercices IA complétés
+            if 'exercice' in challenge.title.lower() or challenge.subject:
+                from pymongo import MongoClient
+                from django.conf import settings
+                
+                # Connexion MongoDB pour vérifier les soumissions
+                client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+                db = client[settings.MONGO_DB_NAME]
+                
+                # Compter les exercices complétés depuis le début du défi
+                completed_exercises = db.student_exercise_submissions.count_documents({
+                    'student_id': request.user.id,
+                    'status': 'completed',
+                    'submitted_at': {'$gte': challenge.created_at}
+                })
+                
+                # Calculer la nouvelle progression (target_value dans target_data)
+                target_value = challenge.target_data.get('target_value', 5)  # défaut: 5 exercices
+                new_progress = min(100, (completed_exercises / target_value) * 100)
+                
+                # Mettre à jour si nécessaire
+                if new_progress != challenge.current_progress:
+                    old_progress = challenge.current_progress
+                    challenge.current_progress = new_progress
+                    
+                    # Vérifier si le défi est complété
+                    if new_progress >= 100 and challenge.status != 'COMPLETED':
+                        challenge.status = 'COMPLETED'
+                        challenge.completed_at = timezone.now()
+                        
+                        # Ajouter XP et coins de récompense
+                        profile.total_xp += challenge.xp_reward
+                        profile.coins += challenge.coins_reward
+                        profile.save()
+                        
+                        messages.success(request, f'🎉 Défi "{challenge.title}" complété ! +{challenge.xp_reward} XP, +{challenge.coins_reward} coins')
+                    
+                    challenge.save()
+                    print(f"✅ Défi '{challenge.title}': progression {old_progress}% -> {new_progress}% ({completed_exercises}/{target_value} exercices)")
+                
+                client.close()
+                
+        except Exception as e:
+            print(f"❌ Erreur mise à jour progression défi '{challenge.title}': {e}")
     
     # Si pas de défis, en générer
     if daily_challenges.count() == 0:
@@ -778,11 +826,30 @@ def gamified_dashboard(request):
         end_date__gte=timezone.now()
     ).order_by('end_date')[:5]
     
-    # Classement top 10
-    leaderboard = UserProfile.objects.all().order_by('-total_xp')[:10]
+    # Classement top 10 - FILTRÉ POUR LES ÉTUDIANTS SEULEMENT
+    from django.db.models import Q
     
-    # Position de l'utilisateur
-    user_rank = UserProfile.objects.filter(total_xp__gt=profile.total_xp).count() + 1
+    # Filtrer par utilisateurs dont le nom contient "etudiant" (insensible à la casse)
+    leaderboard = UserProfile.objects.filter(
+        Q(user__username__icontains='etudiant') | 
+        Q(user__first_name__icontains='etudiant') |
+        Q(user__last_name__icontains='etudiant')
+    ).select_related('user').order_by('-total_xp')[:10]
+    
+    # Si aucun résultat avec "etudiant", fallback sur role='student'
+    if not leaderboard.exists():
+        leaderboard = UserProfile.objects.filter(
+            role='student'
+        ).select_related('user').order_by('-total_xp')[:10]
+    
+    # Position de l'utilisateur - calculée par rapport aux étudiants seulement
+    better_users = UserProfile.objects.filter(
+        Q(user__username__icontains='etudiant') | 
+        Q(user__first_name__icontains='etudiant') |
+        Q(user__last_name__icontains='etudiant'),
+        total_xp__gt=profile.total_xp
+    ).count()
+    user_rank = better_users + 1
     
     # XP pour prochain niveau (100 XP par niveau)
     current_level_xp = (profile.level - 1) * 100

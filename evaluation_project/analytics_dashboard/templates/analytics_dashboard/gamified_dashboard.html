@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load math_filters %}
 
 {% block title %}🎮 Dashboard Gamifié{% endblock %}
 
@@ -289,7 +290,12 @@
                                 <div class="progress-bar">
                                     <div class="progress" style="width: {{ challenge.current_progress }}%"></div>
                                 </div>
-                                <p style="font-size: 12px; color: #888;">Progression: {{ challenge.current_progress|floatformat:0 }}%</p>
+                                <p style="font-size: 12px; color: #888;">
+                                    Progression: {{ challenge.current_progress|floatformat:0 }}%
+                                    {% if challenge.target_data.target_value %}
+                                        ({{ challenge.current_progress|floatformat:0 }}/100)
+                                    {% endif %}
+                                </p>
                                 
                                 <div class="rewards">
                                     <span>⚡ {{ challenge.xp_reward }} XP</span>
@@ -317,9 +323,15 @@
                             </div>
                         </div>
                         
-                        <a href="{% url 'analytics_dashboard:start_challenge' challenge.pk %}" class="btn-start" style="text-decoration: none;">
-                            Commencer →
-                        </a>
+                        {% if challenge.status == 'COMPLETED' %}
+                            <div style="text-align: center; padding: 10px; background: #4caf50; color: white; border-radius: 8px; font-weight: bold;">
+                                ✅ Défi Complété !
+                            </div>
+                        {% else %}
+                            <a href="{% url 'exercise_generator:student_exercise_sets' %}" class="btn-start" style="text-decoration: none;">
+                                🚀 Faire des exercices →
+                            </a>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 {% else %}
@@ -419,8 +431,6 @@
                     <a href="{% url 'analytics_dashboard:stress_report' %}" style="padding: 10px; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); border-radius: 8px; text-decoration: none; color: white; font-weight: bold;">
                         🧠 Gérer mon stress et ma concentration
                     </a>
-                    
-                  
                   
                 </div>
             </div>
