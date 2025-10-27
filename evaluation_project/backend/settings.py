@@ -106,6 +106,16 @@ MONGO_DB_NAME = os.getenv('MONGODB_NAME', 'django_education')
 MONGO_USERNAME = os.getenv('MONGO_USERNAME', '')
 MONGO_PASSWORD = os.getenv('MONGO_PASSWORD', '')
 
+# Ajouter le nom de la base de données à l'URI si absent
+if MONGODB_URI and '?' in MONGODB_URI and '/' not in MONGODB_URI.split('?')[0].split('.net')[1]:
+    # Format: mongodb+srv://...mongodb.net/?params
+    # Devient: mongodb+srv://...mongodb.net/django_education?params
+    MONGODB_URI = MONGODB_URI.replace('/?', f'/{MONGO_DB_NAME}?')
+elif MONGODB_URI and MONGODB_URI.endswith('.net'):
+    # Format: mongodb+srv://...mongodb.net
+    # Devient: mongodb+srv://...mongodb.net/django_education
+    MONGODB_URI = f'{MONGODB_URI}/{MONGO_DB_NAME}'
+
 # Configuration de la base de données
 if MONGODB_URI:
     # Configuration pour MongoDB Atlas (Production)
