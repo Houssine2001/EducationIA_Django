@@ -1,100 +1,51 @@
 # ===================================
-# Évaluation & Suivi IA - Requirements
-# Date: 5 octobre 2025
+# Requirements pour Production Render
+# Optimisé pour déploiement léger
 # ===================================
 
-# ========== PACKAGES INSTALLÉS ==========
+# ========== DJANGO CORE ==========
+Django==4.1.13
+asgiref==3.7.2
+sqlparse==0.4.4
 
-# Django Framework
-Django==4.2.16
-asgiref==3.9.2
-sqlparse==0.2.4
+# ========== SERVEUR PRODUCTION ==========
+gunicorn==21.2.0
+whitenoise==6.5.0
 
-# Production Server (pour déploiement)
-gunicorn>=21.2.0
+# ========== MONGODB ==========
+djongo==1.3.6
+pymongo==3.12.3
+dnspython==2.3.0
 
-# Gestion des fichiers statiques en production
-whitenoise>=6.5.0
+# ========== UTILITIES ==========
+six==1.16.0
+pytz==2023.3
+tzdata==2023.3
+typing_extensions==4.7.1
+python-decouple==3.8
 
-# MongoDB Integration
-djongo==1.3.7
-pymongo==4.15.2
-dnspython==2.8.0
+# ========== HTTP/API ==========
+requests==2.31.0
+certifi==2023.7.22
+charset-normalizer==3.2.0
+idna==3.4
+urllib3==2.0.4
 
-# Python Utilities
-six==1.17.0
-pytz==2025.2
-tzdata==2025.2
-typing_extensions==4.15.0
-
-# HTTP Requests (Hugging Face API)
-requests==2.32.5
-certifi==2025.10.5
-charset-normalizer==3.4.3
-idna==3.10
-urllib3==2.5.0
-
-# ========== GÉNÉRATEUR D'EXERCICES IA ==========
-# Extraction de texte depuis PDF
+# ========== PDF/DOCUMENTS (légers) ==========
 PyPDF2==3.0.1
+python-docx==0.8.11
 
-# ========== MODULE RESOURCES - GESTION DE RESSOURCES PÉDAGOGIQUES ==========
-# Extraction de texte PDF (déjà installé)
-# PyPDF2==3.0.1
-pdfplumber>=0.10.0  # Alternative PDF extraction
+# ========== NUMPY BASIQUE ==========
+numpy==1.24.3
 
-# Extraction de texte DOCX
-python-docx>=0.8.11
-
-# Transcription vidéo (Audio -> Texte)
-openai-whisper>=20231117
-
-# IA - Génération de résumés
-transformers>=4.35.0
-torch>=2.1.0
-sentencepiece>=0.1.99  # Requis par certains modèles
-tokenizers>=0.15.0
-
-# Support audio/vidéo pour Whisper
-ffmpeg-python>=0.2.0  # Interface Python pour ffmpeg
-# Note: ffmpeg doit être installé sur le système (voir ci-dessous)
-
-# ========== OPTIONNEL (IA Locale Avancée) ==========
-# Décommenter pour exécuter modèles IA localement (consomme beaucoup de RAM)
-# spacy==3.7.0  # NLP avancé
-# sentence-transformers==2.2.2  # Embeddings
-
-# ========== OPTIONNEL (Sécurité) ==========
-# python-decouple==3.8  # Variables d'environnement
-
-# ========== OPTIONNEL (API REST) ==========
-# djangorestframework==3.14.0
-# django-cors-headers==4.0.0
-
-# ========== OPTIONNEL (Tests) ==========
-# pytest==7.3.1
-# pytest-django==4.5.2
+# ========== OPTIONNEL (si besoin API REST) ==========
+djangorestframework==3.14.0
+django-cors-headers==4.0.0
+Pillow==10.0.0
 
 # ===================================
-# Installation:
-# pip install -r requirements.txt
-# 
-# IMPORTANT pour la transcription vidéo:
-# Vous devez installer FFmpeg sur votre système:
-# 
-# Windows (avec Chocolatey):
-#   choco install ffmpeg
-# 
-# Windows (manuel):
-#   1. Télécharger: https://ffmpeg.org/download.html
-#   2. Extraire et ajouter au PATH
-# 
-# Linux:
-#   sudo apt-get install ffmpeg
-# 
-# macOS:
-#   brew install ffmpeg
+# NOTES:
+# - torch, transformers, whisper EXCLUS (trop lourds pour Render Free)
+# - Pour IA: utiliser API externe (Hugging Face, OpenAI)
+# - Django 4.1.13 pour compatibilité avec djongo
 # ===================================
-# pytest-django==4.5.2
-numpy>=1.21.0
-scikit-learn>=1.0.0
