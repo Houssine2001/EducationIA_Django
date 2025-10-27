@@ -1,0 +1,36 @@
+services:
+  # Service Web Django
+  - type: web
+    name: educatia-django
+    env: python
+    region: frankfurt  # ou oregon, singapore selon votre localisation
+    plan: free  # ou starter, standard selon vos besoins
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn backend.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_NAME
+        sync: false
+      # Variables d'environnement à définir manuellement dans Render Dashboard:
+      # - ALLOWED_HOSTS (votre-app.onrender.com)
+      # - MONGODB_URI (connection string depuis MongoDB Atlas)
+      # - MONGODB_NAME (nom de votre base de données)
+    
+    # Vérification de santé
+    healthCheckPath: /
+    
+    # Auto-déploiement
+    autoDeploy: true
+    
+    # Domaines personnalisés (optionnel)
+    # domains:
+    #   - your-custom-domain.com

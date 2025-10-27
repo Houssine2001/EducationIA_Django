@@ -13,18 +13,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-2ydi0(zc%3jtz!8pyqjp&g352lbs1g^i2kl*hh(w51g!j^y(n7')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver']
+# Allowed hosts - pour production
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,testserver').split(',')
+# Nettoyer les espaces
+ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS]
 
-# CSRF Configuration for localhost
-CSRF_TRUSTED_ORIGINS = [
-    'http://127.0.0.1:8000',
-    'http://localhost:8000',
-]
+# CSRF Configuration
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://127.0.0.1:8000,http://localhost:8000').split(',')
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in CSRF_TRUSTED_ORIGINS]
 
-# CSRF - Configuration simplifiée pour développement
-CSRF_COOKIE_SECURE = False
+# CSRF - Configuration sécurisée pour production
+CSRF_COOKIE_SECURE = not DEBUG  # True en production
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_USE_SESSIONS = False
@@ -34,7 +35,7 @@ CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
 # Session Configuration - CORRECTION POUR DJONGO
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'  # Changé de 'db' à 'cache'
 SESSION_CACHE_ALIAS = 'default'
-SESSION_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = not DEBUG  # True en production
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_AGE = 86400  # 24 heures
@@ -60,6 +61,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'backend.djongo_fix_middleware.DjongoFixMiddleware',  # FIX DJONGO EN PREMIER !
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Pour servir les fichiers statiques en production
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -94,31 +96,49 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # =============================================================================
 
 # Récupérer les variables d'environnement
+# Pour MongoDB Atlas, utilisez MONGODB_URI
+MONGODB_URI = os.getenv('MONGODB_URI', '')
+
+# Pour MongoDB local (développement)
 MONGO_HOST = os.getenv('MONGO_HOST', 'localhost')
 MONGO_PORT = int(os.getenv('MONGO_PORT', 27017))
-MONGO_DB_NAME = os.getenv('MONGO_DB_NAME', 'django_education')
+MONGO_DB_NAME = os.getenv('MONGODB_NAME', 'django_education')
 MONGO_USERNAME = os.getenv('MONGO_USERNAME', '')
 MONGO_PASSWORD = os.getenv('MONGO_PASSWORD', '')
 
 # Configuration de la base de données
-DATABASES = {
-    'default': {
-        'ENGINE': 'djongo',
-        'NAME': MONGO_DB_NAME,
-        'ENFORCE_SCHEMA': False,  # Permet schema flexible
-        'CONN_MAX_AGE': None,  # Garder la connexion ouverte
-        'CLIENT': {
-            'host': MONGO_HOST,
-            'port': MONGO_PORT,
-            'serverSelectionTimeoutMS': 5000,
-            'connectTimeoutMS': 30000,
-            'socketTimeoutMS': None,  # Pas de timeout
-            'maxPoolSize': 50,
-            'minPoolSize': 10,
-            'maxIdleTimeMS': None,  # Jamais expirer
-        },
+if MONGODB_URI:
+    # Configuration pour MongoDB Atlas (Production)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'djongo',
+            'NAME': MONGO_DB_NAME,
+            'ENFORCE_SCHEMA': False,
+            'CLIENT': {
+                'host': MONGODB_URI,
+            }
+        }
     }
-}
+else:
+    # Configuration pour MongoDB local (Développement)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'djongo',
+            'NAME': MONGO_DB_NAME,
+            'ENFORCE_SCHEMA': False,
+            'CONN_MAX_AGE': None,
+            'CLIENT': {
+                'host': MONGO_HOST,
+                'port': MONGO_PORT,
+                'serverSelectionTimeoutMS': 5000,
+                'connectTimeoutMS': 30000,
+                'socketTimeoutMS': None,
+                'maxPoolSize': 50,
+                'minPoolSize': 10,
+                'maxIdleTimeMS': None,
+            },
+        }
+    }
 
 
 # Alternative : MongoDB Atlas (cloud)
@@ -175,6 +195,16 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Configuration de WhiteNoise pour les fichiers statiques en production
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # Media files (uploads)
 MEDIA_URL = '/media/'
