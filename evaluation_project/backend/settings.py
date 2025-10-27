@@ -16,11 +16,11 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', os.getenv('SECRET_KEY', 'django-inse
 DEBUG = False  # Toujours False en production
 
 # Autoriser le domaine Azure
-ALLOWED_HOSTS = ['django-education-app-hwevdqa0ara5fwgp.westeurope-01.azurewebsites.net']
+ALLOWED_HOSTS = ['django-education-app-hwevdqa0ara5fwgp.francecentral-01.azurewebsites.net']
 
 # CSRF Configuration
 CSRF_TRUSTED_ORIGINS = [
-    'https://django-education-app-hwevdqa0ara5fwgp.westeurope-01.azurewebsites.net',
+    'django-education-app-hwevdqa0ara5fwgp.francecentral-01.azurewebsites.net',
 ]
 
 CSRF_COOKIE_SECURE = False
