@@ -1,4 +1,7 @@
--r requirements.txt
+-r requirements_mongodb.txt
+# Ensure SRV resolution for Atlas
 dnspython>=2.3.0
+# Static files support for simple AppService deployments
 whitenoise>=6.4.0
-pymongo>=4.0.0
+# WSGI server
+gunicorn==20.1.0
