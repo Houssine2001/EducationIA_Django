@@ -9,12 +9,14 @@ services:
     startCommand: "gunicorn backend.wsgi:application --timeout 120 --workers 1 --threads 2 --worker-class gthread"
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
+        sync: false
       - key: SECRET_KEY
-        generateValue: true
+        sync: false
       - key: DEBUG
-        value: False
+        sync: false
       - key: ALLOWED_HOSTS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
         sync: false
       - key: MONGODB_URI
         sync: false
