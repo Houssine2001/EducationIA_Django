@@ -6,7 +6,7 @@
 # ========== DJANGO CORE ==========
 Django==4.1.13
 asgiref==3.7.2
-sqlparse==0.4.4
+sqlparse==0.2.4
 
 # ========== SERVEUR PRODUCTION ==========
 gunicorn==21.2.0
