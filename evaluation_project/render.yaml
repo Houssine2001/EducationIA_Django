@@ -6,7 +6,7 @@ services:
     region: frankfurt  # ou oregon, singapore selon votre localisation
     plan: free  # ou starter, standard selon vos besoins
     buildCommand: "./build.sh"
-    startCommand: "gunicorn backend.wsgi:application"
+    startCommand: "gunicorn backend.wsgi:application --timeout 120 --workers 1 --threads 2 --worker-class gthread"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0

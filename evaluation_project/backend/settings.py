@@ -116,6 +116,13 @@ if MONGODB_URI:
             'ENFORCE_SCHEMA': False,
             'CLIENT': {
                 'host': MONGODB_URI,
+                'maxPoolSize': 10,  # Réduit pour plan Free
+                'minPoolSize': 1,
+                'serverSelectionTimeoutMS': 5000,
+                'connectTimeoutMS': 10000,
+                'socketTimeoutMS': 30000,
+                'retryWrites': True,
+                'w': 'majority',
             }
         }
     }
