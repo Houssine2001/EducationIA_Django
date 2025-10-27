@@ -101,24 +101,38 @@ MONGO_USERNAME = os.getenv('MONGO_USERNAME', '')
 MONGO_PASSWORD = os.getenv('MONGO_PASSWORD', '')
 
 # Configuration de la base de données
-DATABASES = {
-    'default': {
-        'ENGINE': 'djongo',
-        'NAME': MONGO_DB_NAME,
-        'ENFORCE_SCHEMA': False,  # Permet schema flexible
-        'CONN_MAX_AGE': None,  # Garder la connexion ouverte
-        'CLIENT': {
-            'host': MONGO_HOST,
-            'port': MONGO_PORT,
-            'serverSelectionTimeoutMS': 5000,
-            'connectTimeoutMS': 30000,
-            'socketTimeoutMS': None,  # Pas de timeout
-            'maxPoolSize': 50,
-            'minPoolSize': 10,
-            'maxIdleTimeMS': None,  # Jamais expirer
-        },
+# Le projet utilise Djongo/MongoDB en production. Pour faciliter la dockerisation
+# en développement (et éviter des conflits de versions dans l'image), on permet
+# d'utiliser SQLite lorsque USE_MONGO != '1'.
+USE_MONGO = os.getenv('USE_MONGO', '0') == '1'
+
+if USE_MONGO:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'djongo',
+            'NAME': MONGO_DB_NAME,
+            'ENFORCE_SCHEMA': False,  # Permet schema flexible
+            'CONN_MAX_AGE': None,  # Garder la connexion ouverte
+            'CLIENT': {
+                'host': MONGO_HOST,
+                'port': MONGO_PORT,
+                'serverSelectionTimeoutMS': 5000,
+                'connectTimeoutMS': 30000,
+                'socketTimeoutMS': None,  # Pas de timeout
+                'maxPoolSize': 50,
+                'minPoolSize': 10,
+                'maxIdleTimeMS': None,  # Jamais expirer
+            },
+        }
     }
-}
+else:
+    # Fallback simple pour le développement local / docker sans MongoDB
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Alternative : MongoDB Atlas (cloud)

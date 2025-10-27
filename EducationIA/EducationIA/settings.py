@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,12 +21,22 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-(q_w10yyv%17-h9(qo)r6i_*fv-=f4xx$esseg%e7mpcemny(l'
+# Read secret key from env, fallback to existing value for local dev.
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-(q_w10yyv%17-h9(qo)r6i_*fv-=f4xx$esseg%e7mpcemny(l'
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+def _env_bool(name, default=False):
+    val = os.environ.get(name)
+    if val is None:
+        return default
+    return str(val).lower() in ('1', 'true', 'yes', 'on')
 
-ALLOWED_HOSTS = []
+DEBUG = _env_bool('DEBUG', True)
+
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split() if os.environ.get('ALLOWED_HOSTS') else []
 
 
 # Application definition
@@ -75,10 +86,10 @@ WSGI_APPLICATION = 'EducationIA.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Configuration MongoDB
-MONGO_DB_NAME = 'django_education'
-MONGO_HOST = 'localhost'
-MONGO_PORT = 27017
+# Configuration MongoDB (reads from environment in Docker)
+MONGO_DB_NAME = os.environ.get('MONGO_DB_NAME', 'django_education')
+MONGO_HOST = os.environ.get('MONGO_HOST', 'localhost')
+MONGO_PORT = int(os.environ.get('MONGO_PORT', 27017))
 
 DATABASES = {
     'default': {
