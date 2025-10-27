@@ -5,6 +5,10 @@ set -o errexit
 
 echo "🚀 Début du déploiement..."
 
+# Forcer Python 3.11
+export PYTHON_VERSION=3.11.9
+echo "🐍 Python version forcée: $PYTHON_VERSION"
+
 # Installer les dépendances
 echo "📦 Installation des dépendances Python..."
 pip install --upgrade pip
