@@ -741,9 +741,93 @@ def gamified_dashboard(request):
     from .models import Competition, Challenge, WeeklyMission
     from evaluation.models import UserProfile
     
-    # Récupérer ou créer le profil gamifié
-    profile, created = UserProfile.objects.get_or_create(user=request.user)
-    
+    # Récupérer ou créer le profil gamifié (robuste si plusieurs enregistrements existent)
+    created = False
+    try:
+        profiles_qs = UserProfile.objects.filter(user=request.user).order_by('-created_at')
+        profile = profiles_qs.first() if profiles_qs.exists() else None
+        if profile is None:
+            # Aucun profil trouvé → créer un nouveau via ORM
+            profile = UserProfile.objects.create(user=request.user)
+            created = True
+    except Exception:
+        # Certains backends (ex: djongo) peuvent échouer avec des erreurs SQL/recursion.
+        # En fallback, lire directement depuis MongoDB via PyMongo si possible.
+        import traceback
+        traceback.print_exc()
+        profile = None
+        try:
+            from pymongo import MongoClient
+            from django.conf import settings
+
+            client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+            db = client[settings.MONGO_DB_NAME]
+
+            found = db['evaluation_userprofile'].find_one({'user_id': request.user.id}, sort=[('created_at', -1)])
+            if found:
+                # Construire une instance non sauvegardée de UserProfile à partir du document
+                profile = UserProfile()
+                profile.user = request.user
+                mapping_fields = [
+                    'role', 'student_id', 'date_of_birth', 'phone_number', 'class_level', 'specialization',
+                    'total_tests_taken', 'average_score', 'total_study_time', 'level', 'total_xp', 'badges',
+                    'strengths', 'weaknesses', 'ai_recommendations', 'learning_style', 'performance_history',
+                    'skill_progress', 'created_at', 'updated_at', 'is_active'
+                ]
+                for field in mapping_fields:
+                    if field in found:
+                        try:
+                            setattr(profile, field, found[field])
+                        except Exception:
+                            pass
+                # Coerce common numeric/list fields to safe defaults to avoid None arithmetic in views
+                try:
+                    # level: default 1
+                    lvl = getattr(profile, 'level', None)
+                    profile.level = int(lvl) if (lvl is not None and str(lvl).isdigit()) else 1
+                except Exception:
+                    profile.level = 1
+                try:
+                    txp = getattr(profile, 'total_xp', None)
+                    profile.total_xp = int(txp) if txp is not None else 0
+                except Exception:
+                    profile.total_xp = 0
+                try:
+                    coins = getattr(profile, 'coins', None)
+                    profile.coins = int(coins) if coins is not None else 0
+                except Exception:
+                    profile.coins = 0
+                try:
+                    streak = getattr(profile, 'current_streak', None)
+                    profile.current_streak = int(streak) if streak is not None else 0
+                except Exception:
+                    profile.current_streak = 0
+                # Ensure badges is a list
+                try:
+                    if getattr(profile, 'badges', None) is None:
+                        profile.badges = []
+                except Exception:
+                    profile.badges = []
+                try:
+                    profile._state.adding = False
+                except Exception:
+                    pass
+                created = False
+            else:
+                # Si rien trouvé, essayer de créer via ORM (dernier recours)
+                try:
+                    profile = UserProfile.objects.create(user=request.user)
+                    created = True
+                except Exception:
+                    profile = None
+            try:
+                client.close()
+            except Exception:
+                pass
+        except Exception:
+            # Aucun fallback possible — la vue doit gérer profile == None
+            profile = None
+
     if created:
         messages.success(request, '🎉 Bienvenue dans le système gamifié ! Gagnez des XP et montez de niveau !')
     
@@ -828,41 +912,63 @@ def gamified_dashboard(request):
     
     # Classement top 10 - FILTRÉ POUR LES ÉTUDIANTS SEULEMENT
     from django.db.models import Q
-    
-    # Filtrer par utilisateurs dont le nom contient "etudiant" (insensible à la casse)
-    leaderboard = UserProfile.objects.filter(
-        Q(user__username__icontains='etudiant') | 
-        Q(user__first_name__icontains='etudiant') |
-        Q(user__last_name__icontains='etudiant')
-    ).select_related('user').order_by('-total_xp')[:10]
-    
-    # Si aucun résultat avec "etudiant", fallback sur role='student'
-    if not leaderboard.exists():
+    try:
+        # Filtrer par utilisateurs dont le nom contient "etudiant" (insensible à la casse)
         leaderboard = UserProfile.objects.filter(
-            role='student'
+            Q(user__username__icontains='etudiant') | 
+            Q(user__first_name__icontains='etudiant') |
+            Q(user__last_name__icontains='etudiant')
         ).select_related('user').order_by('-total_xp')[:10]
-    
-    # Position de l'utilisateur - calculée par rapport aux étudiants seulement
-    # Protection contre total_xp = None
-    user_total_xp = profile.total_xp if profile.total_xp is not None else 0
-    
-    better_users = UserProfile.objects.filter(
-        Q(user__username__icontains='etudiant') | 
-        Q(user__first_name__icontains='etudiant') |
-        Q(user__last_name__icontains='etudiant'),
-        total_xp__gt=user_total_xp
-    ).count()
-    user_rank = better_users + 1
-    
-    # XP pour prochain niveau (100 XP par niveau)
-    current_level_xp = (profile.level - 1) * 100
-    next_level_xp = profile.level * 100
-    xp_in_current_level = profile.total_xp - current_level_xp
-    xp_needed_for_level = next_level_xp - current_level_xp
-    
-    if xp_needed_for_level > 0:
-        xp_progress = (xp_in_current_level / xp_needed_for_level) * 100
-    else:
+
+        # Si aucun résultat avec "etudiant", fallback sur role='student'
+        if not leaderboard.exists():
+            leaderboard = UserProfile.objects.filter(
+                role='student'
+            ).select_related('user').order_by('-total_xp')[:10]
+
+        # Position de l'utilisateur - calculée par rapport aux étudiants seulement
+        # Protection contre total_xp/level = None
+        try:
+            user_total_xp = getattr(profile, 'total_xp', 0) or 0
+
+            better_users = UserProfile.objects.filter(
+                Q(user__username__icontains='etudiant') | 
+                Q(user__first_name__icontains='etudiant') |
+                Q(user__last_name__icontains='etudiant'),
+                total_xp__gt=user_total_xp
+            ).count()
+            user_rank = better_users + 1
+
+            # XP pour prochain niveau (100 XP par niveau)
+            level = getattr(profile, 'level', None) or 1
+            current_level_xp = (int(level) - 1) * 100
+            next_level_xp = int(level) * 100
+            xp_in_current_level = (int(user_total_xp) if user_total_xp is not None else 0) - current_level_xp
+            xp_needed_for_level = next_level_xp - current_level_xp
+
+            if xp_needed_for_level > 0:
+                xp_progress = (xp_in_current_level / xp_needed_for_level) * 100
+            else:
+                xp_progress = 0
+        except Exception:
+            # En cas d'erreur (par ex. djongo ou valeurs None inattendues), fournir des valeurs par défaut
+            import traceback
+            traceback.print_exc()
+            user_rank = 1
+            next_level_xp = (getattr(profile, 'level', None) or 1) * 100 if profile else 100
+            xp_progress = 0
+    except Exception:
+        # Djongo peut échouer sur certaines requêtes complexes; fournir des valeurs de secours
+        import traceback
+        traceback.print_exc()
+        leaderboard = []
+        user_rank = 1
+        # Coerce level to a numeric default if it's None to avoid None * int errors
+        try:
+            level = getattr(profile, 'level', None) or 1
+            next_level_xp = int(level) * 100
+        except Exception:
+            next_level_xp = 100
         xp_progress = 0
     
     context = {

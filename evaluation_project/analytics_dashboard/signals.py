@@ -531,3 +531,154 @@ if EXERCISE_GENERATOR_AVAILABLE and StudentExerciseSubmission:
                 print(f"❌ Erreur dans le signal track_exercise_submission: {e}")
                 import traceback
                 traceback.print_exc()
+
+
+# 🎯 SIGNAL CRITIQUE POUR LES RÉSULTATS DE TESTS (evaluation.Result)
+try:
+    from evaluation.models import Result
+    RESULT_MODEL_AVAILABLE = True
+except ImportError:
+    Result = None
+    RESULT_MODEL_AVAILABLE = False
+
+if RESULT_MODEL_AVAILABLE and Result:
+    @receiver(post_save, sender=Result)
+    def track_test_result_for_gamification(sender, instance, created, **kwargs):
+        """
+        Signal pour tracker les résultats de tests et mettre à jour la gamification.
+        Ce signal se déclenche quand un Result (résultat de test) est créé.
+        """
+        if not created:
+            return
+        
+        try:
+            print(f"\n🎯 === SIGNAL TEST RESULT GAMIFICATION === ")
+            print(f"   Student: {instance.student.username}")
+            print(f"   Test: {instance.test.title if instance.test else 'N/A'}")
+            print(f"   Score: {instance.percentage_score}%")
+            
+            # Importer les modèles nécessaires
+            from .models import StudentTestResult, Challenge
+            from evaluation.models import UserProfile
+            from .services import ChallengeService
+            from evaluation.utils import get_or_create_user_profile_safe
+            
+            student = instance.student
+            test = instance.test
+            score = instance.percentage_score or 0
+            subject = test.subject if test and hasattr(test, 'subject') else 'Général'
+            test_name = test.title if test else 'Test'
+            
+            # 1. Récupérer/créer le profil utilisateur (avec gestion des duplicatas)
+            profile = get_or_create_user_profile_safe(student)
+            print(f"   ✅ Profil trouvé: {profile.role}, Level: {profile.level}")
+            
+            # 2. Ajouter des XP basés sur le score
+            xp_base = 20  # XP de base pour avoir complété un test
+            xp_bonus = int(score / 5)  # Bonus XP basé sur le score (max 20 XP pour 100%)
+            xp_gained = xp_base + xp_bonus
+            
+            old_xp = profile.total_xp or 0
+            profile.total_xp = old_xp + xp_gained
+            profile.save()
+            
+            print(f"   💫 XP ajoutés: +{xp_gained} (base: {xp_base} + bonus: {xp_bonus})")
+            print(f"   📊 XP total: {old_xp} → {profile.total_xp}")
+            
+            # 3. Créer un StudentTestResult pour la gamification
+            test_result = StudentTestResult.objects.create(
+                student=student,
+                subject=subject,
+                test_name=test_name,
+                score=score,
+                test_id=str(test.pk) if test else None
+            )
+            print(f"   ✅ StudentTestResult créé: ID={test_result.id}")
+            
+            # 4. Mettre à jour les défis actifs
+            active_challenges = Challenge.objects.filter(
+                student=student,
+                status='ACTIVE',
+                expires_at__gte=timezone.now()
+            )
+            
+            print(f"   🎯 Défis actifs: {active_challenges.count()}")
+            
+            if active_challenges.count() == 0:
+                print(f"   ⚠️ Aucun défi actif pour {student.username}")
+                # Créer des défis par défaut si aucun n'existe
+                try:
+                    challenge_service = ChallengeService()
+                    new_challenges = challenge_service.generate_daily_challenges(student)
+                    print(f"   ✅ {len(new_challenges)} nouveaux défis créés automatiquement")
+                    active_challenges = Challenge.objects.filter(
+                        student=student,
+                        status='ACTIVE',
+                        expires_at__gte=timezone.now()
+                    )
+                except Exception as e:
+                    print(f"   ⚠️ Impossible de créer les défis: {e}")
+            
+            # Mettre à jour chaque défi actif
+            challenge_service = ChallengeService()
+            
+            for challenge in active_challenges:
+                challenge_subject = challenge.target_data.get('subject', challenge.subject or '')
+                
+                # Correspondance flexible des matières
+                subject_match = (
+                    not challenge_subject or  # Défi général
+                    challenge_subject.lower() in subject.lower() or 
+                    subject.lower() in challenge_subject.lower()
+                )
+                
+                if subject_match:
+                    # Compter les tests complétés depuis le début du défi
+                    if challenge_subject:
+                        tests_completed = StudentTestResult.objects.filter(
+                            student=student,
+                            subject__icontains=challenge_subject,
+                            completed_at__gte=challenge.created_at
+                        ).count()
+                    else:
+                        tests_completed = StudentTestResult.objects.filter(
+                            student=student,
+                            completed_at__gte=challenge.created_at
+                        ).count()
+                    
+                    old_progress = challenge.current_progress
+                    
+                    # Mettre à jour la progression
+                    updated_challenge = challenge_service.update_challenge_progress(
+                        challenge=challenge,
+                        exercises_completed=tests_completed,
+                        current_score=score
+                    )
+                    
+                    print(f"   📈 Défi '{challenge.title}': {old_progress}% → {updated_challenge.current_progress}%")
+                    
+                    if updated_challenge.status == 'COMPLETED':
+                        print(f"   🎉 DÉFI COMPLÉTÉ! {challenge.title}")
+                        print(f"      Récompenses: +{challenge.xp_reward} XP, +{challenge.coins_reward} coins")
+                else:
+                    print(f"   ⏭️ Défi '{challenge.title}' ({challenge_subject}) ne correspond pas à {subject}")
+            
+            # 5. Mettre à jour le tracking service
+            tracking_result = tracking_service.record_test_completion(
+                student=student,
+                test_name=test_name,
+                score=score,
+                subject=subject
+            )
+            
+            if tracking_result['success']:
+                print(f"   ✅ Tracking enregistré avec succès")
+            else:
+                print(f"   ⚠️ Erreur tracking: {tracking_result.get('error')}")
+            
+            print(f"   ✅ === GAMIFICATION MISE À JOUR === \n")
+            
+        except Exception as e:
+            print(f"   ❌ ERREUR dans signal Result: {e}")
+            import traceback
+            traceback.print_exc()

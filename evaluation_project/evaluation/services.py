@@ -426,7 +426,9 @@ class ResultService:
             student: Instance User
             result: Instance Result
         """
-        profile, created = UserProfile.objects.get_or_create(user=student)
+        from .utils import get_or_create_user_profile_safe
+        
+        profile = get_or_create_user_profile_safe(student)
         
         # Mettre à jour les statistiques
         profile.total_tests_taken += 1

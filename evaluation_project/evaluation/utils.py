@@ -1,6 +1,34 @@
 """
 Fonctions utilitaires pour l'application evaluation
 """
+from django.contrib.auth.models import User
+
+
+def get_or_create_user_profile_safe(user):
+    """
+    Récupère ou crée le profil utilisateur de manière sécurisée.
+    Gère les cas de profils dupliqués en retournant le plus récent.
+    
+    Args:
+        user (User): L'utilisateur Django
+        
+    Returns:
+        UserProfile: Le profil utilisateur (le plus récent si duplicatas)
+    """
+    from .models import UserProfile
+    
+    # Récupérer le profil le plus récent s'il existe
+    profile = UserProfile.objects.filter(user=user).order_by('-created_at').first()
+    
+    if not profile:
+        # Créer un nouveau profil si aucun n'existe
+        profile = UserProfile.objects.create(
+            user=user,
+            level='intermediate'  # Niveau par défaut
+        )
+    
+    return profile
+
 
 def validate_score(score):
     """

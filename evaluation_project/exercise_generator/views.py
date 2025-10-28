@@ -1269,15 +1269,17 @@ def student_exercise_sets(request):
     from evaluation.models import UserProfile
     from pymongo import MongoClient
     from django.conf import settings
+    from evaluation.utils import get_or_create_user_profile_safe
     
     # Vérifier que c'est un étudiant
     try:
-        profile = request.user.profile
+        profile = get_or_create_user_profile_safe(request.user)
         if profile.role != 'student':
             messages.error(request, "Accès réservé aux étudiants")
             return redirect('evaluation:teacher_dashboard')
-    except:
-        messages.error(request, "Profil utilisateur non trouvé")
+    except Exception as e:
+        print(f"Erreur profil: {e}")
+        messages.error(request, "Erreur lors de la récupération du profil")
         return redirect('evaluation:student_dashboard')
     
     # Récupérer via PyMongo pour éviter les erreurs ManyToMany
@@ -1352,14 +1354,17 @@ def student_take_exercise_set(request, set_id):
     from bson.objectid import ObjectId
     from django.utils import timezone
     
+    from evaluation.utils import get_or_create_user_profile_safe
+    
     # Vérifier que c'est un étudiant
     try:
-        profile = request.user.profile
+        profile = get_or_create_user_profile_safe(request.user)
         if profile.role != 'student':
             messages.error(request, "Accès réservé aux étudiants")
             return redirect('evaluation:teacher_dashboard')
-    except:
-        messages.error(request, "Profil utilisateur non trouvé")
+    except Exception as e:
+        print(f"Erreur profil: {e}")
+        messages.error(request, "Erreur lors de la récupération du profil")
         return redirect('evaluation:student_dashboard')
     
     # Connexion MongoDB

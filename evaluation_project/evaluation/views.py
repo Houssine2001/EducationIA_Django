@@ -1126,9 +1126,10 @@ def student_progress(request):
     from bson.objectid import ObjectId
     from collections import defaultdict
     from datetime import timedelta
+    from .utils import get_or_create_user_profile_safe
     
-    # Récupérer le profil
-    profile = get_object_or_404(UserProfile, user=request.user)
+    # Récupérer le profil de manière sécurisée (gère les duplicatas)
+    profile = get_or_create_user_profile_safe(request.user)
     
     # 1. GÉNÉRATION DES ANALYTICS COMPLÈTES (TESTS MANUELS)
     analytics_service = StudentAnalytics(profile)
@@ -2339,10 +2340,90 @@ def my_badges(request):
     import json
     from collections import Counter
     
-    # Récupérer ou créer le profil
-    profile, created = UserProfile.objects.get_or_create(
-        user=request.user
-    )
+    # Récupérer ou créer le profil (robuste si des doublons existent dans la base)
+    created = False
+    try:
+        profiles_qs = UserProfile.objects.filter(user=request.user).order_by('-created_at')
+        profile = profiles_qs.first() if profiles_qs.exists() else None
+        if profile is None:
+            # Aucun profil trouvé → créer un nouveau via ORM
+            profile = UserProfile.objects.create(user=request.user)
+            created = True
+    except Exception:
+        # Certains backends (ex: djongo) peuvent échouer avec des erreurs SQL/recursion.
+        # En fallback, lire directement depuis MongoDB via PyMongo si possible.
+        import traceback
+        traceback.print_exc()
+        profile = None
+        try:
+            from pymongo import MongoClient
+            from django.conf import settings
+
+            client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+            db = client[settings.MONGO_DB_NAME]
+
+            found = db['evaluation_userprofile'].find_one({'user_id': request.user.id}, sort=[('created_at', -1)])
+            if found:
+                # Construire une instance non sauvegardée de UserProfile à partir du document
+                profile = UserProfile()
+                profile.user = request.user
+                mapping_fields = [
+                    'role', 'student_id', 'date_of_birth', 'phone_number', 'class_level', 'specialization',
+                    'total_tests_taken', 'average_score', 'total_study_time', 'level', 'total_xp', 'badges',
+                    'strengths', 'weaknesses', 'ai_recommendations', 'learning_style', 'performance_history',
+                    'skill_progress', 'created_at', 'updated_at', 'is_active'
+                ]
+                for field in mapping_fields:
+                    if field in found:
+                        try:
+                            setattr(profile, field, found[field])
+                        except Exception:
+                            pass
+                # Coerce numeric/list fields to safe defaults to avoid None arithmetic in views
+                try:
+                    lvl = getattr(profile, 'level', None)
+                    profile.level = int(lvl) if (lvl is not None and str(lvl).isdigit()) else 1
+                except Exception:
+                    profile.level = 1
+                try:
+                    txp = getattr(profile, 'total_xp', None)
+                    profile.total_xp = int(txp) if txp is not None else 0
+                except Exception:
+                    profile.total_xp = 0
+                try:
+                    coins = getattr(profile, 'coins', None)
+                    profile.coins = int(coins) if coins is not None else 0
+                except Exception:
+                    profile.coins = 0
+                try:
+                    streak = getattr(profile, 'current_streak', None)
+                    profile.current_streak = int(streak) if streak is not None else 0
+                except Exception:
+                    profile.current_streak = 0
+                try:
+                    if getattr(profile, 'badges', None) is None:
+                        profile.badges = []
+                except Exception:
+                    profile.badges = []
+                try:
+                    profile._state.adding = False
+                except Exception:
+                    pass
+                created = False
+            else:
+                # Si rien trouvé, essayer de créer via ORM (dernier recours)
+                try:
+                    profile = UserProfile.objects.create(user=request.user)
+                    created = True
+                except Exception:
+                    profile = None
+            try:
+                client.close()
+            except Exception:
+                pass
+        except Exception:
+            # Aucun fallback possible — la vue doit gérer profile == None
+            profile = None
     
     # Service de gamification
     gamification_service = GamificationService(profile)
