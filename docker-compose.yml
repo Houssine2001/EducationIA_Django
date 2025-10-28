@@ -5,10 +5,13 @@ services:
     image: educationia_web:latest
     # entrypoint is configured in the image; working_dir set to evaluation_project
     working_dir: /code/evaluation_project
+    command: ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--reload", "--timeout", "600"]
     volumes:
       - ./:/code
       # Override db.sqlite3 with empty volume to prevent host file from being used
       - /code/evaluation_project/db.sqlite3
+      # Persist Hugging Face model cache to avoid re-downloading
+      - huggingface_cache:/root/.cache/huggingface
     ports:
       - "8000:8000"
     env_file:
@@ -34,3 +37,4 @@ services:
 
 volumes:
   mongo_data:
+  huggingface_cache:

@@ -39,4 +39,4 @@ EXPOSE 8000
 
 # Use entrypoint script and default to running gunicorn for evaluation_project
 ENTRYPOINT ["/code/entrypoint.sh"]
-CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
+CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--reload", "--timeout", "120"]

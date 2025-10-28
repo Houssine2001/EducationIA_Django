@@ -21,6 +21,9 @@ class Resource(models.Model):
         ('failed', 'Échec'),
     ]
     
+    # Champ ID explicite pour compatibilité MongoDB
+    id = models.AutoField(primary_key=True)
+    
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='resources')
     title = models.CharField(max_length=255, verbose_name='Titre')
     description = models.TextField(blank=True, verbose_name='Description')
@@ -59,6 +62,35 @@ class Resource(models.Model):
         return self.title
     
     def save(self, *args, **kwargs):
+        # Générer un ID si non existant (pour compatibilité MongoDB)
+        if not self.id:
+            from pymongo import MongoClient
+            from django.conf import settings
+            
+            try:
+                # Connexion directe à MongoDB pour trouver le max ID
+                client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+                db = client[settings.MONGO_DB_NAME]
+                collection = db.resources_resource
+                
+                # Trouver le document avec le plus grand ID (integer seulement, pas ObjectId)
+                max_doc = collection.find_one(
+                    {'id': {'$type': 'int'}},  # Seulement les IDs de type entier
+                    sort=[('id', -1)],
+                    projection={'id': 1, '_id': 0}  # Ne récupérer que le champ 'id'
+                )
+                self.id = (max_doc['id'] + 1) if max_doc and 'id' in max_doc else 1
+                
+                client.close()
+            except Exception as e:
+                print(f"Erreur génération ID: {e}")
+                # Fallback : utiliser l'ORM Django
+                try:
+                    max_id_resource = Resource.objects.filter(id__isnull=False).order_by('-id').first()
+                    self.id = (max_id_resource.id + 1) if max_id_resource else 1
+                except:
+                    self.id = 1
+        
         # Générer un token de partage si non existant
         if not self.share_token:
             self.share_token = str(uuid.uuid4())
@@ -122,6 +154,7 @@ class ResourceTagging(models.Model):
 
 class SavedResource(models.Model):
     """Modèle pour les ressources publiques sauvegardées par les utilisateurs"""
+    id = models.AutoField(primary_key=True)  # ID explicite pour Djongo/MongoDB
     user_id = models.IntegerField(verbose_name='ID Utilisateur')  # Stocker l'ID au lieu de ForeignKey
     resource_id = models.IntegerField(verbose_name='ID Ressource')  # Stocker l'ID au lieu de ForeignKey
     saved_at = models.DateTimeField(auto_now_add=True, verbose_name='Date de sauvegarde')

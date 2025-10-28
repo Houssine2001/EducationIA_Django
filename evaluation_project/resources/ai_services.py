@@ -11,7 +11,9 @@ class AIService:
     
     def __init__(self):
         self.summarizer = None
+        self.whisper_model = None
         self._initialized = False
+        self._whisper_initialized = False
     
     def _initialize_models(self):
         """Initialisation paresseuse des modèles IA"""
@@ -25,6 +27,24 @@ class AIService:
         except ImportError:
             print("⚠️ Bibliothèques IA non installées. Les résumés automatiques ne seront pas disponibles.")
             self._initialized = False
+    
+    def _initialize_whisper(self):
+        """Initialisation paresseuse du modèle Whisper"""
+        if self._whisper_initialized:
+            return
+        
+        try:
+            import whisper
+            logger.info("🤖 Chargement du modèle Whisper 'tiny' (rapide et léger)...")
+            self.whisper_model = whisper.load_model("tiny")
+            self._whisper_initialized = True
+            logger.info("✅ Modèle Whisper 'tiny' chargé avec succès")
+        except ImportError:
+            logger.error("⚠️ Whisper non installé")
+            self._whisper_initialized = False
+        except Exception as e:
+            logger.error(f"❌ Erreur lors du chargement de Whisper: {e}")
+            self._whisper_initialized = False
     
     def extract_text_from_pdf(self, file_path: str) -> str:
         """Extrait le texte d'un fichier PDF"""
@@ -50,10 +70,20 @@ class AIService:
             return f"Erreur lors de l'extraction du PDF: {str(e)}"
     
     def extract_text_from_video(self, file_path: str) -> str:
-        """Extrait l'audio d'une vidéo et le transcrit avec Whisper directement"""
+        """Extrait l'audio d'une vidéo et le transcrit avec Whisper (limité à 3 minutes)"""
+        import tempfile
+        temp_audio_path = None
+        
         try:
             import whisper
             import os
+            import subprocess
+            
+            # Initialiser le modèle Whisper (une seule fois)
+            self._initialize_whisper()
+            
+            if not self._whisper_initialized or not self.whisper_model:
+                return "⚠️ Modèle Whisper non disponible.\n\nLa vidéo a été uploadée mais la transcription automatique a échoué. Vous pouvez ajouter manuellement une description."
             
             # Configurer FFmpeg depuis imageio-ffmpeg
             try:
@@ -76,18 +106,45 @@ class AIService:
                         logger.warning(f"⚠️ Impossible de copier ffmpeg.exe: {copy_error}")
                 
                 logger.info(f"✅ FFmpeg configuré: {ffmpeg_path}")
+                
+                # Extraire seulement les 3 premières minutes (180 secondes) de l'audio
+                logger.info("⏱️ Extraction des 3 premières minutes de l'audio...")
+                temp_audio_path = tempfile.NamedTemporaryFile(suffix='.mp3', delete=False).name
+                
+                # Commande ffmpeg pour extraire 3 minutes d'audio
+                cmd = [
+                    ffmpeg_path,
+                    '-i', file_path,           # Fichier d'entrée
+                    '-t', '180',               # Durée: 180 secondes (3 minutes)
+                    '-vn',                     # Pas de vidéo
+                    '-acodec', 'libmp3lame',   # Codec audio MP3
+                    '-ar', '16000',            # Sample rate 16kHz (optimal pour Whisper)
+                    '-ac', '1',                # Mono
+                    '-y',                      # Overwrite si existe
+                    temp_audio_path
+                ]
+                
+                subprocess.run(cmd, check=True, capture_output=True)
+                logger.info(f"✅ Audio extrait: {temp_audio_path}")
+                
             except ImportError:
-                logger.warning("⚠️ imageio-ffmpeg non disponible")
+                logger.warning("⚠️ imageio-ffmpeg non disponible, transcription complète de la vidéo")
+                temp_audio_path = file_path  # Utiliser la vidéo complète si ffmpeg n'est pas disponible
+            except subprocess.CalledProcessError as e:
+                logger.error(f"❌ Erreur ffmpeg: {e.stderr.decode() if e.stderr else str(e)}")
+                temp_audio_path = file_path  # Fallback sur la vidéo complète
             
             logger.info(f"📹 Chargement de la vidéo: {file_path}...")
             
-            # Charger le modèle Whisper
-            logger.info("🤖 Chargement du modèle Whisper...")
-            model = whisper.load_model("base")
-            
-            # Whisper peut transcrire directement depuis la vidéo
-            logger.info("📝 Transcription en cours (cela peut prendre quelques minutes)...")
-            result = model.transcribe(file_path)
+            # Utiliser le modèle Whisper déjà chargé
+            logger.info("📝 Transcription en cours des 3 premières minutes...")
+            result = self.whisper_model.transcribe(
+                temp_audio_path,
+                language='fr',  # Français pour meilleure précision
+                fp16=False,     # Désactiver fp16 pour compatibilité CPU
+                condition_on_previous_text=False,  # Plus rapide
+                verbose=False   # Moins de logs
+            )
             
             logger.info(f"✅ Transcription réussie: {len(result['text'])} caractères")
             return result['text']
@@ -100,6 +157,16 @@ class AIService:
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             return f"⚠️ Erreur lors de la transcription: {str(e)}\n\nLa vidéo a été uploadée mais la transcription automatique a échoué. Vous pouvez ajouter manuellement une description."
+        finally:
+            # Nettoyer le fichier audio temporaire
+            if temp_audio_path and temp_audio_path != file_path:
+                try:
+                    import os
+                    if os.path.exists(temp_audio_path):
+                        os.remove(temp_audio_path)
+                        logger.info(f"🗑️ Fichier audio temporaire supprimé")
+                except Exception as cleanup_error:
+                    logger.warning(f"⚠️ Erreur lors du nettoyage: {cleanup_error}")
     
     def extract_text_from_text_file(self, file_path: str) -> str:
         """Extrait le texte d'un fichier texte"""

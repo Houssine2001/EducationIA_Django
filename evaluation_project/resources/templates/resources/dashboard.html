@@ -144,6 +144,7 @@
         {% if page_obj %}
         <div class="space-y-4 mb-8">
             {% for resource in page_obj %}
+            {% if resource.id %}
             <div class="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
                 <div class="flex flex-col md:flex-row">
                     <!-- Badge de type et statut -->
@@ -226,6 +227,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
             {% endfor %}
         </div>
 

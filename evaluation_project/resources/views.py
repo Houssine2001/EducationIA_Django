@@ -95,14 +95,39 @@ def upload_resource(request):
             resource.processing_status = 'pending'
             resource.save()
             
-            # Lancer le traitement IA
+            # Récupérer l'ID integer depuis MongoDB avec PyMongo (refresh_from_db ne fonctionne pas avec Djongo)
             try:
-                process_resource_ai(resource.id)
+                import os
+                from pymongo import MongoClient
+                mongo_host = os.environ.get('MONGO_HOST', 'localhost')
+                mongo_port = int(os.environ.get('MONGO_PORT', '27017'))
+                mongo_db = os.environ.get('MONGO_DB_NAME', 'django_education')
+                client = MongoClient(host=mongo_host, port=mongo_port)
+                db = client[mongo_db]
+                collection = db['resources_resource']
+                # Chercher par share_token qui est unique
+                doc = collection.find_one({'share_token': str(resource.share_token)})
+                if not doc or 'id' not in doc:
+                    logger.error(f"Impossible de récupérer l'ID de la ressource avec token {resource.share_token}")
+                    messages.warning(request, 'Ressource uploadée, mais l\'ID n\'a pas été généré correctement.')
+                    return redirect('resources:dashboard')
+                resource_id_int = int(doc['id'])
+                logger.info(f"ID integer récupéré depuis MongoDB: {resource_id_int}")
+            except Exception as e:
+                logger.error(f"Erreur lors de la récupération de l'ID: {e}", exc_info=True)
+                messages.error(request, 'Erreur lors de la récupération de l\'ID de la ressource.')
+                return redirect('resources:dashboard')
+            # Lancer le traitement IA en arrière-plan (thread séparé)
+            try:
+                import threading
+                thread = threading.Thread(target=process_resource_ai, args=(resource_id_int,))
+                thread.daemon = True
+                thread.start()
+                logger.info(f"Thread de traitement IA lancé pour resource {resource_id_int}")
                 messages.success(request, f'Ressource "{resource.title}" uploadée avec succès ! Le résumé IA est en cours de génération.')
             except Exception as e:
-                logger.error(f"Erreur lors du traitement IA : {e}")
-                messages.warning(request, f'Ressource uploadée, mais erreur lors de la génération du résumé.')
-            
+                logger.error(f"Erreur lors du lancement du thread IA: {e}", exc_info=True)
+                messages.error(request, 'Erreur lors du lancement du traitement IA.')
             return redirect('resources:dashboard')
         else:
             messages.error(request, 'Erreur dans le formulaire. Veuillez corriger les erreurs.')
@@ -144,10 +169,10 @@ def process_resource_ai(resource_id):
         try:
             resource = Resource.objects.get(id=resource_id)
             resource.processing_status = 'failed'
-            resource.error_message = str(e)
-            resource.save()
-        except:
-            pass
+            resource.error_message = f"Exception: {e}"
+            resource.save(update_fields=['processing_status', 'error_message'])
+        except Exception as e2:
+            logger.error(f"Impossible de sauvegarder l'erreur sur la ressource {resource_id}: {e2}", exc_info=True)
 
 
 @login_required
@@ -254,26 +279,21 @@ def regenerate_summary(request, resource_id):
         resource.save(update_fields=['processing_status', 'summary', 'error_message'])
         logger.info(f"Statut réinitialisé à 'pending' pour resource {resource_id}")
         
-        # Relancer le traitement IA immédiatement
-        logger.info(f"Appel de process_resource_ai pour resource {resource_id}")
-        process_resource_ai(resource.id)
+        # Relancer le traitement IA en arrière-plan
+        logger.info(f"Lancement thread de traitement IA pour resource {resource_id}")
+        import threading
+        # resource_id est déjà un integer venant de l'URL
+        thread = threading.Thread(target=process_resource_ai, args=(resource_id,))
+        thread.daemon = True
+        thread.start()
         
-        # Recharger la ressource pour voir les changements
-        resource.refresh_from_db()
-        logger.info(f"Après traitement: statut={resource.processing_status}, summary_length={len(resource.summary) if resource.summary else 0}")
-        
-        if resource.processing_status == 'completed':
-            messages.success(request, 'Le résumé a été régénéré avec succès !')
-        elif resource.processing_status == 'failed':
-            messages.error(request, f'Erreur lors de la régénération : {resource.error_message}')
-        else:
-            messages.info(request, 'Le résumé est en cours de régénération.')
+        messages.success(request, 'Le résumé est en cours de régénération. Actualisez la page dans quelques instants.')
             
     except Exception as e:
         logger.error(f"Erreur lors de la régénération du résumé : {e}", exc_info=True)
         messages.error(request, f'Erreur lors de la régénération : {str(e)}')
     
-    return redirect('resources:detail', resource_id=resource.id)
+    return redirect('resources:detail', resource_id=resource_id)
 
 
 @login_required
@@ -298,7 +318,14 @@ def share_resource(request, resource_id):
 
 def shared_resource(request, token):
     """Affiche une ressource partagée (accès public)"""
-    resource = get_object_or_404(Resource, share_token=token, is_public=True)
+    # Requête simple pour éviter les problèmes Djongo
+    resource = get_object_or_404(Resource, share_token=token)
+    
+    # Vérifier manuellement si publique
+    if not resource.is_public:
+        messages.error(request, 'Cette ressource n\'est pas publique.')
+        return redirect('resources:public_resources')
+    
     resource.increment_views()
     
     tags = ResourceTag.objects.filter(taggings__resource=resource)
@@ -485,21 +512,31 @@ def save_resource(request, resource_id):
 def unsave_resource(request, resource_id):
     """Retire une ressource des sauvegardes de l'utilisateur"""
     try:
-        # Récupérer la sauvegarde par les IDs
-        saved_list = list(SavedResource.objects.filter(
-            user_id=request.user.id,
-            resource_id=resource_id
-        ))
+        # Supprimer directement via PyMongo car Djongo ne gère pas bien les IDs None
+        from pymongo import MongoClient
+        import os
         
-        if not saved_list:
+        mongo_host = os.environ.get('MONGO_HOST', 'localhost')
+        mongo_port = int(os.environ.get('MONGO_PORT', '27017'))
+        mongo_db = os.environ.get('MONGO_DB_NAME', 'django_education')
+        
+        client = MongoClient(host=mongo_host, port=mongo_port)
+        db = client[mongo_db]
+        collection = db['resources_savedresource']
+        
+        # Supprimer toutes les sauvegardes correspondantes
+        result = collection.delete_many({
+            'user_id': request.user.id,
+            'resource_id': resource_id
+        })
+        
+        if result.deleted_count == 0:
             return JsonResponse({
                 'success': False,
                 'error': 'Cette ressource n\'est pas dans vos sauvegardes.'
             }, status=404)
         
-        # Supprimer toutes les occurrences
-        for saved in saved_list:
-            saved.delete()
+        logger.info(f"Supprimé {result.deleted_count} sauvegarde(s) pour user {request.user.id}, resource {resource_id}")
         
         return JsonResponse({
             'success': True,
@@ -522,6 +559,26 @@ def my_saved_resources(request):
     all_saved = SavedResource.objects.filter(user_id=request.user.id).order_by('-saved_at')
     saved_list = list(all_saved)
     
+    # Filtrer les sauvegardes avec des ressources valides (non supprimées)
+    valid_saved_list = []
+    for saved in saved_list:
+        try:
+            # Vérifier que la ressource existe et est accessible
+            if saved.resource and saved.resource.id:
+                # Vérifier que l'utilisateur de la ressource existe aussi
+                if hasattr(saved.resource, 'user') and saved.resource.user:
+                    valid_saved_list.append(saved)
+                else:
+                    logger.warning(f"Ressource {saved.resource_id} sans utilisateur valide")
+            else:
+                logger.warning(f"SavedResource {saved.id} pointe vers une ressource inexistante")
+                # Optionnel: supprimer la sauvegarde orpheline
+                # saved.delete()
+        except Exception as e:
+            logger.error(f"Erreur lors de la vérification de la sauvegarde {saved.id}: {e}")
+    
+    saved_list = valid_saved_list
+    
     # Filtres côté Python
     search = request.GET.get('search', '')
     resource_type = request.GET.get('type', '')
@@ -530,13 +587,13 @@ def my_saved_resources(request):
         search_lower = search.lower()
         saved_list = [
             s for s in saved_list 
-            if (s.resource and s.resource.title and search_lower in s.resource.title.lower()) or 
-               (s.resource and s.resource.description and search_lower in s.resource.description.lower()) or
+            if (s.resource.title and search_lower in s.resource.title.lower()) or 
+               (s.resource.description and search_lower in s.resource.description.lower()) or
                (s.notes and search_lower in s.notes.lower())
         ]
     
     if resource_type:
-        saved_list = [s for s in saved_list if s.resource and s.resource.type == resource_type]
+        saved_list = [s for s in saved_list if s.resource.type == resource_type]
     
     # Pagination manuelle
     from django.core.paginator import Paginator
@@ -556,14 +613,26 @@ def my_saved_resources(request):
 @login_required
 def public_resource_detail(request, resource_id):
     """Affiche les détails d'une ressource publique"""
-    resource = get_object_or_404(Resource, id=resource_id, is_public=True, processing_status='completed')
+    # Requête simple pour éviter les problèmes Djongo
+    resource = get_object_or_404(Resource, id=resource_id)
+    
+    # Vérifier manuellement si publique et complétée
+    if not resource.is_public or resource.processing_status != 'completed':
+        messages.error(request, 'Cette ressource n\'est pas disponible.')
+        return redirect('resources:public_resources')
+    
     resource.increment_views()
     
     # Vérifier si l'utilisateur a déjà sauvegardé cette ressource (avec IDs)
-    is_saved = SavedResource.objects.filter(
-        user_id=request.user.id,
-        resource_id=resource_id
-    ).exists()
+    try:
+        saved_list = list(SavedResource.objects.filter(
+            user_id=request.user.id,
+            resource_id=resource_id
+        ))
+        is_saved = len(saved_list) > 0
+    except Exception as e:
+        logger.error(f"Erreur lors de la vérification de sauvegarde: {e}")
+        is_saved = False
     
     context = {
         'resource': resource,
