@@ -7,6 +7,8 @@ services:
     working_dir: /code/evaluation_project
     volumes:
       - ./:/code
+      # Override db.sqlite3 with empty volume to prevent host file from being used
+      - /code/evaluation_project/db.sqlite3
     ports:
       - "8000:8000"
     env_file:
@@ -18,7 +20,7 @@ services:
       - MONGO_DB_NAME=django_education
       - DJANGO_SECRET_KEY=changeme
       - DEBUG=0
-      - USE_MONGO=0
+      - USE_MONGO=1  # CHANGÉ: Activer MongoDB
     depends_on:
       - mongo
 

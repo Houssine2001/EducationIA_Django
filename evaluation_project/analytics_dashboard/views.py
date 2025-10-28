@@ -843,11 +843,14 @@ def gamified_dashboard(request):
         ).select_related('user').order_by('-total_xp')[:10]
     
     # Position de l'utilisateur - calculée par rapport aux étudiants seulement
+    # Protection contre total_xp = None
+    user_total_xp = profile.total_xp if profile.total_xp is not None else 0
+    
     better_users = UserProfile.objects.filter(
         Q(user__username__icontains='etudiant') | 
         Q(user__first_name__icontains='etudiant') |
         Q(user__last_name__icontains='etudiant'),
-        total_xp__gt=profile.total_xp
+        total_xp__gt=user_total_xp
     ).count()
     user_rank = better_users + 1
     

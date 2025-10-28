@@ -1540,12 +1540,13 @@ def student_progress(request):
     # Données de progression temporelle (pour Chart.js)
     progression_data_combined = []
     
-    # Ajouter tests manuels
-    for p in analytics_data['progression']['progression_data']:
+    # Ajouter tests manuels - avec protection contre KeyError
+    progression_data = analytics_data.get('progression', {}).get('progression_data', [])
+    for p in progression_data:
         progression_data_combined.append({
-            'date': p['date'],
-            'score': p['score'],
-            'test_name': p['test_name'],
+            'date': p.get('date', ''),
+            'score': p.get('score', 0),
+            'test_name': p.get('test_name', 'Test'),
             'type': 'manual'
         })
     
@@ -1584,7 +1585,7 @@ def student_progress(request):
     }
     
     # 7. TEMPS D'ÉTUDE PAR SEMAINE (pour graphique)
-    study_sessions = analytics_data['study_time'].get('sessions', [])
+    study_sessions = analytics_data.get('study_time', {}).get('sessions', [])
     # Grouper par semaine
     from collections import defaultdict
     from datetime import timedelta
@@ -1592,8 +1593,11 @@ def student_progress(request):
     weekly_study_time = defaultdict(float)
     for session in study_sessions:
         # Trouver le début de la semaine
-        week_start = session['date'] - timedelta(days=session['date'].weekday())
-        weekly_study_time[week_start.strftime('%Y-%m-%d')] += session['duration']
+        session_date = session.get('date')
+        session_duration = session.get('duration', 0)
+        if session_date:
+            week_start = session_date - timedelta(days=session_date.weekday())
+            weekly_study_time[week_start.strftime('%Y-%m-%d')] += session_duration
     
     study_time_chart_data = {
         'weeks': sorted(weekly_study_time.keys()),
@@ -1699,9 +1703,9 @@ def student_progress(request):
         if old_scores and recent_scores:
             improvement = (sum(recent_scores) / len(recent_scores)) - (sum(old_scores) / len(old_scores))
         else:
-            improvement = analytics_data['progression']['improvement']
+            improvement = analytics_data.get('progression', {}).get('improvement', 0)
     else:
-        improvement = analytics_data['progression']['improvement']
+        improvement = analytics_data.get('progression', {}).get('improvement', 0)
     
     context = {
         # Profil et analytics
@@ -1712,7 +1716,7 @@ def student_progress(request):
                 'total_tests': total_tests_combined,      # Tests combinés
             },
             'study_time': {
-                'total_hours': analytics_data['study_time']['total_hours'],
+                'total_hours': analytics_data.get('study_time', {}).get('total_hours', 0),
             },
             'progression': {
                 'trend': 'improving' if improvement > 0 else 'declining' if improvement < 0 else 'stable',
@@ -1755,7 +1759,7 @@ def student_progress(request):
         # Statistiques rapides - COMBINÉES
         'total_tests': total_tests_combined,
         'average_score': combined_average_score,
-        'total_study_hours': analytics_data['study_time']['total_hours'],
+        'total_study_hours': analytics_data.get('study_time', {}).get('total_hours', 0),
         'improvement_trend': 'improving' if improvement > 0 else 'declining' if improvement < 0 else 'stable',
         'improvement_percentage': improvement,
         'manual_tests_count': manual_total,

@@ -33,7 +33,7 @@ ENV/
 Thumbs.db
 
 # Local env
-.env
+# .env  # Comment this out so .env IS copied to Docker
 
 # Git
 .git
