@@ -12,7 +12,6 @@ import json
 
 from .models import Test, Question, Submission, Result, UserProfile
 from .services import TestService, AutoGrading, ResultService
-from ai_modules.ai_services import get_ai_services
 from .ai_concept_analyzer import AIConceptAnalyzer
 from backend.mongodb_utils import get_mongodb_client, get_mongodb_database
 import re
