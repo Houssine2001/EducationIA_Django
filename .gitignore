@@ -6,13 +6,17 @@ __pycache__/
 # Environnement virtuel
 venv/
 env/
+ENV/
 
 # Fichiers de base de données SQLite
 *.sqlite3
+db.sqlite3
 
 # Fichiers sensibles
 *.env
 .env
+.env.local
+.env.production
 
 # Fichiers de logs
 *.log
@@ -27,16 +31,27 @@ env/
 
 # Dossier de migrations (optionnel si tu veux les recréer)
 */migrations/__pycache__/
-*/migrations/*.py
 
-# Dossier statique généré
+# Dossier statique généré (collectstatic)
 staticfiles/
 media/
 
 # Fichiers IDE (VSCode, PyCharm…)
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # Fichiers système
 .DS_Store
 Thumbs.db
+
+# Docker (plus nécessaire pour Render)
+*.dockerfile
+docker-compose*.yml
+
+# Azure (plus nécessaire)
+appsettings.json
+azure-*.json
+*.zip
+

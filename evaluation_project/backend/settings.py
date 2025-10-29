@@ -1,5 +1,3 @@
-# settings.py - Django 4.x - Azure + Docker + MongoDB Atlas (sans .env)
-
 from pathlib import Path
 import os
 
@@ -9,28 +7,37 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ============================
-# SECRET & DEBUG
+# SECRET & DEBUG (Lire depuis ENV)
 # ============================
-SECRET_KEY = "3zkgq8zc10vqj9q($4ftu!i#6a&1n(^7%l!x$^_29$kv+@jd38"  # Remplace par ta clé sécurisée
-DEBUG = False  # False pour production
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', "3zkgq8zc10vqj9q($4ftu!i#6a&1n(^7%l!x$^_29$kv+@jd38")
+DEBUG = os.getenv('DEBUG', '0') == '1'  # '1' = True, '0' = False
+
+print(f"🔧 Django DEBUG mode: {DEBUG}")
+print(f"🔧 SECRET_KEY loaded: {'Yes' if SECRET_KEY else 'No'}")
 
 # ============================
-# ALLOWED HOSTS
+# ALLOWED HOSTS - Compatible Render
 # ============================
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    'asp-django-container-fthxd3adcjb5hwgt.italynorth-01.azurewebsites.net',
+    '.onrender.com',  # Tous les sous-domaines Render
 ]
 
 # ============================
 # CSRF & SESSION
 # ============================
 CSRF_TRUSTED_ORIGINS = [
-    'https://asp-django-container-fthxd3adcjb5hwgt.italynorth-01.azurewebsites.net',
     'http://localhost:8000',
     'http://127.0.0.1:8000',
 ]
+
+# Ajouter dynamiquement les domaines Render
+if not DEBUG:
+    CSRF_TRUSTED_ORIGINS.extend([
+        'https://*.onrender.com',
+    ])
+
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = 'Lax'
@@ -38,7 +45,7 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_AGE = 86400  # 24h
+SESSION_COOKIE_AGE = 86400
 
 # ============================
 # APPLICATIONS
@@ -50,8 +57,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
-    # Applications personnalisées
     'evaluation.apps.EvaluationConfig',
     'exercise_generator',
     'analytics_dashboard',
@@ -59,8 +64,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'backend.djongo_fix_middleware.DjongoFixMiddleware',  # si utilisé
+    'backend.djongo_fix_middleware.DjongoFixMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # WhiteNoise pour static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -89,11 +95,15 @@ TEMPLATES = [
 WSGI_APPLICATION = 'backend.wsgi.application'
 
 # ============================
-# DATABASE (MongoDB Atlas)
+# DATABASE (MongoDB Atlas - Lire depuis ENV)
 # ============================
-USE_MONGO = True
-MONGO_URI = "mongodb+srv://salmamejri17_db_user:IdBS3lUgfmYEyGQ8@cluster.uxsk5qc.mongodb.net/?retryWrites=true&w=majority"
-MONGO_DB_NAME = "django_education"
+USE_MONGO = os.getenv('USE_MONGO', '1') == '1'
+MONGO_URI = os.getenv('MONGO_URI', 'mongodb+srv://salmamejri17_db_user:IdBS3lUgfmYEyGQ8@cluster.uxsk5qc.mongodb.net/?appName=Cluster')
+MONGO_DB_NAME = os.getenv('MONGO_DB_NAME', 'django_education')
+
+print(f"🔧 USE_MONGO: {USE_MONGO}")
+print(f"🔧 MONGO_DB_NAME: {MONGO_DB_NAME}")
+print(f"🔧 MONGO_URI: {MONGO_URI[:50]}... (truncated)")
 
 if USE_MONGO:
     DATABASES = {
@@ -142,11 +152,14 @@ USE_I18N = True
 USE_TZ = True
 
 # ============================
-# STATIC & MEDIA
+# STATIC & MEDIA FILES (Optimisé pour Render avec WhiteNoise)
 # ============================
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Configuration WhiteNoise pour compression et cache
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -159,13 +172,11 @@ LOGGING = {
     'disable_existing_loggers': False,
     'handlers': {
         'console': {'class': 'logging.StreamHandler'},
-        'file': {'class': 'logging.FileHandler', 'filename': BASE_DIR / 'logs' / 'django.log'},
     },
     'loggers': {
-        'django': {'handlers': ['console', 'file'], 'level': 'INFO'},
-        'djongo': {'handlers': ['console', 'file'], 'level': 'DEBUG'},
+        'django': {'handlers': ['console'], 'level': 'INFO'},
+        'djongo': {'handlers': ['console'], 'level': 'DEBUG'},
     },
 }
 
-# Créer le dossier logs s'il n'existe pas
-os.makedirs(BASE_DIR / 'logs', exist_ok=True)
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

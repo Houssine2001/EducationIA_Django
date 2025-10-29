@@ -1,97 +1,93 @@
 # ===================================
-# Évaluation & Suivi IA - Requirements
-# Date: 5 octobre 2025
+# EducationIA Django - Requirements pour Render
+# Date: 29 octobre 2025
+# Optimisé pour déploiement Render (sans Docker)
 # ===================================
 
-# ========== PACKAGES INSTALLÉS ==========
-
-# Django Framework
+# ========== CORE DJANGO ==========
 Django==4.2.16
 asgiref==3.9.2
-sqlparse==0.2.4
+sqlparse>=0.3.1
 
-# Production Server (pour déploiement)
+# ========== PRODUCTION SERVER ==========
 gunicorn>=21.2.0
+whitenoise>=6.5.0  # Pour servir les fichiers statiques en production
 
-# MongoDB Integration
+# ========== MONGODB INTEGRATION ==========
 djongo==1.3.7
 pymongo==4.15.2
-dnspython==2.8.0
+dnspython==2.8.0  # Requis pour MongoDB Atlas (srv://)
 
-# Python Utilities
+# ========== PYTHON UTILITIES ==========
 six==1.17.0
 pytz==2025.2
 tzdata==2025.2
 typing_extensions==4.15.0
 
-# HTTP Requests (Hugging Face API)
+# ========== HTTP REQUESTS (Hugging Face API) ==========
 requests==2.32.5
 certifi==2025.10.5
 charset-normalizer==3.4.3
 idna==3.10
 urllib3==2.5.0
 
-# ========== GÉNÉRATEUR D'EXERCICES IA ==========
-# Extraction de texte depuis PDF
+# ========== LÉGÈRES - PDF/DOCX EXTRACTION ==========
 PyPDF2==3.0.1
-
-# ========== MODULE RESOURCES - GESTION DE RESSOURCES PÉDAGOGIQUES ==========
-# Extraction de texte PDF (déjà installé)
-# PyPDF2==3.0.1
-pdfplumber>=0.10.0  # Alternative PDF extraction
-
-# Extraction de texte DOCX
+pdfplumber>=0.10.0
 python-docx>=0.8.11
 
-# Transcription vidéo (Audio -> Texte)
-openai-whisper>=20231117
+# ========== SÉCURITÉ & ENVIRONNEMENT ==========
+python-decouple>=3.8  # Variables d'environnement
 
-# IA - Génération de résumés
-transformers>=4.35.0
-torch>=2.1.0
-sentencepiece>=0.1.99  # Requis par certains modèles
-tokenizers>=0.15.0
-
-# Support audio/vidéo pour Whisper
-ffmpeg-python>=0.2.0  # Interface Python pour ffmpeg
-# Note: ffmpeg doit être installé sur le système (voir ci-dessous)
-
-# ========== OPTIONNEL (IA Locale Avancée) ==========
-# Décommenter pour exécuter modèles IA localement (consomme beaucoup de RAM)
-# spacy==3.7.0  # NLP avancé
-# sentence-transformers==2.2.2  # Embeddings
-
-# ========== OPTIONNEL (Sécurité) ==========
-# python-decouple==3.8  # Variables d'environnement
-
-# ========== OPTIONNEL (API REST) ==========
-# djangorestframework==3.14.0
-# django-cors-headers==4.0.0
-
-# ========== OPTIONNEL (Tests) ==========
-# pytest==7.3.1
-# pytest-django==4.5.2
-
-# ===================================
-# Installation:
-# pip install -r requirements.txt
-# 
-# IMPORTANT pour la transcription vidéo:
-# Vous devez installer FFmpeg sur votre système:
-# 
-# Windows (avec Chocolatey):
-#   choco install ffmpeg
-# 
-# Windows (manuel):
-#   1. Télécharger: https://ffmpeg.org/download.html
-#   2. Extraire et ajouter au PATH
-# 
-# Linux:
-#   sudo apt-get install ffmpeg
-# 
-# macOS:
-#   brew install ffmpeg
-# ===================================
-# pytest-django==4.5.2
+# ========== OPTIONNEL - ANALYSE LÉGÈRE ==========
 numpy>=1.21.0
 scikit-learn>=1.0.0
+
+# ===================================
+# ⚠️ LIBRAIRIES LOURDES COMMENTÉES ⚠️
+# ===================================
+# Les librairies suivantes sont TRÈS LOURDES (plusieurs GB) et peuvent causer
+# des problèmes de mémoire/timeout sur Render (plan gratuit/starter).
+# 
+# ALTERNATIVE RECOMMANDÉE: Utiliser les APIs externes (Hugging Face Inference API)
+# qui sont GRATUITES et ne nécessitent pas d'installer ces librairies.
+#
+# Pour activer en local si vraiment nécessaire, décommenter ci-dessous:
+# ---
+
+# ========== IA LOCALE - TRANSCRIPTION AUDIO/VIDEO ==========
+# openai-whisper>=20231117  # ~2GB - Utiliser API externe pour transcription
+
+# ========== IA LOCALE - MODÈLES TRANSFORMERS ==========
+# transformers>=4.35.0      # ~500MB - Utiliser Hugging Face API à la place
+# torch>=2.1.0              # ~2GB - Requis par transformers
+# sentencepiece>=0.1.99     # ~50MB - Requis par certains modèles
+# tokenizers>=0.15.0        # ~100MB - Requis par transformers
+
+# ========== SUPPORT AUDIO/VIDEO ==========
+# ffmpeg-python>=0.2.0      # Nécessite ffmpeg système (non disponible sur Render gratuit)
+
+# ========== NLP AVANCÉ LOCAL ==========
+# spacy==3.7.0              # ~500MB - Utiliser API NLP externe
+# sentence-transformers==2.2.2  # ~1GB - Utiliser API embeddings externe
+
+# ===================================
+# 📝 NOTES IMPORTANTES:
+# ===================================
+# 
+# 1. Ce projet utilise Hugging Face Inference API (gratuite) pour l'analyse IA
+#    Configuration dans settings.py: HUGGINGFACE_API_TOKEN
+# 
+# 2. Pour transcription audio/vidéo, utiliser un service externe comme:
+#    - AssemblyAI API (gratuit tier disponible)
+#    - Deepgram API (gratuit tier disponible)
+#    - OpenAI Whisper API
+# 
+# 3. MongoDB Atlas est utilisé (cloud gratuit)
+#    Pas besoin d'installer MongoDB localement
+# 
+# 4. Installation sur Render:
+#    pip install -r requirements.txt
+#    (Les librairies commentées ne seront pas installées)
+# 
+# ===================================
