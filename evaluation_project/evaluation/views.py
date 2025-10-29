@@ -1136,19 +1136,21 @@ def student_progress(request):
     analytics_service = StudentAnalytics(profile)
     analytics_data = analytics_service.get_complete_statistics()
     
-    # 2. RÉCUPÉRER TOUS LES RÉSULTATS MANUELS
+    # 2. RÉCUPÉRER LES RÉSULTATS MANUELS (LIMITÉS POUR ÉCONOMISER LA MÉMOIRE)
+    # ⚠️ Sur Render free tier (512MB RAM), on limite à 50 résultats max
     all_manual_results = Result.objects.filter(
         student=request.user
-    ).select_related('test').order_by('-created_at')
+    ).select_related('test').order_by('-created_at')[:50]  # 🔥 LIMITE AJOUTÉE
     
-    # 2.1 RÉCUPÉRER TOUS LES RÉSULTATS IA
+    # 2.1 RÉCUPÉRER LES RÉSULTATS IA (LIMITÉS)
     client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
+    # 🔥 LIMITER à 30 soumissions les plus récentes pour économiser la RAM
     ai_submissions = list(db.student_exercise_submissions.find({
         'student_id': request.user.id,
         'status': 'completed'
-    }).sort('submitted_at', -1))
+    }).sort('submitted_at', -1).limit(30))  # 🔥 LIMITE AJOUTÉE
     
     # Récupérer les infos des ExerciseSets pour les soumissions IA
     ai_results_with_details = []
@@ -1169,57 +1171,67 @@ def student_progress(request):
                         pass
                 
                 # 🔥 NOUVEAU : Récupérer les détails des questions pour l'analyse
+                # ⚠️ OPTIMISÉ : Ne charger que si moins de 20 questions pour économiser RAM
                 questions_details = []
                 try:
                     # Récupérer les IDs des exercices du set
                     exercise_ids = list(db.exercise_generator_exerciseset_exercises.find({
                         'exerciseset_id': str(set_id)
-                    }))
+                    }).limit(20))  # 🔥 LIMITE: Max 20 exercices par set
+                    
                     exercise_id_list = [ex['generatedexercise_id'] for ex in exercise_ids]
                     
-                    # Récupérer les exercices complets
-                    exercises_data = list(db.generated_exercises.find({
-                        '_id': {'$in': [ObjectId(eid) if isinstance(eid, str) else eid for eid in exercise_id_list]}
-                    }))
-                    
-                    # Récupérer les réponses de l'étudiant
-                    answers = submission.get('answers', {})
-                    
-                    # Créer les détails pour chaque question
-                    for ex_data in exercises_data:
-                        exercise_id = str(ex_data['_id'])
+                    # Ne charger que si pas trop d'exercices
+                    if len(exercise_id_list) <= 20:
+                        # Récupérer les exercices complets (projection pour réduire la taille)
+                        exercises_data = list(db.generated_exercises.find(
+                            {
+                                '_id': {'$in': [ObjectId(eid) if isinstance(eid, str) else eid for eid in exercise_id_list]}
+                            },
+                            {
+                                '_id': 1, 'concept': 1, 'topic': 1, 'difficulty': 1, 
+                                'exercise_type': 1, 'question_text': 1, 'options_data': 1
+                            }  # 🔥 PROJECTION: Ne charger que les champs nécessaires
+                        ))
                         
-                        # Extraire le concept/topic
-                        concept = ex_data.get('concept') or ex_data.get('topic') or subject or 'Général'
+                        # Récupérer les réponses de l'étudiant
+                        answers = submission.get('answers', {})
                         
-                        # Si le concept est trop générique, essayer d'extraire du texte de la question
-                        if concept in ['Général', 'General', '']:
-                            question_text = ex_data.get('question_text', '')
-                            concept = _extract_concept_from_question(question_text, subject)
-                        
-                        # Vérifier si la réponse est correcte
-                        student_answer = answers.get(exercise_id)
-                        options_data = ex_data.get('options_data', {})
-                        correct_answer = options_data.get('correct')
-                        exercise_type = ex_data.get('exercise_type')
-                        
-                        is_correct = False
-                        if exercise_type == 'true_false':
-                            student_bool = (student_answer == 'True' or student_answer == 'true')
-                            is_correct = (correct_answer == student_bool)
-                        else:
-                            is_correct = (str(student_answer) == str(correct_answer)) if correct_answer else False
-                        
-                        # Ajouter les détails de la question
-                        questions_details.append({
-                            'topic': concept,  # ⭐ Topic précis pour l'analyse
-                            'difficulty': ex_data.get('difficulty', 'medium'),
-                            'is_correct': is_correct,
-                            'question_type': exercise_type or 'multiple_choice',
-                            'question_text': ex_data.get('question_text', '')[:100]
-                        })
+                        # Créer les détails pour chaque question
+                        for ex_data in exercises_data:
+                            exercise_id = str(ex_data['_id'])
+                            
+                            # Extraire le concept/topic
+                            concept = ex_data.get('concept') or ex_data.get('topic') or subject or 'Général'
+                            
+                            # Si le concept est trop générique, essayer d'extraire du texte de la question
+                            if concept in ['Général', 'General', '']:
+                                question_text = ex_data.get('question_text', '')
+                                # 🔥 OPTIMISÉ: Ne pas appeler la fonction si pas nécessaire
+                                concept = question_text[:30] if question_text else subject
+                            
+                            # Vérifier si la réponse est correcte
+                            student_answer = answers.get(exercise_id)
+                            options_data = ex_data.get('options_data', {})
+                            correct_answer = options_data.get('correct')
+                            exercise_type = ex_data.get('exercise_type')
+                            
+                            is_correct = False
+                            if exercise_type == 'true_false':
+                                student_bool = (student_answer == 'True' or student_answer == 'true')
+                                is_correct = (correct_answer == student_bool)
+                            else:
+                                is_correct = (str(student_answer) == str(correct_answer)) if correct_answer else False
+                            
+                            # Ajouter les détails de la question
+                            questions_details.append({
+                                'topic': concept,
+                                'difficulty': ex_data.get('difficulty', 'medium'),
+                                'is_correct': is_correct,
+                                'question_type': exercise_type or 'multiple_choice'
+                            })
                 except Exception as e:
-                    print(f"Erreur récupération questions_details pour set {set_id}: {e}")
+                    print(f"⚠️ Erreur récupération questions_details pour set {set_id}: {e}")
                 
                 ai_results_with_details.append({
                     'submission': submission,
@@ -1344,31 +1356,34 @@ def student_progress(request):
             performance_by_subject[subject]['last_score'] = scores[-1] if scores else 0
     
     # 5. ANALYSER LES FAIBLESSES AVEC IA (OLD - kept for compatibility)
+    # ⚠️ DÉSACTIVÉ temporairement pour économiser RAM sur Render free tier
     weaknesses_analysis = None
-    if all_manual_results.count() >= 2:
+    if False and all_manual_results.count() >= 2:  # 🔥 DÉSACTIVÉ avec False
         try:
             ai_services = get_ai_services()
             # Prendre les 10 derniers APRÈS le tri
-            recent_results = all_manual_results.order_by('-created_at')[:10]
+            recent_results = all_manual_results[:10]  # Déjà trié par -created_at
             weaknesses_analysis = ai_services['weakness_analyzer'].identify_weaknesses(
-                profile, list(recent_results)  # Convertir en liste pour éviter les problèmes de slice
+                profile, list(recent_results)
             )
         except Exception as e:
-            print(f"Erreur analyse faiblesses IA: {e}")
-            # Utiliser l'analyse locale si l'IA échoue
-            weaknesses_analysis = {
-                'weaknesses': analytics_data['weaknesses'],
-                'strengths': analytics_data['strengths'],
-                'recommendations': profile.ai_recommendations or []
-            }
+            print(f"⚠️ Erreur analyse faiblesses IA: {e}")
     
-    # 5.1 NOUVELLE ANALYSE PAR CONCEPTS (DÉTAILLÉE)
+    # Utiliser l'analyse locale (moins gourmande)
+    if not weaknesses_analysis:
+        weaknesses_analysis = {
+            'weaknesses': analytics_data['weaknesses'],
+            'strengths': analytics_data['strengths'],
+            'recommendations': profile.ai_recommendations or []
+        }
+    
+    # 5.1 NOUVELLE ANALYSE PAR CONCEPTS (DÉTAILLÉE) - OPTIMISÉE
     from .concept_analysis import ConceptAnalysisService
     
     concept_analyzer = ConceptAnalysisService(request.user, db_connection=db)
     
     # Analyser séparément les tests manuels et IA
-    print(f"🔍 DEBUG: all_manual_results count = {all_manual_results.count()}")
+    print(f"🔍 DEBUG: all_manual_results count = {len(all_manual_results)}")
     manual_concept_insights = concept_analyzer.analyze_test_results(all_manual_results)
     print(f"🔍 DEBUG: manual_concept_insights = {manual_concept_insights}")
     print(f"🔍 DEBUG: manual_concept_insights keys = {manual_concept_insights.keys() if manual_concept_insights else 'EMPTY'}")
@@ -1383,15 +1398,18 @@ def student_progress(request):
     )
     
     # 5.2 ANALYSE IA AVANCÉE AVEC MODÈLE PUISSANT (Mistral-7B-Instruct-v0.2)
-    ai_analyzer = AIConceptAnalyzer()
-    
-    # Préparer les données pour l'analyse IA des tests manuels
-    manual_tests_for_ai = []
-    for idx, result in enumerate(all_manual_results[:10]):  # Top 10 tests récents
-        try:
-            test = result.test
-            submission = result.submission
-            questions_data = []
+    # ⚠️ DÉSACTIVÉ temporairement pour économiser RAM sur Render free tier
+    advanced_analysis = None
+    if False:  # 🔥 DÉSACTIVÉ
+        ai_analyzer = AIConceptAnalyzer()
+        
+        # Préparer les données pour l'analyse IA des tests manuels
+        manual_tests_for_ai = []
+        for idx, result in enumerate(all_manual_results[:5]):  # 🔥 RÉDUIT de 10 à 5
+            try:
+                test = result.test
+                submission = result.submission
+                questions_data = []
             
             if submission and submission.answers:
                 answers_data = submission.answers if isinstance(submission.answers, dict) else {}
@@ -1476,42 +1494,28 @@ def student_progress(request):
             continue
     
     # Effectuer l'analyse IA par batch (plus efficace)
+    # ⚠️ DÉSACTIVÉ temporairement pour économiser RAM sur Render free tier
     manual_ai_analysis = {}
     ai_tests_ai_analysis = {}
     
-    try:
-        if manual_tests_for_ai:
-            print(f"🔍 DEBUG: Analyse de {len(manual_tests_for_ai)} tests manuels")
-            for test in manual_tests_for_ai:
-                print(f"  - Test ID: {test.get('test_id')}, Name: {test.get('test_name')}, Subject: {test.get('subject')}, Score: {test.get('score')}")
-            
-            manual_ai_analysis = ai_analyzer.batch_analyze_tests(manual_tests_for_ai)
-            print(f"✅ Analyse IA de {len(manual_ai_analysis)} tests manuels réussie")
-            print(f"🔍 DEBUG: manual_ai_analysis keys = {list(manual_ai_analysis.keys())}")
-    except Exception as e:
-        print(f"❌ Erreur analyse IA tests manuels: {e}")
-        import traceback
-        traceback.print_exc()
-        manual_ai_analysis = {}
-    
-    try:
-        if ai_tests_for_ai:
-            print(f"🔍 DEBUG: Analyse de {len(ai_tests_for_ai)} tests IA")
-            for test in ai_tests_for_ai:
-                print(f"  - Test ID: {test.get('test_id')}, Name: {test.get('test_name')}, Subject: {test.get('subject')}, Score: {test.get('score')}")
-            
-            ai_tests_ai_analysis = ai_analyzer.batch_analyze_tests(ai_tests_for_ai)
-            print(f"✅ Analyse IA de {len(ai_tests_ai_analysis)} tests IA réussie")
-            print(f"🔍 DEBUG: ai_tests_ai_analysis keys = {list(ai_tests_ai_analysis.keys())}")
-            
-            # Afficher le contenu de chaque analyse
-            for test_id, analysis in ai_tests_ai_analysis.items():
-                print(f"  - Test ID {test_id}: subject={analysis.get('subject')}, score={analysis.get('score')}")
-    except Exception as e:
-        print(f"❌ Erreur analyse IA tests IA: {e}")
-        import traceback
-        traceback.print_exc()
-        ai_tests_ai_analysis = {}
+    if False:  # 🔥 DÉSACTIVÉ - analyses IA désactivées
+        try:
+            if manual_tests_for_ai:
+                print(f"🔍 DEBUG: Analyse de {len(manual_tests_for_ai)} tests manuels")
+                manual_ai_analysis = ai_analyzer.batch_analyze_tests(manual_tests_for_ai)
+                print(f"✅ Analyse IA de {len(manual_ai_analysis)} tests manuels réussie")
+        except Exception as e:
+            print(f"❌ Erreur analyse IA tests manuels: {e}")
+            manual_ai_analysis = {}
+        
+        try:
+            if ai_tests_for_ai:
+                print(f"🔍 DEBUG: Analyse de {len(ai_tests_for_ai)} tests IA")
+                ai_tests_ai_analysis = ai_analyzer.batch_analyze_tests(ai_tests_for_ai)
+                print(f"✅ Analyse IA de {len(ai_tests_ai_analysis)} tests IA réussie")
+        except Exception as e:
+            print(f"❌ Erreur analyse IA tests IA: {e}")
+            ai_tests_ai_analysis = {}
     
     # 6. GAMIFICATION
     gamification_service = GamificationService(profile)
