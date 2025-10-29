@@ -4,6 +4,8 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.contrib.auth.signals import user_logged_in
 from django.utils import timezone
+from django.conf import settings
+from backend.mongodb_utils import get_mongodb_client
 from .tracking_service import StudentTrackingService
 
 # Importer les modèles avec gestion d'erreur
@@ -85,10 +87,6 @@ def update_challenge_progress_on_exercise_completion(sender, instance, created, 
             for challenge in active_challenges:
                 if 'exercice' in challenge.title.lower() or challenge.subject:
                     try:
-                        from pymongo import MongoClient
-                        from django.conf import settings
-from backend.mongodb_utils import get_mongodb_client
-                        
                         # Connexion MongoDB
                         client = get_mongodb_client()
                         db = client[settings.MONGO_DB_NAME]

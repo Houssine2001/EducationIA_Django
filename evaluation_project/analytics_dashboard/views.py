@@ -4,8 +4,10 @@ from django.contrib.auth.models import User
 from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
 from django.utils import timezone
+from django.conf import settings
 from django.db.models import Avg, Count, Q
 from django.core.paginator import Paginator
+from backend.mongodb_utils import get_mongodb_client
 from datetime import datetime, timedelta
 import json
 import subprocess
@@ -757,10 +759,6 @@ def gamified_dashboard(request):
         traceback.print_exc()
         profile = None
         try:
-            from pymongo import MongoClient
-            from django.conf import settings
-from backend.mongodb_utils import get_mongodb_client
-
             client = get_mongodb_client()
             db = client[settings.MONGO_DB_NAME]
 
