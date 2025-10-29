@@ -2347,23 +2347,72 @@ def my_badges(request):
     Affiche les badges obtenus, les badges disponibles, et des statistiques.
     """
     from .gamification import GamificationService
-    from .models import UserProfile
+    from .models import UserProfile, Result
     import json
     from collections import Counter
+    from pymongo import MongoClient
+    from django.conf import settings
+    from bson import ObjectId
     
-    # Récupérer ou créer le profil
-    profile, created = UserProfile.objects.get_or_create(
-        user=request.user
-    )
+    # Récupérer ou créer le profil via PyMongo
+    client = MongoClient(settings.DATABASES['default']['CLIENT']['host'])
+    db = client[settings.DATABASES['default']['NAME']]
+    
+    # Vérifier si le profil existe
+    profile_doc = db.evaluation_userprofile.find_one({'user_id': request.user.id})
+    
+    if not profile_doc:
+        # Créer le profil
+        profile_doc = {
+            '_id': ObjectId(),
+            'user_id': request.user.id,
+            'role': 'student',
+            'level': 1,
+            'total_xp': 0,
+            'badges': [],
+            'total_tests_taken': 0,
+            'average_score': 0.0,
+            'strengths': [],
+            'weaknesses': [],
+            'created_at': timezone.now(),
+            'updated_at': timezone.now(),
+            'is_active': True
+        }
+        db.evaluation_userprofile.insert_one(profile_doc)
+    
+    # Récupérer le profil Django
+    try:
+        profile = UserProfile.objects.get(user=request.user)
+    except UserProfile.DoesNotExist:
+        # Forcer Django à reconnaître le profil
+        profile = UserProfile.objects.filter(user_id=request.user.id).first()
+        if not profile:
+            messages.error(request, "Erreur lors de la récupération du profil")
+            return redirect('evaluation:student_dashboard')
     
     # Service de gamification
     gamification_service = GamificationService(profile)
+    
+    # 🔍 DEBUG: Vérifier les données de base
+    print(f"\n🔍 DEBUG my_badges:")
+    print(f"   User: {request.user.username} (ID: {request.user.id})")
+    print(f"   Profile: {profile} (ID: {profile.id if hasattr(profile, 'id') else 'N/A'})")
+    
+    # Vérifier les résultats
+    from .models import Result
+    results = Result.objects.filter(student=request.user)
+    print(f"   Nombre de résultats: {results.count()}")
+    if results.exists():
+        for r in results[:3]:
+            print(f"      - Test: {r.test.title if hasattr(r, 'test') else 'N/A'}, Score: {r.percentage_score}%")
     
     # ✅ VÉRIFIER ET ATTRIBUER LES NOUVEAUX BADGES
     try:
         new_badges = gamification_service.check_and_award_badges()
         if new_badges:
             print(f"🎉 Nouveaux badges obtenus dans my_badges: {[b['name'] for b in new_badges]}")
+        else:
+            print(f"   Aucun nouveau badge à attribuer")
     except Exception as e:
         print(f"❌ Erreur attribution badges: {e}")
         import traceback
@@ -2374,6 +2423,9 @@ def my_badges(request):
         badge_progress_data = gamification_service.get_badge_progress()
         earned_badges_data = badge_progress_data['earned_badges']
         available_badges_data = badge_progress_data['available_badges']
+        print(f"   Badges obtenus: {len(earned_badges_data)}")
+        print(f"   Badges disponibles: {len(available_badges_data)}")
+        print(f"   Total badges système: {len(gamification_service.BADGES)}")
     except Exception as e:
         print(f"❌ Erreur get_badge_progress: {e}")
         import traceback

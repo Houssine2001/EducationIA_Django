@@ -513,11 +513,21 @@ class GamificationService:
         
         # Récupérer les badges déjà obtenus
         current_badges = self.profile.badges or []
-        current_badge_ids = [b['badge_id'] for b in current_badges]
+        # Support pour anciens et nouveaux formats de badges
+        current_badge_ids = [b.get('badge_id', b.get('name', '')) for b in current_badges if isinstance(b, dict)]
+        
+        print(f"\n🔍 get_badge_progress DEBUG:")
+        print(f"   User: {self.user.username}")
+        print(f"   Profile badges: {len(current_badges)}")
+        print(f"   Badge IDs: {current_badge_ids[:5]}")  # Afficher les 5 premiers
         
         # Récupérer les données nécessaires
         results = Result.objects.filter(student=self.user)
         submissions = Submission.objects.filter(student=self.user, status='completed')
+        
+        print(f"   Résultats: {results.count()}")
+        print(f"   Submissions: {submissions.count()}")
+        print(f"   Total BADGES système: {len(self.BADGES)}")
         
         # Liste des badges disponibles avec progression
         available_badges = []
@@ -551,10 +561,17 @@ class GamificationService:
             
             available_badges.append(badge_info)
         
-        return {
+        result = {
             'earned_badges': [b for b in available_badges if b['is_earned']],
             'available_badges': [b for b in available_badges if not b['is_earned']]
         }
+        
+        print(f"   ✅ Résultat:")
+        print(f"      Earned: {len(result['earned_badges'])}")
+        print(f"      Available: {len(result['available_badges'])}")
+        print(f"      Total: {len(available_badges)}\n")
+        
+        return result
     
     
     def _calculate_badge_progress(self, badge_id, results, submissions):
