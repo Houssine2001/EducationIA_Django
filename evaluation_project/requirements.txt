@@ -7,15 +7,15 @@
 # ========== CORE DJANGO ==========
 Django==4.2.16
 asgiref==3.9.2
-sqlparse>=0.3.1
+sqlparse==0.2.4
 
 # ========== PRODUCTION SERVER ==========
 gunicorn>=21.2.0
 whitenoise>=6.5.0  # Pour servir les fichiers statiques en production
 
 # ========== MONGODB INTEGRATION ==========
-djongo==1.3.7
-pymongo==4.15.2
+djongo==1.3.6
+pymongo==3.12.3
 dnspython==2.8.0  # Requis pour MongoDB Atlas (srv://)
 
 # ========== PYTHON UTILITIES ==========
