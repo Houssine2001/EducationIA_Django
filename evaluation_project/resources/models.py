@@ -59,13 +59,30 @@ class Resource(models.Model):
         return self.title
     
     def save(self, *args, **kwargs):
-        # Générer un token de partage si non existant
-        if not self.share_token:
-            self.share_token = str(uuid.uuid4())
+        # Ne traiter le fichier et le token que si on ne fait pas une mise à jour partielle
+        update_fields = kwargs.get('update_fields')
         
-        # Définir la taille du fichier
-        if self.file and hasattr(self.file, 'size'):
-            self.file_size = self.file.size
+        if update_fields is None:
+            # Générer un token de partage si non existant
+            if not self.share_token:
+                self.share_token = str(uuid.uuid4())
+            
+            # Définir la taille du fichier (seulement si le fichier existe physiquement)
+            if self.file and hasattr(self.file, 'file'):
+                try:
+                    # Accéder à la taille via l'attribut _file pour éviter l'accès au storage
+                    if hasattr(self.file.file, 'size'):
+                        self.file_size = self.file.file.size
+                    elif not self.file_size:
+                        # Seulement si file_size n'est pas déjà défini
+                        try:
+                            self.file_size = self.file.size
+                        except (OSError, FileNotFoundError):
+                            # Le fichier n'existe pas physiquement, garder file_size existant
+                            pass
+                except (OSError, FileNotFoundError, AttributeError):
+                    # Le fichier n'existe pas physiquement, garder file_size existant
+                    pass
         
         super().save(*args, **kwargs)
     

@@ -1246,13 +1246,44 @@ def delete_exercise_set(request, set_id):
     Supprimer un set d'exercices
     """
     from .models import ExerciseSet
+    from pymongo import MongoClient
+    from django.conf import settings
+    from bson.objectid import ObjectId
     
-    # Récupérer le set sans restriction teacher
-    exercise_set = get_mongo_document_simple(ExerciseSet, set_id)
-    title = exercise_set.title
-    exercise_set.delete()
+    # Connexion MongoDB
+    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    db = client[settings.MONGO_DB_NAME]
     
-    messages.success(request, f"Set '{title}' supprimé")
+    # Récupérer le set pour obtenir le titre
+    try:
+        set_data = db.exercise_sets.find_one({'_id': ObjectId(set_id)})
+        if not set_data:
+            client.close()
+            messages.error(request, "Set d'exercices non trouvé")
+            return redirect('exercise_generator:exercise_sets_list')
+        
+        title = set_data.get('title', 'Set')
+        
+        # Supprimer les relations ManyToMany via PyMongo
+        db.exercise_generator_exerciseset_exercises.delete_many({
+            'exerciseset_id': str(set_id)
+        })
+        
+        # Supprimer les soumissions liées
+        db.student_exercise_submissions.delete_many({
+            'exercise_set_id': str(set_id)
+        })
+        
+        # Supprimer le set lui-même
+        db.exercise_sets.delete_one({'_id': ObjectId(set_id)})
+        
+        client.close()
+        messages.success(request, f"Set '{title}' supprimé avec succès")
+        
+    except Exception as e:
+        client.close()
+        messages.error(request, f"Erreur lors de la suppression: {str(e)}")
+    
     return redirect('exercise_generator:exercise_sets_list')
 
 

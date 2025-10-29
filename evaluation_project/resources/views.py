@@ -556,7 +556,14 @@ def my_saved_resources(request):
 @login_required
 def public_resource_detail(request, resource_id):
     """Affiche les détails d'une ressource publique"""
-    resource = get_object_or_404(Resource, id=resource_id, is_public=True, processing_status='completed')
+    # Récupérer la ressource sans filtrer is_public dans get_object_or_404 (problème Djongo)
+    resource = get_object_or_404(Resource, id=resource_id)
+    
+    # Vérifier manuellement si publique et traitée
+    if not resource.is_public or resource.processing_status != 'completed':
+        from django.http import Http404
+        raise Http404("Cette ressource n'est pas disponible publiquement.")
+    
     resource.increment_views()
     
     # Vérifier si l'utilisateur a déjà sauvegardé cette ressource (avec IDs)
@@ -565,10 +572,14 @@ def public_resource_detail(request, resource_id):
         resource_id=resource_id
     ).exists()
     
+    # Compter le nombre de sauvegardes (compatible MongoDB)
+    saves_count = SavedResource.objects.filter(resource_id=resource_id).count()
+    
     context = {
         'resource': resource,
         'is_saved': is_saved,
         'is_public_view': True,
+        'saves_count': saves_count,
     }
     
     return render(request, 'resources/public_detail.html', context)
