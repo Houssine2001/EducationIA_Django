@@ -173,7 +173,16 @@ def dashboard(request):
     from django.conf import settings
     
     # Connexion MongoDB directe pour éviter les bugs Djongo
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    # Utiliser MONGO_URI pour Render (au lieu de MONGO_HOST/MONGO_PORT)
+    mongo_uri = getattr(settings, 'MONGO_URI', None)
+    if mongo_uri:
+        client = MongoClient(mongo_uri)
+    else:
+        # Fallback pour configuration locale avec MONGO_HOST/MONGO_PORT
+        mongo_host = getattr(settings, 'MONGO_HOST', 'localhost')
+        mongo_port = getattr(settings, 'MONGO_PORT', 27017)
+        client = MongoClient(mongo_host, mongo_port)
+    
     db = client[settings.MONGO_DB_NAME]
     
     # Documents récents via PyMongo

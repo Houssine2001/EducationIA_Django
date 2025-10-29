@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from backend.mongodb_utils import get_mongodb_client
 import uuid
 
 
@@ -69,7 +70,7 @@ class Resource(models.Model):
             
             try:
                 # Connexion directe à MongoDB pour trouver le max ID
-                client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+                client = get_mongodb_client()
                 db = client[settings.MONGO_DB_NAME]
                 collection = db.resources_resource
                 

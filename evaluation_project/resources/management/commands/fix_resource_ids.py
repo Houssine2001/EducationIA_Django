@@ -4,6 +4,7 @@ Usage: python manage.py fix_resource_ids
 """
 from django.core.management.base import BaseCommand
 from resources.models import Resource
+from backend.mongodb_utils import get_mongodb_client
 
 
 class Command(BaseCommand):
@@ -37,7 +38,7 @@ class Command(BaseCommand):
                 from pymongo import MongoClient
                 from django.conf import settings
                 
-                client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+                client = get_mongodb_client()
                 db = client[settings.MONGO_DB_NAME]
                 
                 # Mettre à jour directement dans MongoDB

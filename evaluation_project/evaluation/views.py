@@ -14,6 +14,7 @@ from .models import Test, Question, Submission, Result, UserProfile
 from .services import TestService, AutoGrading, ResultService
 from ai_modules.ai_services import get_ai_services
 from .ai_concept_analyzer import AIConceptAnalyzer
+from backend.mongodb_utils import get_mongodb_client, get_mongodb_database
 import re
 
 
@@ -121,7 +122,7 @@ def teacher_dashboard(request):
     from django.conf import settings
     
     # Connexion MongoDB
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     # Récupérer les tests créés par l'enseignant via PyMongo
@@ -215,7 +216,7 @@ def edit_test(request, test_id):
     
     # Récupérer le test via PyMongo pour gérer ObjectId
     try:
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         test_data = db.tests.find_one({
@@ -307,7 +308,7 @@ def add_question(request, test_id):
     
     # Récupérer le test via PyMongo
     try:
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         test_data = db.tests.find_one({
@@ -398,7 +399,7 @@ def test_statistics(request, test_id):
     
     # Récupérer le test via PyMongo
     try:
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         test_data = db.tests.find_one({
@@ -523,7 +524,7 @@ def student_dashboard(request):
     from django.conf import settings
     
     try:
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         # Récupérer les ExerciseSets publiés (tests IA)
@@ -642,7 +643,7 @@ def student_dashboard(request):
     
     # AJOUTER LES STATISTIQUES DES TESTS IA
     try:
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         # Récupérer toutes les soumissions IA de l'étudiant
@@ -771,7 +772,7 @@ def test_detail(request, test_id):
     
     # Récupérer le test via PyMongo
     try:
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         test_data = db.tests.find_one({
@@ -845,7 +846,7 @@ def start_test(request, test_id):
     
     # Récupérer le test via PyMongo
     try:
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         test_data = db.tests.find_one({
@@ -902,7 +903,7 @@ def take_test(request, submission_id):
     
     # Récupérer la soumission via PyMongo
     try:
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         submission_data = db.submissions.find_one({
@@ -962,7 +963,7 @@ def submit_test(request, submission_id):
     
     # Récupérer la soumission via PyMongo
     try:
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         submission_data = db.submissions.find_one({
@@ -1048,7 +1049,7 @@ def view_result(request, result_id):
     
     # Récupérer le résultat via PyMongo
     try:
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         result_data = db.results.find_one({
