@@ -1399,123 +1399,17 @@ def student_progress(request):
     
     # 5.2 ANALYSE IA AVANCÉE AVEC MODÈLE PUISSANT (Mistral-7B-Instruct-v0.2)
     # ⚠️ DÉSACTIVÉ temporairement pour économiser RAM sur Render free tier
-    advanced_analysis = None
-    if False:  # 🔥 DÉSACTIVÉ
-        ai_analyzer = AIConceptAnalyzer()
-        
-        # Préparer les données pour l'analyse IA des tests manuels
-        manual_tests_for_ai = []
-        for idx, result in enumerate(all_manual_results[:5]):  # 🔥 RÉDUIT de 10 à 5
-            try:
-                test = result.test
-                submission = result.submission
-                questions_data = []
-            
-            if submission and submission.answers:
-                answers_data = submission.answers if isinstance(submission.answers, dict) else {}
-                
-                for question_id, answer_info in answers_data.items():
-                    try:
-                        question = Question.objects.get(id=int(question_id))
-                        
-                        # Déterminer si la réponse est correcte
-                        # answer_info peut être un dict ou une string
-                        if isinstance(answer_info, dict):
-                            is_correct = answer_info.get('is_correct', False)
-                        else:
-                            # Si c'est une string, vérifier si c'est la bonne réponse
-                            is_correct = (str(answer_info) == str(question.correct_answer))
-                        
-                        # Extraire le concept de manière intelligente
-                        concept = None
-                        
-                        # 1. Essayer d'abord les skills de la question
-                        if question.skills and isinstance(question.skills, list) and len(question.skills) > 0:
-                            concept = question.skills[0]  # Prendre le premier skill
-                        
-                        # 2. Si pas de skills, extraire du texte de la question
-                        if not concept:
-                            concept = _extract_concept_from_question(question.question_text, test.subject or 'Général')
-                        
-                        # 3. Fallback sur le topic du test puis le subject
-                        if not concept or concept == 'Général':
-                            concept = test.topic or test.subject or 'Général'
-                        
-                        questions_data.append({
-                            'concept': concept,
-                            'difficulty': question.difficulty_level or 'medium',
-                            'is_correct': is_correct,
-                            'question_type': question.question_type or 'mcq',
-                            'question_text': question.question_text[:100]  # Pour debug
-                        })
-                    except (Question.DoesNotExist, ValueError) as e:
-                        print(f"Erreur question {question_id}: {e}")
-                        continue
-                
-                if questions_data:  # Only add if we have valid questions
-                    # Utiliser result.id ou test.id comme test_id unique
-                    test_id = str(result.id) if result.id else f"manual_test_{idx}"
-                    manual_tests_for_ai.append({
-                        'test_id': test_id,  # ✅ IMPORTANT: Ajouter test_id unique
-                        'test_name': test.title,
-                        'subject': test.subject or 'Sans matière',
-                        'score': result.percentage_score or 0,
-                        'questions_data': questions_data
-                    })
-        except Exception as e:
-            print(f"Erreur préparation test manuel pour IA: {e}")
-            continue
-    
-    # Préparer les données pour l'analyse IA des tests IA
+    manual_tests_for_ai = []
     ai_tests_for_ai = []
-    for idx, ai_result in enumerate(ai_results_with_details[:10]):  # Top 10 tests récents
-        try:
-            questions_data = []
-            for q in ai_result.get('questions_details', []):
-                questions_data.append({
-                    'concept': q.get('topic', 'Général'),
-                    'difficulty': q.get('difficulty', 'medium'),
-                    'is_correct': q.get('is_correct', False),
-                    'question_type': 'multiple_choice'  # Par défaut pour les tests IA
-                })
-            
-            if questions_data:  # Seulement si on a des questions
-                # Utiliser submission_id ou générer un ID unique
-                test_id = ai_result.get('submission_id') or f"ai_test_{idx}"
-                ai_tests_for_ai.append({
-                    'test_id': test_id,  # ✅ IMPORTANT: Ajouter test_id unique
-                    'test_name': ai_result.get('exercise_set_name', 'Test IA'),
-                    'subject': ai_result.get('subject', 'IA'),
-                    'score': ai_result.get('score', 0),
-                    'questions_data': questions_data
-                })
-        except Exception as e:
-            print(f"Erreur préparation test IA pour analyse: {e}")
-            continue
+    
+    # Le code d'analyse IA avancée est désactivé pour économiser la RAM
+    # Sur Render free tier (512MB), ces analyses consomment trop de mémoire
     
     # Effectuer l'analyse IA par batch (plus efficace)
     # ⚠️ DÉSACTIVÉ temporairement pour économiser RAM sur Render free tier
     manual_ai_analysis = {}
     ai_tests_ai_analysis = {}
-    
-    if False:  # 🔥 DÉSACTIVÉ - analyses IA désactivées
-        try:
-            if manual_tests_for_ai:
-                print(f"🔍 DEBUG: Analyse de {len(manual_tests_for_ai)} tests manuels")
-                manual_ai_analysis = ai_analyzer.batch_analyze_tests(manual_tests_for_ai)
-                print(f"✅ Analyse IA de {len(manual_ai_analysis)} tests manuels réussie")
-        except Exception as e:
-            print(f"❌ Erreur analyse IA tests manuels: {e}")
-            manual_ai_analysis = {}
-        
-        try:
-            if ai_tests_for_ai:
-                print(f"🔍 DEBUG: Analyse de {len(ai_tests_for_ai)} tests IA")
-                ai_tests_ai_analysis = ai_analyzer.batch_analyze_tests(ai_tests_for_ai)
-                print(f"✅ Analyse IA de {len(ai_tests_ai_analysis)} tests IA réussie")
-        except Exception as e:
-            print(f"❌ Erreur analyse IA tests IA: {e}")
-            ai_tests_ai_analysis = {}
+    # Les analyses IA avancées sont désactivées pour le tier gratuit de Render
     
     # 6. GAMIFICATION
     gamification_service = GamificationService(profile)
