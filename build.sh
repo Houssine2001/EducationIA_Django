@@ -18,9 +18,10 @@ cd evaluation_project
 echo "📂 Collecte des fichiers statiques..."
 python manage.py collectstatic --no-input --clear
 
-# Appliquer les migrations
+# Appliquer les migrations (fake pour MongoDB Atlas existant)
 echo "🗄️ Application des migrations..."
-python manage.py migrate --noinput
+# MongoDB Atlas a déjà les données, on "fake" les migrations
+python manage.py migrate --fake-initial --noinput || python manage.py migrate --fake --noinput
 
 echo "====================================="
 echo "✅ Build terminé avec succès!"
