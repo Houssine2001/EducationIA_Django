@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load analytics_filters %}
 
 {% block title %}📊 Historique de Stress{% endblock %}
 
@@ -255,39 +256,50 @@
                 </div>
                 {% endif %}
                 
-                <div style="margin-top: 15px; display: flex; gap: 10px;">
-                    <a href="{% url 'analytics_dashboard:stress_analysis' report._id %}" class="btn-view">
+                <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <a href="{% url 'analytics_dashboard:stress_analysis' report|str_id %}" class="btn-view">
                         📋 Voir l'analyse complète
                     </a>
                     
+                    <a href="{% url 'analytics_dashboard:edit_stress_report' report|str_id %}" class="btn-view" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                        ✏️ Modifier
+                    </a>
+                    
+                    <form method="post" action="{% url 'analytics_dashboard:delete_stress_report' report|str_id %}" style="display: inline;" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce rapport de stress ?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-view" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                            🗑️ Supprimer
+                        </button>
+                    </form>
+                    
                     {% if report.status == 'ANALYZED' %}
-                    <button onclick="showFeedbackForm('{{ report._id }}')" class="btn-view" style="background: #4caf50;">
+                    <button onclick="showFeedbackForm('{{ report|str_id }}')" class="btn-view" style="background: #4caf50;">
                         ✍️ Donner un retour
                     </button>
                     {% endif %}
                 </div>
                 
                 <!-- Formulaire de feedback (caché par défaut) -->
-                <div id="feedback-{{ report._id }}" style="display: none; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                    <form method="post" action="{% url 'analytics_dashboard:stress_feedback' report._id %}">
+                <div id="feedback-{{ report|str_id }}" style="display: none; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <form method="post" action="{% url 'analytics_dashboard:stress_feedback' report|str_id %}">
                         {% csrf_token %}
                         <h4>💬 Comment allez-vous maintenant ?</h4>
                         <div style="margin: 15px 0;">
-                            <input type="checkbox" id="followed-{{ report._id }}" name="followed">
-                            <label for="followed-{{ report._id }}">J'ai suivi les recommandations</label>
+                            <input type="checkbox" id="followed-{{ report|str_id }}" name="followed">
+                            <label for="followed-{{ report|str_id }}">J'ai suivi les recommandations</label>
                         </div>
                         <div style="margin: 15px 0;">
                             <label>Amélioration ressentie :</label><br>
-                            <input type="radio" id="imp1-{{ report._id }}" name="improvement" value="1">
-                            <label for="imp1-{{ report._id }}">😫 Aucune</label>
-                            <input type="radio" id="imp2-{{ report._id }}" name="improvement" value="2">
-                            <label for="imp2-{{ report._id }}">😐 Légère</label>
-                            <input type="radio" id="imp3-{{ report._id }}" name="improvement" value="3">
-                            <label for="imp3-{{ report._id }}">🙂 Bonne</label>
-                            <input type="radio" id="imp4-{{ report._id }}" name="improvement" value="4">
-                            <label for="imp4-{{ report._id }}">😊 Très bonne</label>
-                            <input type="radio" id="imp5-{{ report._id }}" name="improvement" value="5">
-                            <label for="imp5-{{ report._id }}">😄 Excellente</label>
+                            <input type="radio" id="imp1-{{ report|str_id }}" name="improvement" value="1">
+                            <label for="imp1-{{ report|str_id }}">😫 Aucune</label>
+                            <input type="radio" id="imp2-{{ report|str_id }}" name="improvement" value="2">
+                            <label for="imp2-{{ report|str_id }}">😐 Légère</label>
+                            <input type="radio" id="imp3-{{ report|str_id }}" name="improvement" value="3">
+                            <label for="imp3-{{ report|str_id }}">🙂 Bonne</label>
+                            <input type="radio" id="imp4-{{ report|str_id }}" name="improvement" value="4">
+                            <label for="imp4-{{ report|str_id }}">😊 Très bonne</label>
+                            <input type="radio" id="imp5-{{ report|str_id }}" name="improvement" value="5">
+                            <label for="imp5-{{ report|str_id }}">😄 Excellente</label>
                         </div>
                         <button type="submit" class="btn-view" style="background: #4caf50;">
                             Envoyer

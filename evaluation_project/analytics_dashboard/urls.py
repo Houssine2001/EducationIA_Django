@@ -80,6 +80,8 @@ urlpatterns = [
     # 🧠 Gestion du Stress et Concentration
     path('stress/', views.stress_report_form, name='stress_report'),
     path('stress/<str:report_id>/', views.stress_analysis, name='stress_analysis'),
+    path('stress/<str:report_id>/edit/', views.edit_stress_report, name='edit_stress_report'),
+    path('stress/<str:report_id>/delete/', views.delete_stress_report, name='delete_stress_report'),
     path('stress-history/', views.stress_history, name='stress_history'),
     path('stress/<str:report_id>/feedback/', views.update_stress_feedback, name='stress_feedback'),
 ]

@@ -1171,3 +1171,111 @@ def update_stress_feedback(request, report_id):
         return redirect('analytics_dashboard:stress_history')
     
     return redirect('analytics_dashboard:stress_history')
+
+
+@login_required
+def edit_stress_report(request, report_id):
+    """Modifier un rapport de stress existant"""
+    from .models import StressReport
+    from .services import StressAnalysisService
+    from bson import ObjectId
+    
+    report = get_object_or_404(StressReport, _id=ObjectId(report_id), student=request.user)
+    
+    if request.method == 'POST':
+        # Récupérer les données du formulaire
+        stress_level = int(request.POST.get('stress_level'))
+        concentration_level = int(request.POST.get('concentration_level'))
+        description = request.POST.get('description', '').strip()
+        current_situation = request.POST.get('current_situation', '').strip()
+        
+        stress_causes = request.POST.getlist('stress_causes')
+        other_cause = request.POST.get('other_cause', '').strip()
+        if other_cause:
+            stress_causes.append(other_cause)
+        
+        symptoms = request.POST.getlist('symptoms')
+        other_symptom = request.POST.get('other_symptom', '').strip()
+        if other_symptom:
+            symptoms.append(other_symptom)
+        
+        # Contexte
+        upcoming_exams = request.POST.get('upcoming_exams') == 'on'
+        sleep_hours = request.POST.get('sleep_hours')
+        if sleep_hours:
+            sleep_hours = float(sleep_hours)
+        exercise_frequency = request.POST.get('exercise_frequency', '')
+        
+        # Mettre à jour le rapport
+        report.stress_level = stress_level
+        report.concentration_level = concentration_level
+        report.stress_causes = stress_causes
+        report.symptoms = symptoms
+        report.description = description
+        report.current_situation = current_situation
+        report.upcoming_exams = upcoming_exams
+        report.sleep_hours = sleep_hours
+        report.exercise_frequency = exercise_frequency
+        
+        # Réanalyser avec l'IA
+        service = StressAnalysisService()
+        analyzed_report = service.analyze_stress_report(report)
+        
+        messages.success(request, '✅ Rapport de stress modifié avec succès!')
+        return redirect('analytics_dashboard:stress_analysis', report_id=str(analyzed_report._id))
+    
+    # GET - Afficher le formulaire de modification
+    context = {
+        'page_title': 'Modifier le Rapport de Stress',
+        'report': report,
+        'report_id': str(report._id),  # Convertir ObjectId en string pour le template
+        'stress_causes_options': [
+            'Examens à venir',
+            'Charge de travail élevée',
+            'Difficultés de compréhension',
+            'Pression familiale',
+            'Problèmes personnels',
+            'Manque de sommeil',
+            'Problèmes de santé',
+            'Difficultés sociales',
+            'Problèmes financiers',
+            'Incertitude sur l\'avenir',
+        ],
+        'symptoms_options': [
+            'Anxiété',
+            'Fatigue',
+            'Maux de tête',
+            'Troubles du sommeil',
+            'Irritabilité',
+            'Difficultés de concentration',
+            'Perte d\'appétit',
+            'Palpitations',
+            'Tensions musculaires',
+            'Procrastination',
+        ],
+        'exercise_frequencies': [
+            'Jamais',
+            'Rarement (1 fois/semaine)',
+            'Occasionnellement (2-3 fois/semaine)',
+            'Régulièrement (4-5 fois/semaine)',
+            'Quotidiennement'
+        ],
+        'is_edit': True,
+    }
+    
+    return render(request, 'analytics_dashboard/stress_form.html', context)
+
+
+@login_required
+def delete_stress_report(request, report_id):
+    """Supprimer un rapport de stress"""
+    from .models import StressReport
+    from bson import ObjectId
+    
+    if request.method == 'POST':
+        report = get_object_or_404(StressReport, _id=ObjectId(report_id), student=request.user)
+        report.delete()
+        messages.success(request, '🗑️ Rapport de stress supprimé avec succès!')
+        return redirect('analytics_dashboard:stress_history')
+    
+    return redirect('analytics_dashboard:stress_history')

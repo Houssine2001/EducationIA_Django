@@ -28,3 +28,10 @@ def get_item(dictionary, key):
 def jsonify(obj):
     """Convertit en JSON pour JavaScript"""
     return json.dumps(obj)
+
+@register.filter
+def str_id(obj):
+    """Convertit l'ObjectId en string"""
+    if hasattr(obj, '_id'):
+        return str(obj._id)
+    return str(obj)

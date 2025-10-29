@@ -182,7 +182,7 @@
 <div class="stress-container">
     <div class="stress-card">
         <div class="stress-header">
-            <h1>🧠 Évaluation de votre état mental</h1>
+            <h1>🧠 {% if is_edit %}Modifier votre{% else %}Évaluation de votre{% endif %} état mental</h1>
             <p>Prenez quelques minutes pour nous parler de votre stress et de votre concentration.<br>
             Notre IA vous proposera des solutions personnalisées.</p>
         </div>
@@ -191,7 +191,7 @@
             <p>💡 <strong>Confidentialité :</strong> Vos réponses sont confidentielles et servent uniquement à vous aider.</p>
         </div>
         
-        <form method="post" action="{% url 'analytics_dashboard:stress_report' %}">
+        <form method="post" action="{% if is_edit %}{% url 'analytics_dashboard:edit_stress_report' report_id %}{% else %}{% url 'analytics_dashboard:stress_report' %}{% endif %}">
             {% csrf_token %}
             
             <!-- Niveau de stress -->
@@ -201,35 +201,35 @@
                 
                 <div class="rating-scale">
                     <div class="rating-option">
-                        <input type="radio" id="stress1" name="stress_level" value="1" required>
+                        <input type="radio" id="stress1" name="stress_level" value="1" {% if report and report.stress_level == 1 %}checked{% endif %} required>
                         <label for="stress1">
                             <span class="rating-emoji">😌</span>
                             <span>Très faible</span>
                         </label>
                     </div>
                     <div class="rating-option">
-                        <input type="radio" id="stress2" name="stress_level" value="2">
+                        <input type="radio" id="stress2" name="stress_level" value="2" {% if report and report.stress_level == 2 %}checked{% endif %}>
                         <label for="stress2">
                             <span class="rating-emoji">🙂</span>
                             <span>Faible</span>
                         </label>
                     </div>
                     <div class="rating-option">
-                        <input type="radio" id="stress3" name="stress_level" value="3">
+                        <input type="radio" id="stress3" name="stress_level" value="3" {% if report and report.stress_level == 3 %}checked{% endif %}>
                         <label for="stress3">
                             <span class="rating-emoji">😐</span>
                             <span>Modéré</span>
                         </label>
                     </div>
                     <div class="rating-option">
-                        <input type="radio" id="stress4" name="stress_level" value="4">
+                        <input type="radio" id="stress4" name="stress_level" value="4" {% if report and report.stress_level == 4 %}checked{% endif %}>
                         <label for="stress4">
                             <span class="rating-emoji">😰</span>
                             <span>Élevé</span>
                         </label>
                     </div>
                     <div class="rating-option">
-                        <input type="radio" id="stress5" name="stress_level" value="5">
+                        <input type="radio" id="stress5" name="stress_level" value="5" {% if report and report.stress_level == 5 %}checked{% endif %}>
                         <label for="stress5">
                             <span class="rating-emoji">😫</span>
                             <span>Très élevé</span>
@@ -245,35 +245,35 @@
                 
                 <div class="rating-scale">
                     <div class="rating-option">
-                        <input type="radio" id="conc1" name="concentration_level" value="1" required>
+                        <input type="radio" id="conc1" name="concentration_level" value="1" {% if report and report.concentration_level == 1 %}checked{% endif %} required>
                         <label for="conc1">
                             <span class="rating-emoji">🎯</span>
                             <span>Excellente</span>
                         </label>
                     </div>
                     <div class="rating-option">
-                        <input type="radio" id="conc2" name="concentration_level" value="2">
+                        <input type="radio" id="conc2" name="concentration_level" value="2" {% if report and report.concentration_level == 2 %}checked{% endif %}>
                         <label for="conc2">
                             <span class="rating-emoji">👍</span>
                             <span>Bonne</span>
                         </label>
                     </div>
                     <div class="rating-option">
-                        <input type="radio" id="conc3" name="concentration_level" value="3">
+                        <input type="radio" id="conc3" name="concentration_level" value="3" {% if report and report.concentration_level == 3 %}checked{% endif %}>
                         <label for="conc3">
                             <span class="rating-emoji">🤔</span>
                             <span>Moyenne</span>
                         </label>
                     </div>
                     <div class="rating-option">
-                        <input type="radio" id="conc4" name="concentration_level" value="4">
+                        <input type="radio" id="conc4" name="concentration_level" value="4" {% if report and report.concentration_level == 4 %}checked{% endif %}>
                         <label for="conc4">
                             <span class="rating-emoji">😵</span>
                             <span>Faible</span>
                         </label>
                     </div>
                     <div class="rating-option">
-                        <input type="radio" id="conc5" name="concentration_level" value="5">
+                        <input type="radio" id="conc5" name="concentration_level" value="5" {% if report and report.concentration_level == 5 %}checked{% endif %}>
                         <label for="conc5">
                             <span class="rating-emoji">🤯</span>
                             <span>Très faible</span>
@@ -290,7 +290,7 @@
                 <div class="checkbox-grid">
                     {% for cause in stress_causes_options %}
                     <div class="checkbox-item">
-                        <input type="checkbox" id="cause{{ forloop.counter }}" name="stress_causes" value="{{ cause }}">
+                        <input type="checkbox" id="cause{{ forloop.counter }}" name="stress_causes" value="{{ cause }}" {% if report and cause in report.stress_causes %}checked{% endif %}>
                         <label for="cause{{ forloop.counter }}">{{ cause }}</label>
                     </div>
                     {% endfor %}
@@ -310,7 +310,7 @@
                 <div class="checkbox-grid">
                     {% for symptom in symptoms_options %}
                     <div class="checkbox-item">
-                        <input type="checkbox" id="symptom{{ forloop.counter }}" name="symptoms" value="{{ symptom }}">
+                        <input type="checkbox" id="symptom{{ forloop.counter }}" name="symptoms" value="{{ symptom }}" {% if report and symptom in report.symptoms %}checked{% endif %}>
                         <label for="symptom{{ forloop.counter }}">{{ symptom }}</label>
                     </div>
                     {% endfor %}
@@ -328,12 +328,12 @@
                 
                 <div class="form-group">
                     <label for="description">Comment vous sentez-vous en ce moment ? (optionnel)</label>
-                    <textarea id="description" name="description" placeholder="Décrivez vos sentiments, vos difficultés..."></textarea>
+                    <textarea id="description" name="description" placeholder="Décrivez vos sentiments, vos difficultés...">{% if report %}{{ report.description }}{% endif %}</textarea>
                 </div>
                 
                 <div class="form-group">
                     <label for="current_situation">Qu'est-ce qui vous empêche de vous concentrer ? (optionnel)</label>
-                    <textarea id="current_situation" name="current_situation" placeholder="Décrivez ce qui perturbe votre concentration..."></textarea>
+                    <textarea id="current_situation" name="current_situation" placeholder="Décrivez ce qui perturbe votre concentration...">{% if report %}{{ report.current_situation }}{% endif %}</textarea>
                 </div>
             </div>
             
@@ -342,13 +342,13 @@
                 <h3>⚙️ Informations complémentaires</h3>
                 
                 <div class="form-group">
-                    <input type="checkbox" id="upcoming_exams" name="upcoming_exams">
+                    <input type="checkbox" id="upcoming_exams" name="upcoming_exams" {% if report and report.upcoming_exams %}checked{% endif %}>
                     <label for="upcoming_exams" style="display: inline;">📚 J'ai des examens importants à venir</label>
                 </div>
                 
                 <div class="form-group">
                     <label for="sleep_hours">💤 Heures de sommeil par nuit (moyenne) :</label>
-                    <input type="number" id="sleep_hours" name="sleep_hours" min="0" max="24" step="0.5" placeholder="Ex: 6.5">
+                    <input type="number" id="sleep_hours" name="sleep_hours" min="0" max="24" step="0.5" placeholder="Ex: 6.5" value="{% if report and report.sleep_hours %}{{ report.sleep_hours }}{% endif %}">
                 </div>
                 
                 <div class="form-group">
@@ -356,14 +356,18 @@
                     <select id="exercise_frequency" name="exercise_frequency">
                         <option value="">-- Sélectionnez --</option>
                         {% for freq in exercise_frequencies %}
-                        <option value="{{ freq }}">{{ freq }}</option>
+                        <option value="{{ freq }}" {% if report and report.exercise_frequency == freq %}selected{% endif %}>{{ freq }}</option>
                         {% endfor %}
                     </select>
                 </div>
             </div>
             
             <button type="submit" class="submit-btn">
-                ✨ Obtenir mon analyse et mes recommandations
+                {% if is_edit %}
+                    💾 Enregistrer les modifications
+                {% else %}
+                    ✨ Obtenir mon analyse et mes recommandations
+                {% endif %}
             </button>
         </form>
     </div>
