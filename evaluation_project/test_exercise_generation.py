@@ -4,6 +4,7 @@ Script de test pour la génération d'exercices avec ObjectId
 import os
 import sys
 import django
+from backend.mongodb_utils import get_mongodb_client
 
 # Ajouter le dossier du projet au path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -29,7 +30,7 @@ def test_exercise_generation():
     print(f"✅ Professeur trouvé: {prof.username}")
     
     # 2. Créer un document de test
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     doc_data = {

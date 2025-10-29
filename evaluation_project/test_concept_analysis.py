@@ -5,6 +5,7 @@ Teste que le nouveau service ConceptAnalysisService fonctionne correctement
 
 import os
 import django
+from backend.mongodb_utils import get_mongodb_client
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
@@ -36,7 +37,7 @@ def test_concept_analysis():
     print(f"   - Résultats manuels: {manual_results.count()}")
     
     # Récupérer les soumissions IA
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     ai_submissions = list(db.student_exercise_submissions.find({

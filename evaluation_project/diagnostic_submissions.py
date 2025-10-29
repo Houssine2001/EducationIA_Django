@@ -7,6 +7,7 @@ Vérifie pourquoi le comptage des soumissions affiche 0
 import os
 import sys
 import django
+from backend.mongodb_utils import get_mongodb_client
 
 # Configuration Django
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -22,7 +23,7 @@ def diagnostic_submissions():
     print("=== DIAGNOSTIC DES SOUMISSIONS ===\n")
     
     # Connexion MongoDB
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     # 1. Vérifier le set spécifique mentionné

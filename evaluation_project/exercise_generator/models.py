@@ -4,6 +4,7 @@ Modèles de données pour la génération automatique d'exercices par IA
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
+from backend.mongodb_utils import get_mongodb_client
 import json
 from .fields import CompatibleJSONField
 from bson.objectid import ObjectId
@@ -19,14 +20,13 @@ class MongoDBCompatibleModel(models.Model):
     
     def save(self, *args, **kwargs):
         """Override save pour gérer les ObjectId de MongoDB"""
-        from pymongo import MongoClient
         from django.conf import settings
         from datetime import datetime
         
         # Si c'est une nouvelle instance (pas encore en DB)
         if self._state.adding:
             # Sauvegarder directement dans MongoDB avec PyMongo
-            client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+            client = get_mongodb_client()
             db = client[settings.MONGO_DB_NAME]
             collection = db[self._meta.db_table]
             
@@ -71,7 +71,7 @@ class MongoDBCompatibleModel(models.Model):
             
         else:
             # UPDATE : Modifier le document existant dans MongoDB
-            client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+            client = get_mongodb_client()
             db = client[settings.MONGO_DB_NAME]
             collection = db[self._meta.db_table]
             
@@ -445,10 +445,9 @@ class ExerciseSet(MongoDBCompatibleModel):
             return self._exercise_count
         
         # Sinon, calculer via PyMongo
-        from pymongo import MongoClient
         from django.conf import settings
         
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         count = db.exercise_generator_exerciseset_exercises.count_documents({
             'exerciseset_id': str(self.pk)
@@ -463,10 +462,9 @@ class ExerciseSet(MongoDBCompatibleModel):
             return self._submissions_count
         
         # Sinon, calculer via PyMongo
-        from pymongo import MongoClient
         from django.conf import settings
         
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         count = db.student_exercise_submissions.count_documents({
             'exercise_set_id': str(self.pk)

@@ -5,6 +5,7 @@ Garde uniquement le profil le plus récent pour chaque utilisateur.
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 from django.conf import settings
+from backend.mongodb_utils import get_mongodb_client
 from pymongo import MongoClient
 
 
@@ -15,7 +16,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING('🔍 Recherche des profils dupliqués via MongoDB...'))
         
         # Connexion MongoDB directe
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         profiles_collection = db['evaluation_userprofile']
         

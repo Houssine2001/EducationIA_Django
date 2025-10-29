@@ -3,6 +3,7 @@ Script de debug pour vérifier pourquoi manual_concept_insights est vide
 """
 import os
 import django
+from backend.mongodb_utils import get_mongodb_client
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
@@ -32,7 +33,7 @@ for student in students[:3]:
             print(f"   - {r.test.title}: {r.percentage_score}% (ID: {r.id})")
         
         # Tester l'analyse par concepts
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         analyzer = ConceptAnalysisService(student, db_connection=db)

@@ -4,6 +4,7 @@ Vérifier les documents existants et nettoyer les documents de test
 import os
 import sys
 import django
+from backend.mongodb_utils import get_mongodb_client
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
@@ -13,7 +14,7 @@ from pymongo import MongoClient
 from django.conf import settings
 from bson import ObjectId
 
-client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+client = get_mongodb_client()
 db = client[settings.MONGO_DB_NAME]
 
 print("\n=== DOCUMENTS DE COURS ===\n")

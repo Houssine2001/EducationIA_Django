@@ -11,6 +11,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Count
 from django.db import models
 from django.conf import settings
+from backend.mongodb_utils import get_mongodb_client
 import json
 
 from .models import (
@@ -58,7 +59,7 @@ def get_mongo_document_simple(model_class, pk):
         raise Http404(f"{model_class.__name__} non trouvé")
     
     # Connexion MongoDB directe
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     # Nom de la collection
@@ -99,7 +100,7 @@ def get_mongo_object(model_class, pk, **kwargs):
         raise Http404(f"{model_class.__name__} non trouvé")
     
     # Connexion MongoDB directe
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     # Nom de la collection
@@ -388,7 +389,7 @@ def document_detail(request, pk):
     document = get_mongo_document_simple(CourseDocument, pk)
     
     # Récupérer les exercices via PyMongo
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     exercises_data = list(db.generated_exercises.find(
@@ -477,7 +478,7 @@ def exercise_list(request):
     concept = request.GET.get('concept', '')
     
     # Connexion MongoDB directe
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     # Récupérer les IDs des documents de l'enseignant
@@ -554,7 +555,7 @@ def exercise_detail(request, pk):
     exercise = get_mongo_document_simple(GeneratedExercise, pk)
     
     # Récupérer le document source via PyMongo
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     source_doc_data = None
@@ -599,7 +600,7 @@ def exercise_validate(request, pk):
     exercise = get_mongo_object(GeneratedExercise, pk)
     
     # Vérifier que le document source appartient au professeur connecté
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     source_doc = db.course_documents.find_one({
@@ -742,7 +743,7 @@ def test_create(request, document_pk):
         from pymongo import MongoClient
         from django.conf import settings
         
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         # Tous les exercices du document
@@ -812,7 +813,7 @@ def test_detail(request, pk):
     from pymongo import MongoClient
     from django.conf import settings
     
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     # Les IDs des exercices sont stockés dans test.exercise_ids (ArrayField)
@@ -945,7 +946,7 @@ def exercise_sets_list(request):
     from bson.objectid import ObjectId
     
     # Récupérer directement via PyMongo pour éviter les problèmes avec Django ORM
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     # 🔧 NORMALISATION AUTOMATIQUE DES TEACHER_ID
@@ -1048,7 +1049,7 @@ def create_exercise_set(request, document_id):
         )
         
         # Récupérer les exercices via PyMongo (contourne bug ObjectId)
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         # Convertir exercise_ids en ObjectId
@@ -1091,7 +1092,7 @@ def create_exercise_set(request, document_id):
         return redirect('exercise_generator:exercise_set_detail', set_id=exercise_set.id)
     
     # GET : afficher le formulaire - Récupérer exercices via PyMongo
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     exercises_data = list(db.generated_exercises.find({'source_document_id': document.pk}))
@@ -1124,7 +1125,7 @@ def exercise_set_detail(request, set_id):
     exercise_set = get_mongo_document_simple(ExerciseSet, set_id)
     
     # ✅ Récupérer le document source via PyMongo
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     source_doc_data = db.course_documents.find_one({'_id': exercise_set.source_document_id})
@@ -1214,7 +1215,7 @@ def publish_exercise_set(request, set_id):
     exercise_set = get_mongo_document_simple(ExerciseSet, set_id)
     
     # ✅ Compter les exercices via PyMongo
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     # IMPORTANT: Les IDs sont stockés comme strings dans la table ManyToMany
@@ -1292,7 +1293,7 @@ def student_exercise_sets(request):
         return redirect('evaluation:student_dashboard')
     
     # Récupérer via PyMongo pour éviter les erreurs ManyToMany
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     # Sets publiés
@@ -1377,7 +1378,7 @@ def student_take_exercise_set(request, set_id):
         return redirect('evaluation:student_dashboard')
     
     # Connexion MongoDB
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     # Récupérer le set via PyMongo
@@ -1516,7 +1517,7 @@ def student_exercise_result(request, set_id):
     from bson.objectid import ObjectId
     
     # Connexion MongoDB
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     # Récupérer le set
@@ -1627,7 +1628,7 @@ def exercise_edit(request, pk):
     exercise = get_mongo_document_simple(GeneratedExercise, pk)
     
     # Vérifier que le document source appartient au professeur connecté
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     source_doc = db.course_documents.find_one({

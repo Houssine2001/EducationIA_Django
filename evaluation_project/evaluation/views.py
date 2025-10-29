@@ -1142,7 +1142,7 @@ def student_progress(request):
     ).select_related('test').order_by('-created_at')
     
     # 2.1 RÉCUPÉRER TOUS LES RÉSULTATS IA
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     ai_submissions = list(db.student_exercise_submissions.find({
@@ -1787,7 +1787,7 @@ def view_result(request, result_id):
     
     # Récupérer le résultat via PyMongo
     try:
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         result_data = db.results.find_one({
@@ -1833,7 +1833,7 @@ def test_history(request, test_id):
     
     # Récupérer le test via PyMongo
     try:
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         test_data = db.tests.find_one({'_id': ObjectId(test_id)})
@@ -1969,7 +1969,7 @@ def get_test_stats_ajax(request, test_id):
     
     # Récupérer le test via PyMongo
     try:
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         test_data = db.tests.find_one({'_id': ObjectId(test_id)})
@@ -2014,7 +2014,7 @@ def test_history(request, test_id):
     
     # Récupérer le test via PyMongo
     try:
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         test_data = db.tests.find_one({'_id': ObjectId(test_id)})
@@ -2145,7 +2145,7 @@ def my_tests(request):
     all_manual_tests = Test.objects.filter(status='published').order_by('-created_at')
     
     # Récupérer les tests IA via PyMongo
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     ai_exercise_sets = list(db.exercise_sets.find({'status': 'published'}).sort('created_at', -1))
@@ -2277,7 +2277,7 @@ def my_tests(request):
     manual_time = sum(r.submission.test.duration for r in manual_results) / 60  # En heures
     
     # Tests IA
-    client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+    client = get_mongodb_client()
     db = client[settings.MONGO_DB_NAME]
     
     ai_submissions = list(db.student_exercise_submissions.find({
@@ -2360,7 +2360,7 @@ def my_badges(request):
             from pymongo import MongoClient
             from django.conf import settings
 
-            client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+            client = get_mongodb_client()
             db = client[settings.MONGO_DB_NAME]
 
             found = db['evaluation_userprofile'].find_one({'user_id': request.user.id}, sort=[('created_at', -1)])
@@ -2755,7 +2755,7 @@ def signup(request):
             from django.utils import timezone as django_timezone
             
             # Connexion MongoDB
-            client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+            client = get_mongodb_client()
             db = client[settings.MONGO_DB_NAME]
             
             # Obtenir le prochain ID pour auth_user

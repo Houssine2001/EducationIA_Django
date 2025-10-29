@@ -759,8 +759,9 @@ def gamified_dashboard(request):
         try:
             from pymongo import MongoClient
             from django.conf import settings
+from backend.mongodb_utils import get_mongodb_client
 
-            client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+            client = get_mongodb_client()
             db = client[settings.MONGO_DB_NAME]
 
             found = db['evaluation_userprofile'].find_one({'user_id': request.user.id}, sort=[('created_at', -1)])
@@ -848,7 +849,7 @@ def gamified_dashboard(request):
                 from django.conf import settings
                 
                 # Connexion MongoDB pour vérifier les soumissions
-                client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+                client = get_mongodb_client()
                 db = client[settings.MONGO_DB_NAME]
                 
                 # Compter les exercices complétés depuis le début du défi

@@ -3,6 +3,7 @@ from exercise_generator.views import get_mongo_document_simple
 from exercise_generator.models import ExerciseSet
 from pymongo import MongoClient
 from django.conf import settings
+from backend.mongodb_utils import get_mongodb_client
 
 class Command(BaseCommand):
     help = 'Tester la vue exercise_set_detail'
@@ -16,7 +17,7 @@ class Command(BaseCommand):
         self.stdout.write(f'Set récupéré: {exercise_set.title}')
         
         # Connexion MongoDB
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
         
         # Test du comptage des soumissions (avec notre fix)

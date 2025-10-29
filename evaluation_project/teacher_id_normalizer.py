@@ -4,6 +4,7 @@ Système de normalisation automatique des teacher_id pour éviter les problèmes
 import os
 import sys
 import django
+from backend.mongodb_utils import get_mongodb_client
 
 # Configuration Django
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -19,7 +20,7 @@ class TeacherIdNormalizer:
     """
     
     def __init__(self):
-        self.client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        self.client = get_mongodb_client()
         self.db = self.client[settings.MONGO_DB_NAME]
     
     def auto_normalize_all(self):

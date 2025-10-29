@@ -4,6 +4,7 @@ Orchestre l'analyse de documents et la génération d'exercices
 """
 from typing import Dict, List, Optional
 from django.contrib.auth.models import User
+from backend.mongodb_utils import get_mongodb_client
 from .models import (
     CourseDocument, 
     GeneratedExercise, 
@@ -186,12 +187,11 @@ class ExerciseGenerationService:
                     options_data = {}
                 
                 # Création de l'exercice via PyMongo (contourne bug ObjectId)
-                from pymongo import MongoClient
                 from django.conf import settings
                 from bson import ObjectId as BsonObjectId
                 from datetime import datetime
                 
-                client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+                client = get_mongodb_client()
                 db = client[settings.MONGO_DB_NAME]
                 
                 exercise_doc = {

@@ -1,13 +1,14 @@
 from django.core.management.base import BaseCommand
 from pymongo import MongoClient
 from django.conf import settings
+from backend.mongodb_utils import get_mongodb_client
 from bson.objectid import ObjectId
 
 class Command(BaseCommand):
     help = 'Diagnostiquer les soumissions pour un set spécifique'
 
     def handle(self, *args, **options):
-        client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        client = get_mongodb_client()
         db = client[settings.MONGO_DB_NAME]
 
         # Vérifier le set spécifique

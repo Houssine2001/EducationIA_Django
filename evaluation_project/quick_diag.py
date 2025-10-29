@@ -1,9 +1,10 @@
 from pymongo import MongoClient
 from django.conf import settings
+from backend.mongodb_utils import get_mongodb_client
 from bson.objectid import ObjectId
 
 # Connexion MongoDB
-client = MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+client = get_mongodb_client()
 db = client[settings.MONGO_DB_NAME]
 
 # Analyser le set spécifique
