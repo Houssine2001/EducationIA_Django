@@ -3,6 +3,7 @@ Vues pour l'application d'évaluation
 """
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
@@ -567,7 +568,18 @@ def student_dashboard(request):
         student=request.user
     ).select_related('test').order_by('-created_at')[:5]
     
-    # 6. ALERTES ET NOTIFICATIONS
+    # 6. RECOMMANDATIONS MANUELLES DES ENSEIGNANTS
+    from .models import ManualRecommendation
+    manual_recommendations = ManualRecommendation.objects.filter(
+        student=request.user
+    ).select_related('teacher', 'test').order_by('-created_at')[:3]
+    
+    # Marquer les recommandations comme lues (iterate through the sliced queryset)
+    for rec in manual_recommendations:
+        if not rec.is_read:
+            rec.mark_as_read()
+    
+    # 7. ALERTES ET NOTIFICATIONS
     alerts = []
     
     # Alerte si baisse de performances
@@ -615,6 +627,10 @@ def student_dashboard(request):
         # Recommandations IA
         'recommendations': recommendations[:6],  # Top 6 recommandations
         'has_recommendations': len(recommendations) > 0,
+        
+        # Recommandations manuelles des enseignants
+        'manual_recommendations': manual_recommendations,
+        'has_manual_recommendations': manual_recommendations.exists(),
         
         # Gamification
         'level_info': level_info,
@@ -2721,3 +2737,211 @@ def signup(request):
             return render(request, 'registration/signup.html')
     
     return render(request, 'registration/signup.html')
+
+
+# ============================================
+# RECOMMANDATIONS MANUELLES - ENSEIGNANT
+# ============================================
+
+@login_required
+def manual_recommendations_list(request):
+    """
+    Liste des étudiants avec leurs tests pour créer des recommandations
+    """
+    if not request.user.is_staff:
+        messages.error(request, "Accès réservé aux enseignants")
+        return redirect('evaluation:student_dashboard')
+    
+    from .models import ManualRecommendation
+    from pymongo import MongoClient
+    from django.conf import settings
+    
+    # Utiliser PyMongo directement pour éviter les problèmes de Djongo avec NOT
+    client = MongoClient(settings.DATABASES['default']['CLIENT']['host'])
+    db = client[settings.DATABASES['default']['NAME']]
+    
+    # Récupérer tous les étudiants (is_staff=False, is_active=True)
+    student_docs = list(db.auth_user.find({
+        'is_staff': False,
+        'is_active': True
+    }))
+    
+    # Convertir en objets User Django
+    student_ids = [doc['id'] for doc in student_docs]
+    students = User.objects.filter(id__in=student_ids)
+    
+    # Pour chaque étudiant, récupérer ses résultats et recommandations
+    students_data = []
+    for student in students:
+        # Récupérer les résultats des tests
+        results = list(Result.objects.filter(student=student).select_related('test').order_by('-created_at')[:5])
+        
+        # Récupérer les recommandations existantes
+        recommendations = list(ManualRecommendation.objects.filter(
+            student=student,
+            teacher=request.user
+        ).select_related('test').order_by('-created_at'))
+        
+        # Compter les non lues
+        unread_count = sum(1 for rec in recommendations if not rec.is_read)
+        
+        students_data.append({
+            'student': student,
+            'results': results,
+            'recommendations': recommendations,
+            'unread_count': unread_count
+        })
+    
+    context = {
+        'students_data': students_data,
+    }
+    
+    return render(request, 'evaluation/teacher/manual_recommendations_list.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def create_recommendation(request):
+    """
+    Créer une nouvelle recommandation pour un étudiant
+    """
+    if not request.user.is_staff:
+        return JsonResponse({'success': False, 'error': 'Accès non autorisé'}, status=403)
+    
+    from .models import ManualRecommendation
+    import traceback
+    
+    student_id = request.POST.get('student_id')
+    test_id = request.POST.get('test_id')  # Optionnel
+    title = request.POST.get('title', '').strip()
+    message = request.POST.get('message', '').strip()
+    
+    if not student_id or not title or not message:
+        return JsonResponse({'success': False, 'error': 'Tous les champs sont obligatoires'}, status=400)
+    
+    try:
+        # Éviter is_staff=False avec Djongo - vérifier après récupération
+        student = User.objects.get(id=student_id)
+        if student.is_staff:
+            return JsonResponse({'success': False, 'error': 'Cet utilisateur est un enseignant'}, status=400)
+        
+        test = None
+        if test_id and test_id != '':
+            try:
+                test = Test.objects.get(id=test_id)
+            except Test.DoesNotExist:
+                pass  # Test optionnel, continuer sans erreur
+        
+        recommendation = ManualRecommendation.objects.create(
+            teacher=request.user,
+            student=student,
+            test=test,
+            title=title,
+            message=message
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Recommandation créée avec succès',
+            'recommendation_id': str(recommendation.id)
+        })
+        
+    except User.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Étudiant introuvable'}, status=404)
+    except Exception as e:
+        error_detail = traceback.format_exc()
+        print(f"Erreur création recommandation: {error_detail}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def edit_recommendation(request, recommendation_id):
+    """
+    Modifier une recommandation existante
+    """
+    if not request.user.is_staff:
+        return JsonResponse({'success': False, 'error': 'Accès non autorisé'}, status=403)
+    
+    from .models import ManualRecommendation
+    import traceback
+    
+    title = request.POST.get('title', '').strip()
+    message = request.POST.get('message', '').strip()
+    
+    # Log pour debug
+    print(f"Edit recommendation {recommendation_id} - Title: '{title}', Message: '{message}'")
+    print(f"POST data: {request.POST}")
+    
+    if not title or not message:
+        return JsonResponse({
+            'success': False, 
+            'error': f'Tous les champs sont obligatoires. Title: {bool(title)}, Message: {bool(message)}'
+        }, status=400)
+    
+    try:
+        recommendation = ManualRecommendation.objects.get(id=recommendation_id, teacher=request.user)
+        recommendation.title = title
+        recommendation.message = message
+        recommendation.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Recommandation modifiée avec succès'
+        })
+        
+    except ManualRecommendation.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Recommandation introuvable'}, status=404)
+    except Exception as e:
+        error_detail = traceback.format_exc()
+        print(f"Erreur modification recommandation: {error_detail}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def delete_recommendation(request, recommendation_id):
+    """
+    Supprimer une recommandation
+    """
+    if not request.user.is_staff:
+        return JsonResponse({'success': False, 'error': 'Accès non autorisé'}, status=403)
+    
+    from .models import ManualRecommendation
+    
+    try:
+        recommendation = ManualRecommendation.objects.get(id=recommendation_id, teacher=request.user)
+        recommendation.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Recommandation supprimée avec succès'
+        })
+        
+    except ManualRecommendation.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Recommandation introuvable'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def student_recommendations(request):
+    """
+    Afficher les recommandations reçues par l'étudiant (déjà intégré au dashboard)
+    """
+    from .models import ManualRecommendation
+    
+    recommendations = ManualRecommendation.objects.filter(
+        student=request.user
+    ).select_related('teacher', 'test').order_by('-created_at')
+    
+    # Marquer les recommandations comme lues
+    unread = recommendations.filter(is_read=False)
+    for rec in unread:
+        rec.mark_as_read()
+    
+    context = {
+        'recommendations': recommendations,
+    }
+    
+    return render(request, 'evaluation/student/recommendations.html', context)

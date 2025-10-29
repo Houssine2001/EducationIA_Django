@@ -21,6 +21,12 @@ urlpatterns = [
     path('teacher/test/<str:test_id>/statistics/', views.test_statistics, name='test_statistics'),
     path('teacher/students/', views.students_list, name='students_list'),
     
+    # Recommandations manuelles
+    path('teacher/recommendations/', views.manual_recommendations_list, name='manual_recommendations_list'),
+    path('teacher/recommendations/create/', views.create_recommendation, name='create_recommendation'),
+    path('teacher/recommendations/<int:recommendation_id>/edit/', views.edit_recommendation, name='edit_recommendation'),
+    path('teacher/recommendations/<int:recommendation_id>/delete/', views.delete_recommendation, name='delete_recommendation'),
+    
     # ============================================
     # URLs Étudiants
     # ============================================

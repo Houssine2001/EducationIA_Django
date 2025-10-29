@@ -38,6 +38,58 @@
 </div>
 {% endif %}
 
+<!-- Recommandations Manuelles des Enseignants -->
+{% if manual_recommendations %}
+<div class="mb-8">
+    <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center">
+        <i class="fas fa-comment-dots text-purple-600 mr-3"></i>
+        💌 Messages de vos enseignants
+    </h2>
+    
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for rec in manual_recommendations %}
+        <div class="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl shadow-lg p-5 border-l-4 border-purple-600 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+            <!-- En-tête -->
+            <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                        {{ rec.teacher.first_name|slice:":1" }}{{ rec.teacher.last_name|slice:":1" }}
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-gray-900">{{ rec.teacher.get_full_name }}</h4>
+                        <p class="text-xs text-gray-500">{{ rec.created_at|date:"d/m/Y" }}</p>
+                    </div>
+                </div>
+                <span class="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                    <i class="fas fa-star"></i> Nouveau
+                </span>
+            </div>
+            
+            <!-- Titre -->
+            <h5 class="text-lg font-bold text-gray-900 mb-2">
+                {{ rec.title }}
+            </h5>
+            
+            <!-- Message -->
+            <p class="text-sm text-gray-700 mb-3 line-clamp-3">
+                {{ rec.message }}
+            </p>
+            
+            <!-- Test lié (si applicable) -->
+            {% if rec.test %}
+            <div class="mt-3 pt-3 border-t border-purple-200">
+                <p class="text-xs text-gray-600">
+                    <i class="fas fa-file-alt mr-1"></i>
+                    Concernant : <strong>{{ rec.test.title }}</strong>
+                </p>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <!-- Statistiques principales -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     <!-- Score Moyen -->

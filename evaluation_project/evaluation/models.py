@@ -434,3 +434,40 @@ class Result(models.Model):
         else:
             return 'F'
 
+
+# ============================================
+# Modèle : Recommandation Manuelle
+# ============================================
+
+class ManualRecommendation(models.Model):
+    """
+    Recommandations personnalisées écrites par les enseignants pour les étudiants
+    """
+    # Relations
+    teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name='given_recommendations')
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_recommendations')
+    test = models.ForeignKey(Test, on_delete=models.CASCADE, null=True, blank=True, related_name='manual_recommendations')
+    
+    # Contenu de la recommandation
+    title = models.CharField(max_length=200, verbose_name='Titre')
+    message = models.TextField(verbose_name='Message de recommandation')
+    
+    # Métadonnées
+    is_read = models.BooleanField(default=False, verbose_name='Lu par l\'étudiant')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'manual_recommendation'
+        verbose_name = 'Recommandation Manuelle'
+        verbose_name_plural = 'Recommandations Manuelles'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Recommandation de {self.teacher.get_full_name()} pour {self.student.get_full_name()}"
+    
+    def mark_as_read(self):
+        """Marque la recommandation comme lue"""
+        if not self.is_read:
+            self.is_read = True
+            self.save(update_fields=['is_read'])
